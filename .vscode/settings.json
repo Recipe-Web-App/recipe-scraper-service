@@ -4,7 +4,10 @@
   "python.analysis.extraPaths": [
     "./.venv/lib/python3.11/site-packages"
   ],
+<<<<<<< HEAD
   "python.analysis.autoImportCompletions": true,
+=======
+>>>>>>> 68a88df (Implemented sphinx documentation generation.)
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.organizeImports": "always"
