@@ -55,6 +55,10 @@ uvicorn = { extras = ["standard"], version = ">=0.34.2,<0.35.0" }
 pydoclint = "^0.6.6"
 docformatter = "^1.7.7"
 darglint = "^1.8.1"
+sphinx = "^8.2.3"
+sphinx-autodoc-typehints = "^3.2.0"
+sphinx-rtd-theme = "^3.0.2"
+sphinxcontrib-openapi = "^0.8.4"
 
 [tool.black]
 line-length = 88
