@@ -34,7 +34,7 @@ Includes RESTful APIs for ingredients, recipes, health checks, and more.
     ├── dependency/         # Dependency injection tests
     └── performance/        # Performance/load testing scripts
 
-    k8s/                    # Kubernetes manifests
+    k8s/                     # Kubernetes manifests
     Dockerfile               # Docker image build
     docker-compose.yml       # Local development docker-compose setup
     .github/workflows/       # GitHub Actions CI/CD workflows

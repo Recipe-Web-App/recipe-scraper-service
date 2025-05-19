@@ -53,3 +53,11 @@ repos:
     hooks:
       - id: darglint
         args: ["--docstring-style=google", "--strictness=short"]
+
+  - repo: local
+    hooks:
+      - id: sphinx-docs-build
+        name: sphinx-docs-build
+        entry: bash -c 'poetry run sphinx-build -b html docs/source docs/build'
+        language: system
+        pass_filenames: false
