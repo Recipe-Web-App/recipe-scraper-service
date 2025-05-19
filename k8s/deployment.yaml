@@ -1,0 +1,56 @@
+---
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recipe-scraper
+  namespace: recipe-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recipe-scraper
+  template:
+    metadata:
+      labels:
+        app: recipe-scraper
+    spec:
+      containers:
+        - name: recipe-scraper
+          image: recipe-scraper-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_SCHEMA
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_SCHEMA
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: recipe-scraper-secret
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
