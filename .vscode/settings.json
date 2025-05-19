@@ -1,0 +1,41 @@
+{
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "always"
+  },
+  "python.sortImports.args": [
+    "--profile",
+    "black"
+  ],
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.linting.ruffArgs": [
+    "--fix"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.autoTestDiscoverOnSaveEnabled": true,
+  "python.envFile": "${workspaceFolder}/.env",
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    ".venv": true
+  },
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "yaml.schemas": {
+    "https://json.schemastore.org/kubernetes.json": "k8s/**/*.yaml"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "rest-client.environmentVariables": {
+    "local": {
+      "BASE_URL": "http://localhost:8000"
+    }
+  },
+  "autoDocstring.docstringFormat": "google"
+}
