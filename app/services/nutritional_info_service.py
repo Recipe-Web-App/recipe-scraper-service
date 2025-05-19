@@ -8,7 +8,6 @@ Includes logging for traceability and debugging.
 
 from app.core.logging import get_logger
 from app.schemas.common.ingredient import Quantity
-from app.schemas.common.nutritional_info import NutritionalInfo
 from app.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse,
 )
@@ -50,19 +49,19 @@ class NutritionalInfoService:
                 ingredients should be included in the response.
 
         Returns:
-            RecipeNutritionalInfoResponse: Nutrional info response schema containing
+            RecipeNutritionalInfoResponse: Nutritional info response schema containing
                 individual ingredients and/or an overall total.
         """
         self.__log.info(
-            "Getting nutritional info for recipe ID %s (includeTotal=%s | \
-              includeIngredients=%s)",
+            "Getting nutritional info for recipe ID {} (includeTotal={} | "
+            "includeIngredients={})",
             recipe_id,
             include_total,
             include_ingredients,
         )
 
-        ingredients = [
-            IngredientNutritionalInfoResponse(
+        ingredients = {
+            1: IngredientNutritionalInfoResponse(
                 ingredient={
                     "ingredient_id": 1,
                     "name": "Almond",
@@ -71,7 +70,7 @@ class NutritionalInfoService:
                         "measurement": "gram",
                     },
                 },
-                macronutrients={
+                macro_nutrients={
                     "calories": 579.0,
                     "protein_g": 21.15,
                     "fat_g": 49.93,
@@ -100,9 +99,9 @@ class NutritionalInfoService:
                     "sodium_mg": 1.0,
                     "zinc_mg": 3.12,
                 },
-                allergies=["tree nuts"],
+                allergies=["tree_nuts"],
             ),
-            IngredientNutritionalInfoResponse(
+            2: IngredientNutritionalInfoResponse(
                 ingredient={
                     "ingredient_id": 2,
                     "name": "Oats",
@@ -111,7 +110,7 @@ class NutritionalInfoService:
                         "measurement": "gram",
                     },
                 },
-                macronutrients={
+                macro_nutrients={
                     "calories": 389.0,
                     "protein_g": 16.89,
                     "fat_g": 6.9,
@@ -142,14 +141,14 @@ class NutritionalInfoService:
                 },
                 allergies=["gluten"],
             ),
-        ]
+        }
 
         response = RecipeNutritionalInfoResponse()
         if include_ingredients:
             response.ingredients = ingredients
         if include_total:
-            response.total = NutritionalInfo()
-            for ingredient in ingredients:
+            response.total = IngredientNutritionalInfoResponse()
+            for ingredient in ingredients.values():
                 response.total += ingredient
 
         return response
@@ -173,7 +172,7 @@ class NutritionalInfoService:
                 containing ingredient details and nutritional values.
         """
         self.__log.info(
-            "Getting nutritional info for ingredient ID %s (%s %s)",
+            "Getting nutritional info for ingredient ID {} ({} {})",
             ingredient_id,
             quantity.quantity_value,
             quantity.measurement,
@@ -188,7 +187,7 @@ class NutritionalInfoService:
                     "measurement": "gram",
                 },
             },
-            macronutrients={
+            macro_nutrients={
                 "calories": 579.0,
                 "protein_g": 21.15,
                 "fat_g": 49.93,
@@ -217,5 +216,5 @@ class NutritionalInfoService:
                 "sodium_mg": 1.0,
                 "zinc_mg": 3.12,
             },
-            allergies=["tree nuts"],
+            allergies=["tree_nuts"],
         )

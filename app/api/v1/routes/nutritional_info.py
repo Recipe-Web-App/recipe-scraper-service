@@ -7,6 +7,7 @@ retrieval, updating, and deletion.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
+from fastapi.responses import JSONResponse
 
 from app.schemas.common.ingredient import Quantity
 from app.schemas.response.ingredient_nutritional_info_response import (
@@ -36,7 +37,7 @@ def get_nutritional_info_service() -> NutritionalInfoService:
     description=(
         "Returns a list of all nutritional info for all ingredients in the recipe."
     ),
-    response_class=RecipeNutritionalInfoResponse,
+    response_class=JSONResponse,
 )  # type: ignore[misc]
 def get_nutritional_info_for_recipe(
     service: Annotated[NutritionalInfoService, Depends(get_nutritional_info_service)],
@@ -84,7 +85,7 @@ def get_nutritional_info_for_recipe(
     tags=["ingredient"],
     summary="Get nutritional info for an ingredient",
     description="Returns all nutritional info for the given ingredient.",
-    response_class=IngredientNutritionalInfoResponse,
+    response_class=JSONResponse,
 )  # type: ignore[misc]
 def get_nutritional_info_for_ingredient(
     service: Annotated[NutritionalInfoService, Depends(get_nutritional_info_service)],
