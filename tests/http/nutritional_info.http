@@ -1,0 +1,9 @@
+### Get nutritional info for a recipe
+GET http://localhost:8000/recipe-scraper/recipes/1/nutritional-info?include_total=true&include_ingredients=true
+Accept: application/json
+
+###
+
+### Get nutritional info for an ingredient
+GET http://localhost:8000/recipe-scraper/ingredients/42/nutritional-info?quantity_value=100&measurement=gram
+Accept: application/json

@@ -58,7 +58,7 @@ def create_recipe(
     summary="Get popular recipes from internet",
     description="Returns a list of URLs pointing to popular recipes from around the \
       internet.",
-    response_class=PopularRecipesResponse,
+    response_class=JSONResponse,
 )  # type: ignore[misc]
 def get_popular_recipes(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],

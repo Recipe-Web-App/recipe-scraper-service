@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 from fastapi.params import Depends
+from fastapi.responses import JSONResponse
 
 from app.schemas.common.ingredient import Quantity
 from app.schemas.common.pagination_params import PaginationParams
@@ -34,7 +35,7 @@ router = APIRouter()
     tags=["ingredient", "recommendations"],
     summary="Get substitutions for ingredient",
     description="Returns a list of recommended substitutions for the given ingredient.",
-    response_class=RecommendedSubstitutionsResponse,
+    response_class=JSONResponse,
 )  # type: ignore[misc]
 def get_recommended_substitutions(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
@@ -88,7 +89,7 @@ def get_recommended_substitutions(
     tags=["recipe", "recommendations"],
     summary="Recommend pairings for a recipe",
     description="Recommends various recipes to pair with the given recipe.",
-    response_class=PairingSuggestionsResponse,
+    response_class=JSONResponse,
 )  # type: ignore[misc]
 def get_pairing_suggestions(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],

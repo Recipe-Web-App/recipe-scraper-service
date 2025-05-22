@@ -45,10 +45,10 @@ class RecipeScraperService:
             JSONResponse: The created recipe data.
         """
         # TODO(jsamuelsen): Change return type to CreateRecipeResponse after testing
-        self.__log.info("Creating recipe from URL: %s", url)
+        self.__log.info("Creating recipe from URL: {}", url)
 
         scraper = scrape_me(url)
-        self.__log.info("Scraped Recipe: %s", scraper.to_json)
+        self.__log.info("Scraped Recipe: {}", scraper.to_json)
 
         return JSONResponse(scraper.to_json)
 
@@ -65,7 +65,7 @@ class RecipeScraperService:
             PopularRecipesResponse: The created popular recipe data.
         """
         self.__log.info(
-            "Generating popular recipes (limit=%s | offset=%s | count_only=%s)",
+            "Generating popular recipes (limit={} | offset={} | count_only={})",
             pagination.limit,
             pagination.offset,
             pagination.count_only,
@@ -136,8 +136,8 @@ class RecipeScraperService:
             RecommendedSubstitutionsResponse: The created recommended recipe data.
         """
         self.__log.info(
-            "Getting recommended substitutions for Ingredient ID %s (limit=%s | \
-              offset=%s | count_only=%s)",
+            "Getting recommended substitutions for Ingredient ID {} (limit={} | \
+              offset={} | count_only={})",
             ingredient_id,
             pagination.limit,
             pagination.offset,
