@@ -23,11 +23,13 @@ repos:
       - id: ruff
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v1.15.0 # or the latest stable version available
     hooks:
       - id: mypy
         additional_dependencies:
-          ["types-python-dateutil", "types-beautifulsoup4"]
+          - pydantic>=2.0.0
+          - types-python-dateutil
+          - types-beautifulsoup4
 
   - repo: https://github.com/jsh9/pydoclint
     rev: 0.6.7
@@ -47,12 +49,6 @@ repos:
             "--wrap-descriptions=88",
             "--style=google",
           ]
-
-  - repo: https://github.com/terrencepreilly/darglint
-    rev: v1.8.1
-    hooks:
-      - id: darglint
-        args: ["--docstring-style=google", "--strictness=short"]
 
   - repo: local
     hooks:

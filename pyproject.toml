@@ -33,6 +33,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 recipe-scraper-service = "app.main:main"  # Adjust as needed
+dev = "scripts.run_local:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
@@ -42,7 +43,6 @@ pytest-mock = "^3.14.0"
 pytest-benchmark = "^5.1.0"
 allure-pytest = "^2.14.2"
 respx = "^0.22.0"
-black = "^25.1.0"
 isort = "^6.0.1"
 mypy = "^1.15.0"
 unittest-xml-reporting = "^3.2.0"
@@ -54,11 +54,11 @@ ruff = "^0.11.10"
 uvicorn = { extras = ["standard"], version = ">=0.34.2,<0.35.0" }
 pydoclint = "^0.6.6"
 docformatter = "^1.7.7"
-darglint = "^1.8.1"
 sphinx = "^8.2.3"
 sphinx-autodoc-typehints = "^3.2.0"
 sphinx-rtd-theme = "^3.0.2"
 sphinxcontrib-openapi = "^0.8.4"
+black = "^25.1.0"
 
 [tool.black]
 line-length = 88
@@ -74,6 +74,7 @@ exclude = '''
 )/
 '''
 
+
 [tool.isort]
 profile = "black"
 multi_line_output = 3
@@ -86,20 +87,26 @@ known_first_party = ["app", "tests"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-select = ["ALL"]
-ignore = [
-    "D203",  # one-blank-line-before-class
-    "D213",  # multi-line-summary-second-line
+lint.select = ["ALL"]
+lint.ignore = [
+    "D203",   # one-blank-line-before-class
+    "D213",   # multi-line-summary-second-line
+    "FBT001", # boolean positional arguments
+    "FBT002", # boolean positional arguments
+    "TD003",  # Issue link with TODO statements
+    "FIX002", # Allow TODO statements
+    "D413",   # Blank line after last pydoc section
 ]
 fix = true
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
-plugins = []
+plugins = ["pydantic.mypy"]
 mypy_path = "app"
 exclude = ["tests/.*"]
 show_error_codes = true
+warn_unused_configs = true
 check_untyped_defs = true
 disallow_untyped_defs = true
 
@@ -143,3 +150,19 @@ style = "google"
 [tool.darglint]
 docstring-style = "google"
 strictness = "short"
+ignore = [ "DAR003" ]
+
+
+[tool.pydoclint]
+style = "google"
+arg-type-hints = "required"                     # Enforce type hints in Args section
+check-return-types = true                       # Require return type in docstring
+check-yields = true                             # Require docstring for generators
+check-raises = true                             # Require docstring for raised exceptions
+check-exceptions = true                         # Same as above, but for broader coverage
+exclude = ["^__init__\\.py$", "^__pycache__$"]  # Skip boilerplate and cache
+ignore-non-public = false                       # Apply checks even to _private functions
+check-short-description = true                  # Require one-line summary
+check-long-description = true                   # Require longer doc if needed
+check-arg-type-hints = false                    # Require type hints to exactly match type declaration
+strictness = "high"                             # Enforce all checks
