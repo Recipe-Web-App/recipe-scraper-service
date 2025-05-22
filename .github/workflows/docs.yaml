@@ -17,11 +17,7 @@ jobs:
 
     steps:
       - name: Checkout code
-<<<<<<< HEAD
         uses: actions/checkout@v4
-=======
-        uses: actions/checkout@v3
->>>>>>> 68a88df (Implemented sphinx documentation generation.)
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,11 +25,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Poetry
-<<<<<<< HEAD
         uses: abatilo/actions-poetry@v4
-=======
-        uses: abatilo/actions-poetry@v2
->>>>>>> 68a88df (Implemented sphinx documentation generation.)
         with:
           poetry-version: "1.8.2"
 

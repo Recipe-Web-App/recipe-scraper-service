@@ -52,14 +52,6 @@ repos:
 
   - repo: local
     hooks:
-<<<<<<< HEAD
-=======
-      - id: darglint
-        args: ["--docstring-style=google", "--strictness=short"]
-
-  - repo: local
-    hooks:
->>>>>>> 68a88df (Implemented sphinx documentation generation.)
       - id: sphinx-docs-build
         name: sphinx-docs-build
         entry: bash -c 'poetry run sphinx-build -b html docs/source docs/build'

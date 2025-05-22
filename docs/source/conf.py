@@ -15,20 +15,12 @@ from pathlib import Path
 
 sys.path.insert(0, Path.cwd().__str__())
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 68a88df (Implemented sphinx documentation generation.)
 # -- Project information -----------------------------------------------------
 
 project = "Recipe Scraper Service"
 copyright = "2025, Jonathan Samuelsen"  # noqa: A001
 author = "Jonathan Samuelsen"
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 68a88df (Implemented sphinx documentation generation.)
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -53,10 +45,6 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns: list[str] = []
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 68a88df (Implemented sphinx documentation generation.)
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
