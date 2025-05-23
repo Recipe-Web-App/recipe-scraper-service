@@ -110,4 +110,4 @@ Contributions are welcome! Please follow the coding standards and run tests befo
 
 ## License
 
-[MIT License](LICENSE)
+[GNU General Public License v3.0](LICENSE)
