@@ -33,7 +33,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 recipe-scraper-service = "app.main:main"  # Adjust as needed
-dev = "scripts.run_local:main"
+dev = "scripts.python.run_local:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

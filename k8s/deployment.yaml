@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recipe-scraper
+  namespace: recipe-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recipe-scraper
+  template:
+    metadata:
+      labels:
+        app: recipe-scraper
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: recipe-scraper
+          image: recipe-scraper-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_SCHEMA
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_SCHEMA
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: recipe-scraper-db-password
+                  key: POSTGRES_PASSWORD
+          livenessProbe:
+            httpGet:
+              path: /api/recipe-scraper/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/recipe-scraper/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

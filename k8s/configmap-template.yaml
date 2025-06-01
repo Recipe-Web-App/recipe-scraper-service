@@ -1,0 +1,12 @@
+---
+# k8s/configmap-template.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recipe-scraper-config
+  namespace: recipe-scraper
+data:
+  POSTGRES_USER: "${POSTGRES_USER}"
+  POSTGRES_DB: "${POSTGRES_DB}"
+  POSTGRES_HOST: "${POSTGRES_HOST}"
+  POSTGRES_SCHEMA: "${POSTGRES_SCHEMA}"

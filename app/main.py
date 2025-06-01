@@ -5,11 +5,11 @@ routers, and other startup procedures.
 """
 
 from fastapi import FastAPI
-from flake8 import configure_logging
 
 from app.api.v1.routes import api_router
+from app.core.logging import configure_logging
 
-configure_logging(0)
+configure_logging()
 
 app = FastAPI(
     title="Recipe Scraper Service",
@@ -17,4 +17,4 @@ app = FastAPI(
     description="An API for scraping and managing recipe data.",
 )
 
-app.include_router(api_router)
+app.include_router(api_router, prefix="/api")
