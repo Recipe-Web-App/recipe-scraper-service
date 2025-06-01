@@ -1,11 +1,11 @@
 ### Create Recipe from URL
-GET http://localhost:8000/recipe-scraper/create-recipe?url=https://example.com/some-recipe
+GET http://recipe.local/api/recipe-scraper/create-recipe?url=https://example.com/some-recipe
 Accept: application/json
 
 ###
 
 ### Get Popular Recipes with Pagination
-GET http://localhost:8000/recipe-scraper/popular-recipes?limit=5&offset=5&count_only=false
+GET http://recipe.local/api/recipe-scraper/popular-recipes?limit=5&offset=5&count_only=false
 Accept: application/json
 
 ###

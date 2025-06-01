@@ -17,4 +17,4 @@ app = FastAPI(
     description="An API for scraping and managing recipe data.",
 )
 
-app.include_router(api_router)
+app.include_router(api_router, prefix="/api")

@@ -5,8 +5,9 @@ set -euo pipefail
 
 NAMESPACE="recipe-scraper"
 CONFIG_DIR="k8s"
-CLUSTER_NAME="recipe-manager-system"
-IMAGE_NAME="recipe-scraper-service:latest"
+IMAGE_NAME="recipe-scraper-service"
+IMAGE_TAG="latest"
+FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Utility function for printing section separators
 print_separator() {
@@ -38,20 +39,11 @@ kubectl delete -f "${CONFIG_DIR}/service.yaml" -n "$NAMESPACE" --ignore-not-foun
 kubectl delete -f "${CONFIG_DIR}/ingress.yaml" -n "$NAMESPACE" --ignore-not-found
 
 print_separator
-echo "🐳 Removing Docker image '${IMAGE_NAME}' from kind nodes..."
+echo "🐳 Removing Docker image '${FULL_IMAGE_NAME}' from Minikube..."
 print_separator
 
-# Get all kind node container IDs for the cluster
-NODE_CONTAINERS=$(docker ps --filter "name=kind-${CLUSTER_NAME}" --format '{{.ID}}')
-
-if [ -z "$NODE_CONTAINERS" ]; then
-  echo "⚠️ No kind nodes found for cluster '${CLUSTER_NAME}'."
-else
-  for node in $NODE_CONTAINERS; do
-    echo "🛑 Removing image from node container $node ..."
-    docker exec "$node" crictl rmi "$IMAGE_NAME" || docker exec "$node" docker rmi "$IMAGE_NAME" || echo "⚠️ Image not found or could not be removed on node $node"
-  done
-fi
+eval "$(minikube docker-env)"
+docker rmi -f "$FULL_IMAGE_NAME" || echo "Image not found or already removed."
 
 print_separator
 read -r -p "🛑 Do you want to stop (shut down) Minikube now? (y/N): " stop_mk
