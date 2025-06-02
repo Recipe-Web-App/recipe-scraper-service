@@ -9,16 +9,20 @@ Includes logging for traceability and debugging.
 from fastapi.responses import JSONResponse
 from recipe_scrapers import scrape_me
 
-from app.core.logging import get_logger
-from app.schemas.common.ingredient import Ingredient, Quantity
-from app.schemas.common.pagination_params import PaginationParams
-from app.schemas.common.web_recipe import WebRecipe
-from app.schemas.response.pairing_suggestions_response import PairingSuggestionsResponse
-from app.schemas.response.recommended_recipes_reponse import PopularRecipesResponse
-from app.schemas.response.recommended_substitutions_response import (
+from app.api.v1.schemas.common.ingredient import Ingredient, Quantity
+from app.api.v1.schemas.common.pagination_params import PaginationParams
+from app.api.v1.schemas.common.web_recipe import WebRecipe
+from app.api.v1.schemas.response.pairing_suggestions_response import (
+    PairingSuggestionsResponse,
+)
+from app.api.v1.schemas.response.recommended_recipes_reponse import (
+    PopularRecipesResponse,
+)
+from app.api.v1.schemas.response.recommended_substitutions_response import (
     IngredientSubstitution,
     RecommendedSubstitutionsResponse,
 )
+from app.core.logging import get_logger
 
 
 class RecipeScraperService:

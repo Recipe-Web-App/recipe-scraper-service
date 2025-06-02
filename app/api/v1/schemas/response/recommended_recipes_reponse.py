@@ -5,8 +5,8 @@ Defines the Pydantic model for popular recipes returned in response payloads.
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common.pagination_params import PaginationParams
-from app.schemas.common.web_recipe import WebRecipe
+from app.api.v1.schemas.common.pagination_params import PaginationParams
+from app.api.v1.schemas.common.web_recipe import WebRecipe
 
 
 class PopularRecipesResponse(BaseModel):

@@ -5,8 +5,8 @@ Defines the Pydantic model for suggested pairings of ingredients or recipes.
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common.pagination_params import PaginationParams
-from app.schemas.common.web_recipe import WebRecipe
+from app.api.v1.schemas.common.pagination_params import PaginationParams
+from app.api.v1.schemas.common.web_recipe import WebRecipe
 
 
 class PairingSuggestionsResponse(BaseModel):

@@ -9,11 +9,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import JSONResponse
 
-from app.schemas.common.ingredient import Quantity
-from app.schemas.response.ingredient_nutritional_info_response import (
+from app.api.v1.schemas.common.ingredient import Quantity
+from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse,
 )
-from app.schemas.response.recipe_nutritional_info_response import (
+from app.api.v1.schemas.response.recipe_nutritional_info_response import (
     RecipeNutritionalInfoResponse,
 )
 from app.services.nutritional_info_service import NutritionalInfoService

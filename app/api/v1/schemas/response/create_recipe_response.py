@@ -5,7 +5,7 @@ Defines the Pydantic model for the response returned after creating a new recipe
 
 from pydantic import BaseModel
 
-from app.schemas.common.recipe import Recipe
+from app.api.v1.schemas.common.recipe import Recipe
 
 
 class CreateRecipeResponse(BaseModel):
