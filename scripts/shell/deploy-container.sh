@@ -65,7 +65,7 @@ else
 fi
 
 kubectl delete secret "$SECRET_NAME" -n "$NAMESPACE" --ignore-not-found
-envsubst < "${CONFIG_DIR}/secret.yaml" | kubectl apply -f -
+envsubst < "${CONFIG_DIR}/secret-template.yaml" | kubectl apply -f -
 
 print_separator
 echo "📦 Deploying Recipe-Scraper container..."

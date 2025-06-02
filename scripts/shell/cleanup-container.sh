@@ -34,7 +34,7 @@ print_separator
 
 kubectl delete -f "${CONFIG_DIR}/configmap-template.yaml" -n "$NAMESPACE" --ignore-not-found
 kubectl delete -f "${CONFIG_DIR}/deployment.yaml" -n "$NAMESPACE" --ignore-not-found
-kubectl delete -f "${CONFIG_DIR}/secret.yaml" -n "$NAMESPACE" --ignore-not-found
+kubectl delete -f "${CONFIG_DIR}/secret-template.yaml" -n "$NAMESPACE" --ignore-not-found
 kubectl delete -f "${CONFIG_DIR}/service.yaml" -n "$NAMESPACE" --ignore-not-found
 kubectl delete -f "${CONFIG_DIR}/ingress.yaml" -n "$NAMESPACE" --ignore-not-found
 
