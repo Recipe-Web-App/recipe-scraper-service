@@ -7,7 +7,7 @@ application.
 from sqlalchemy.orm import DeclarativeBase
 
 
-class Base(DeclarativeBase):
+class BaseDatabaseModel(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models.
 
     Inherits from:
