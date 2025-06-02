@@ -6,14 +6,14 @@ based on their ID and specified quantity.
 Includes logging for traceability and debugging.
 """
 
-from app.core.logging import get_logger
-from app.schemas.common.ingredient import Quantity
-from app.schemas.response.ingredient_nutritional_info_response import (
+from app.api.v1.schemas.common.ingredient import Quantity
+from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse,
 )
-from app.schemas.response.recipe_nutritional_info_response import (
+from app.api.v1.schemas.response.recipe_nutritional_info_response import (
     RecipeNutritionalInfoResponse,
 )
+from app.core.logging import get_logger
 
 
 class NutritionalInfoService:

@@ -1,5 +1,5 @@
 ### Create Recipe from URL
-GET http://recipe.local/api/recipe-scraper/create-recipe?url=https://example.com/some-recipe
+GET http://recipe.local/api/recipe-scraper/create-recipe?url=https://www.allrecipes.com/cheesy-bacon-ranch-burger-sliders-11738006
 Accept: application/json
 
 ###

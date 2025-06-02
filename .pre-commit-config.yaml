@@ -18,16 +18,18 @@ repos:
       - id: isort
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.11.10
+    rev: v0.11.12
     hooks:
       - id: ruff
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0 # or the latest stable version available
+    rev: v1.16.0 # or the latest stable version available
     hooks:
       - id: mypy
         additional_dependencies:
           - pydantic>=2.0.0
+          - pydantic-settings
+          - sqlalchemy
           - types-python-dateutil
           - types-beautifulsoup4
 
@@ -54,6 +56,10 @@ repos:
     hooks:
       - id: sphinx-docs-build
         name: sphinx-docs-build
-        entry: bash -c 'poetry run sphinx-build -b html docs/source docs/build'
+        entry: |
+          bash -c '
+            poetry run sphinx-apidoc -o docs/source/ app/
+            poetry run sphinx-build -b html docs/source docs/build
+          '
         language: system
         pass_filenames: false

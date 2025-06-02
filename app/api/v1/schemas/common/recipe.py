@@ -5,7 +5,7 @@ Defines the base data model for a recipe including its list of ingredients.
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common.ingredient import Ingredient
+from app.api.v1.schemas.common.ingredient import Ingredient
 
 
 class Recipe(BaseModel):

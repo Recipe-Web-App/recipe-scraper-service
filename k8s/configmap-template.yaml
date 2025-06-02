@@ -6,7 +6,7 @@ metadata:
   name: recipe-scraper-config
   namespace: recipe-scraper
 data:
-  POSTGRES_USER: "${POSTGRES_USER}"
+  RECIPE_SCRAPER_DB_USER: "${RECIPE_SCRAPER_DB_USER}"
   POSTGRES_DB: "${POSTGRES_DB}"
   POSTGRES_HOST: "${POSTGRES_HOST}"
   POSTGRES_SCHEMA: "${POSTGRES_SCHEMA}"

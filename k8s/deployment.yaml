@@ -1,3 +1,5 @@
+---
+# k8s/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,11 +24,11 @@ spec:
           ports:
             - containerPort: 8000
           env:
-            - name: POSTGRES_USER
+            - name: RECIPE_SCRAPER_DB_USER
               valueFrom:
                 configMapKeyRef:
                   name: recipe-scraper-config
-                  key: POSTGRES_USER
+                  key: RECIPE_SCRAPER_DB_USER
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:
@@ -42,11 +44,11 @@ spec:
                 configMapKeyRef:
                   name: recipe-scraper-config
                   key: POSTGRES_SCHEMA
-            - name: POSTGRES_PASSWORD
+            - name: RECIPE_SCRAPER_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: recipe-scraper-db-password
-                  key: POSTGRES_PASSWORD
+                  key: RECIPE_SCRAPER_DB_PASSWORD
           livenessProbe:
             httpGet:
               path: /api/recipe-scraper/health

@@ -10,8 +10,10 @@ from fastapi import APIRouter, Query
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 
-from app.schemas.common.pagination_params import PaginationParams
-from app.schemas.response.recommended_recipes_reponse import PopularRecipesResponse
+from app.api.v1.schemas.common.pagination_params import PaginationParams
+from app.api.v1.schemas.response.recommended_recipes_reponse import (
+    PopularRecipesResponse,
+)
 from app.services.recipe_scraper_service import RecipeScraperService
 
 

@@ -6,7 +6,7 @@ responses, including a list of ingredient nutritional info objects.
 
 from pydantic import BaseModel, Field
 
-from app.schemas.response.ingredient_nutritional_info_response import (
+from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse,
 )
 

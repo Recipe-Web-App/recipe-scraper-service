@@ -7,7 +7,7 @@ CLUSTER_NAME="recipe-manager-system"
 NAMESPACE="recipe-scraper"
 CONFIG_DIR="k8s"
 SECRET_NAME="recipe-scraper-db-password"
-PASSWORD_ENV_VAR="POSTGRES_PASSWORD"
+PASSWORD_ENV_VAR="RECIPE_SCRAPER_DB_PASSWORD"
 IMAGE_NAME="recipe-scraper-service"
 IMAGE_TAG="latest"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
@@ -58,14 +58,14 @@ echo "🔐 Creating/updating Secret..."
 print_separator
 
 if [ -z "${!PASSWORD_ENV_VAR:-}" ]; then
-  read -r -s -p "Enter recipe_scraper_user PostgreSQL password: " POSTGRES_PASSWORD
+  read -r -s -p "Enter recipe_scraper_user PostgreSQL password: " RECIPE_SCRAPER_DB_PASSWORD
   echo
 else
-  POSTGRES_PASSWORD="${!PASSWORD_ENV_VAR}"
+  RECIPE_SCRAPER_DB_PASSWORD="${!PASSWORD_ENV_VAR}"
 fi
 
 kubectl delete secret "$SECRET_NAME" -n "$NAMESPACE" --ignore-not-found
-envsubst < "${CONFIG_DIR}/secret.yaml" | kubectl apply -f -
+envsubst < "${CONFIG_DIR}/secret-template.yaml" | kubectl apply -f -
 
 print_separator
 echo "📦 Deploying Recipe-Scraper container..."

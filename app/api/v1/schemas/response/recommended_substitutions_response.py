@@ -6,8 +6,8 @@ returned in responses.
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common.ingredient import Ingredient, Quantity
-from app.schemas.common.pagination_params import PaginationParams
+from app.api.v1.schemas.common.ingredient import Ingredient, Quantity
+from app.api.v1.schemas.common.pagination_params import PaginationParams
 
 
 class IngredientSubstitution(BaseModel):
