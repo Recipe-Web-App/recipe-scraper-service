@@ -8,20 +8,14 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import (
-    BigInteger,
-    DateTime,
-    ForeignKey,
-    Integer,
-    Numeric,
-    String,
-    Text,
-    func,
-)
+from sqlalchemy import BigInteger, DateTime
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_database_model import BaseDatabaseModel
+from app.enums.difficulty_level_enum import DifficultyLevelEnum
 
 
 class Recipe(BaseDatabaseModel):
@@ -67,8 +61,14 @@ class Recipe(BaseDatabaseModel):
         Integer,
         nullable=True,
     )
-    difficulty: Mapped[str | None] = mapped_column(
-        String(50),
+    difficulty: Mapped[DifficultyLevelEnum | None] = mapped_column(
+        SAEnum(
+            DifficultyLevelEnum,
+            name="difficulty_level_enum",
+            schema="recipe_manager",
+            native_enum=False,
+            create_constraint=False,
+        ),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(

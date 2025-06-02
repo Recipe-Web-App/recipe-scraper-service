@@ -1,0 +1,19 @@
+"""Enum for meal types.
+
+This enum defines the types of meals that can be associated with a recipe.
+"""
+
+from enum import Enum
+
+
+class MealTypeEnum(str, Enum):
+    """Types of meals that can be associated with a recipe.
+
+    Each member represents a supported meal type.
+    """
+
+    BREAKFAST = "breakfast"
+    LUNCH = "lunch"
+    DINNER = "dinner"
+    SNACK = "snack"
+    DESSERT = "dessert"

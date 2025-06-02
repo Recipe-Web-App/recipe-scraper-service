@@ -6,10 +6,13 @@ associated ORM configurations.
 
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Numeric
+from sqlalchemy import BigInteger, Boolean
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_database_model import BaseDatabaseModel
+from app.enums.ingredient_unit_enum import IngredientUnitEnum
 
 
 class RecipeIngredient(BaseDatabaseModel):
@@ -38,10 +41,14 @@ class RecipeIngredient(BaseDatabaseModel):
         Numeric(8, 3),
         nullable=True,
     )
-    unit: Mapped[str | None] = mapped_column(
-        # This assumes the ENUM is already created in the DB.
-        # SQLAlchemy will treat this as a string unless you define the Enum in Python.
-        "INGREDIENT_UNIT_ENUM",
+    unit: Mapped[IngredientUnitEnum | None] = mapped_column(
+        SAEnum(
+            IngredientUnitEnum,
+            name="ingredient_unit_enum",
+            schema="recipe_manager",
+            native_enum=False,
+            create_constraint=False,
+        ),
         nullable=True,
     )
     is_optional: Mapped[bool] = mapped_column(

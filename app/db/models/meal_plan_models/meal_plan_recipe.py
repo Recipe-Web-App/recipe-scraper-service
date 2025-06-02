@@ -6,10 +6,13 @@ associated ORM configurations.
 
 from datetime import date
 
-from sqlalchemy import BigInteger, Date, ForeignKey
+from sqlalchemy import BigInteger, Date
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_database_model import BaseDatabaseModel
+from app.enums.meal_type_enum import MealTypeEnum
 
 
 class MealPlanRecipe(BaseDatabaseModel):
@@ -39,8 +42,13 @@ class MealPlanRecipe(BaseDatabaseModel):
         primary_key=True,
         nullable=False,
     )
-    meal_type: Mapped[str] = mapped_column(
-        # This assumes the ENUM is already created in the DB.
-        "MEAL_TYPE_ENUM",
+    meal_type: Mapped[MealTypeEnum] = mapped_column(
+        SAEnum(
+            MealTypeEnum,
+            name="meal_type_enum",
+            schema="recipe_manager",
+            native_enum=False,
+            create_constraint=False,
+        ),
         nullable=False,
     )
