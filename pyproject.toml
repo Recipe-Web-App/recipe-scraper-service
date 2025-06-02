@@ -98,6 +98,7 @@ lint.ignore = [
     "TD003",  # Issue link with TODO statements
     "FIX002", # Allow TODO statements
     "D413",   # Blank line after last pydoc section
+    "I001",   # Ignore import order as it is handled by isort & conflicts
 ]
 fix = true
 
