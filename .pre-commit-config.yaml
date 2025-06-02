@@ -29,6 +29,7 @@ repos:
         additional_dependencies:
           - pydantic>=2.0.0
           - pydantic-settings
+          - sqlalchemy
           - types-python-dateutil
           - types-beautifulsoup4
 
