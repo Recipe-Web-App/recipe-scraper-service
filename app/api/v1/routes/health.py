@@ -15,7 +15,7 @@ router = APIRouter()
     summary="Health check endpoint",
     description="Returns a 200 OK response indicating the server is up.",
     response_class=JSONResponse,
-)  # type: ignore[misc]
+)
 def health_check() -> JSONResponse:
     """Health Check Handler.
 

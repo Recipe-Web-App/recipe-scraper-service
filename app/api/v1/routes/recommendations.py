@@ -38,7 +38,7 @@ router = APIRouter()
     summary="Get substitutions for ingredient",
     description="Returns a list of recommended substitutions for the given ingredient.",
     response_class=JSONResponse,
-)  # type: ignore[misc]
+)
 def get_recommended_substitutions(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
     pagination: Annotated[PaginationParams, Depends()],
@@ -92,7 +92,7 @@ def get_recommended_substitutions(
     summary="Recommend pairings for a recipe",
     description="Recommends various recipes to pair with the given recipe.",
     response_class=JSONResponse,
-)  # type: ignore[misc]
+)
 def get_pairing_suggestions(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
     recipe_id: Annotated[

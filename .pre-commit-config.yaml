@@ -23,13 +23,15 @@ repos:
       - id: ruff
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.16.0 # or the latest stable version available
+    rev: v1.16.0
     hooks:
       - id: mypy
         additional_dependencies:
+          - fastapi
           - pydantic>=2.0.0
           - pydantic-settings
           - sqlalchemy
+          - starlette
           - types-python-dateutil
           - types-beautifulsoup4
 
