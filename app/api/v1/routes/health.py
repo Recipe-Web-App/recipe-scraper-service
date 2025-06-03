@@ -6,7 +6,11 @@ Defines endpoints to verify the health and status of the API service.
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from app.core.logging import get_logger
+
 router = APIRouter()
+
+__log = get_logger("Routes")
 
 
 @router.get(
@@ -22,4 +26,6 @@ def health_check() -> JSONResponse:
     Returns:
         JSONResponse: OK
     """
-    return JSONResponse(content={"status": "ok"})
+    content = {"status": "ok"}
+    __log.info("Health Check Response: {}", content)
+    return JSONResponse(content=content)
