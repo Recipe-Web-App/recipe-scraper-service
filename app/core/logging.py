@@ -92,7 +92,7 @@ def configure_logging() -> None:
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>"
-        "{extra[colored_separator]}<yellow>{extra[colored_request_id]}</yellow>"
+        "{extra[colored_separator]}<blue>{extra[colored_request_id]}</blue>"
         " | <level>{message}</level>"
     )
 
