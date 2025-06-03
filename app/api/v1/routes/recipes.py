@@ -35,7 +35,7 @@ router = APIRouter()
     summary="Create recipe from URL",
     description="Creates a recipe from the given URL and adds it to the database.",
     response_class=JSONResponse,
-)  # type: ignore[misc]
+)
 def create_recipe(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
     url: Annotated[str, Query(..., description="URL to extract a recipe from.")],
@@ -61,7 +61,7 @@ def create_recipe(
     description="Returns a list of URLs pointing to popular recipes from around the \
       internet.",
     response_class=JSONResponse,
-)  # type: ignore[misc]
+)
 def get_popular_recipes(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
     pagination: Annotated[PaginationParams, Depends()],

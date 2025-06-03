@@ -14,7 +14,7 @@ exclude = ["tests/**", ".env", ".venv", "*.log"]
 
 [tool.poetry.dependencies]
 python = "~3.11.0"
-fastapi = ">=0.115.12,<0.116.0"
+fastapi = "^0.115.12"
 httpx = ">=0.28.1,<0.29.0"
 tenacity = ">=9.1.2,<10.0.0"
 beautifulsoup4 = ">=4.13.4,<5.0.0"
@@ -99,6 +99,7 @@ lint.ignore = [
     "FIX002", # Allow TODO statements
     "D413",   # Blank line after last pydoc section
     "I001",   # Ignore import order as it is handled by isort & conflicts
+    "G004",   # Allow f-strings for logging
 ]
 fix = true
 
