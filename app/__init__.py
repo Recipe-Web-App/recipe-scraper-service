@@ -10,7 +10,6 @@ import logging
 from app.core.logging import configure_logging
 from app.middleware.logging_middleware import InterceptHandler
 
-# Configure logging for the entire app
 configure_logging()
 
 # Intercept all standard logging (including Uvicorn) and route to Loguru

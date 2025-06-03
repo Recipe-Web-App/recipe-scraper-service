@@ -3,7 +3,6 @@
     {
       "sink": "sys.stdout",
       "level": "INFO",
-      "format": "{ \"timestamp\": \"{time:YYYY-MM-DDTHH:mm:ss.SSSZ}\", \"level\": \"{level}\", \"logger\": \"{name}\", \"msg\": \"{message}\", \"function\": \"{function}\", \"line\": {line}, \"module\": \"{module}\" }",
       "serialize": false,
       "backtrace": true,
       "diagnose": true,
@@ -18,7 +17,6 @@
       "rotation": "10 MB",
       "retention": "10 days",
       "compression": "zip",
-      "format": "{ \"timestamp\": \"{time:YYYY-MM-DDTHH:mm:ss.SSSZ}\", \"level\": \"{level}\", \"logger\": \"{name}\", \"msg\": \"{message}\", \"function\": \"{function}\", \"line\": {line}, \"module\": \"{module}\" }",
       "serialize": false,
       "backtrace": true,
       "diagnose": true,

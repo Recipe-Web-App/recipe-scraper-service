@@ -7,7 +7,7 @@ throughout the application.
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.config import settings
+from app.core.config.config import settings
 
 DATABASE_URL = (
     f"postgresql://{settings.recipe_scraper_db_user}:{settings.recipe_scraper_db_password}"

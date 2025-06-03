@@ -5,74 +5,12 @@ including environment-specific and default configurations.
 """
 
 import json
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from pydantic import Field, PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
-@dataclass(frozen=True)
-class LoggingSink:
-    """Represents a single logging sink configuration.
-
-    Attributes:
-        sink (Any): The sink target (e.g., file path or sys.stdout).
-        level (str | None): The log level for this sink.
-        format (str | None): The log message format.
-        serialize (bool | None): Whether to serialize logs as JSON.
-        rotation (str | None): Log rotation policy.
-        retention (str | None): Log retention policy.
-        compression (str | None): Compression for rotated logs.
-        backtrace (bool | None): Enable better tracebacks.
-        diagnose (bool | None): Enable better exception diagnosis.
-        enqueue (bool | None): Use multiprocessing-safe queue.
-        filter (Callable | dict | str | None): Filter for log records.
-        colorize (bool | None): Enable colored output.
-        catch (bool | None): Catch sink exceptions.
-    """
-
-    sink: Any
-    level: str | None = None
-    format: str | None = None
-    serialize: bool | None = None
-    rotation: str | None = None
-    retention: str | None = None
-    compression: str | None = None
-    backtrace: bool | None = None
-    diagnose: bool | None = None
-    enqueue: bool | None = None
-    filter: Callable[..., bool] | dict[str, Any] | str | None = None
-    colorize: bool | None = None
-    catch: bool | None = None
-
-    @staticmethod
-    def from_dict(data: dict[str, Any]) -> "LoggingSink":
-        """Create a LoggingSink instance from a dictionary.
-
-        Args:
-            data (dict[str, Any]): Dictionary containing sink configuration.
-
-        Returns:
-            LoggingSink: The constructed LoggingSink instance.
-        """
-        return LoggingSink(
-            sink=data.get("sink"),
-            level=data.get("level"),
-            format=data.get("format"),
-            serialize=data.get("serialize"),
-            rotation=data.get("rotation"),
-            retention=data.get("retention"),
-            compression=data.get("compression"),
-            backtrace=data.get("backtrace"),
-            diagnose=data.get("diagnose"),
-            enqueue=data.get("enqueue"),
-            filter=data.get("filter"),
-            colorize=data.get("colorize"),
-            catch=data.get("catch"),
-        )
+from app.core.config.logging_sink import LoggingSink
 
 
 class _Settings(BaseSettings):
@@ -86,7 +24,11 @@ class _Settings(BaseSettings):
     RECIPE_SCRAPER_DB_PASSWORD: str = Field(..., alias="RECIPE_SCRAPER_DB_PASSWORD")
 
     LOGGING_CONFIG_PATH: str = Field(
-        "../config/logging.json",
+        str(
+            (
+                Path(__file__).parent.parent.parent.parent / "config" / "logging.json"
+            ).resolve(),
+        ),
         alias="LOGGING_CONFIG_PATH",
     )
 
@@ -98,9 +40,11 @@ class _Settings(BaseSettings):
         validate_default=True,
     )
 
-    def __post_init_post_parse__(self) -> None:
+    def __init__(self) -> None:
         """Load logging config after Pydantic initialization."""
-        config_path = Path(self.LOGGING_CONFIG_PATH).resolve()
+        super().__init__()
+        config_path = Path(self.LOGGING_CONFIG_PATH).expanduser().resolve()
+
         with config_path.open("r", encoding="utf-8") as f:
             config = json.load(f)
         sinks = config.get("sinks", [])
