@@ -1,0 +1,31 @@
+{
+  "sinks": [
+    {
+      "sink": "sys.stdout",
+      "level": "INFO",
+      "format": "{ \"timestamp\": \"{time:YYYY-MM-DDTHH:mm:ss.SSSZ}\", \"level\": \"{level}\", \"logger\": \"{name}\", \"msg\": \"{message}\", \"function\": \"{function}\", \"line\": {line}, \"module\": \"{module}\" }",
+      "serialize": false,
+      "backtrace": true,
+      "diagnose": true,
+      "enqueue": false,
+      "filter": null,
+      "colorize": true,
+      "catch": true
+    },
+    {
+      "sink": "./logs/app.log",
+      "level": "DEBUG",
+      "rotation": "10 MB",
+      "retention": "10 days",
+      "compression": "zip",
+      "format": "{ \"timestamp\": \"{time:YYYY-MM-DDTHH:mm:ss.SSSZ}\", \"level\": \"{level}\", \"logger\": \"{name}\", \"msg\": \"{message}\", \"function\": \"{function}\", \"line\": {line}, \"module\": \"{module}\" }",
+      "serialize": false,
+      "backtrace": true,
+      "diagnose": true,
+      "enqueue": true,
+      "filter": null,
+      "colorize": false,
+      "catch": true
+    }
+  ]
+}
