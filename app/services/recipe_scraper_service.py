@@ -15,7 +15,7 @@ from app.api.v1.schemas.common.web_recipe import WebRecipe
 from app.api.v1.schemas.response.pairing_suggestions_response import (
     PairingSuggestionsResponse,
 )
-from app.api.v1.schemas.response.recommended_recipes_reponse import (
+from app.api.v1.schemas.response.recommended_recipes_response import (
     PopularRecipesResponse,
 )
 from app.api.v1.schemas.response.recommended_substitutions_response import (
@@ -52,9 +52,9 @@ class RecipeScraperService:
         self.__log.info("Creating recipe from URL: {}", url)
 
         scraper = scrape_me(url)
-        self.__log.info("Scraped Recipe: {}", scraper.to_json)
+        self.__log.info("Scraped Recipe: {}", scraper.to_json())
 
-        return JSONResponse(scraper.to_json)
+        return JSONResponse(scraper.to_json())
 
     def get_popular_recipes(
         self,

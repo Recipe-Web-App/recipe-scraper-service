@@ -6,15 +6,19 @@ popular links.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 
 from app.api.v1.schemas.common.pagination_params import PaginationParams
-from app.api.v1.schemas.response.recommended_recipes_reponse import (
+from app.api.v1.schemas.request.create_recipe_request import CreateRecipeRequest
+from app.api.v1.schemas.response.recommended_recipes_response import (
     PopularRecipesResponse,
 )
+from app.core.logging import get_logger
 from app.services.recipe_scraper_service import RecipeScraperService
+
+__log = get_logger("RecipeScraperRoutes")
 
 
 def get_recipe_scraper_service() -> RecipeScraperService:
@@ -29,37 +33,37 @@ def get_recipe_scraper_service() -> RecipeScraperService:
 router = APIRouter()
 
 
-@router.get(
+@router.post(
     "/recipe-scraper/create-recipe",
     tags=["recipe", "recipe-scraper"],
-    summary="Create recipe from URL",
+    summary="Create a recipe from a URL",
     description="Creates a recipe from the given URL and adds it to the database.",
     response_class=JSONResponse,
 )
 def create_recipe(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
-    url: Annotated[str, Query(..., description="URL to extract a recipe from.")],
+    request: CreateRecipeRequest,
 ) -> JSONResponse:
     """Endpoint to extract a recipe from a given URL.
 
     Args:
         service (RecipeScraperService): RecipeScraperService dependency for processing
             the recipe.
-        url (str): URL pointing to the recipe for creation.
+        request (CreateRecipeRequest): Request body containing the recipe URL.
 
     Returns:
-        JSONResponse: Response containing the created recipe data.
+        JSONResponse: Response containing the created recipe data or error details.
     """
-    # TODO(jsamuelsen): Change return type back to CreateRecipeResponse after testing.
-    return service.create_recipe(url)
+    return service.create_recipe(request.recipe_url)
 
 
 @router.get(
     "/recipe-scraper/popular-recipes",
     tags=["recipe", "recipe-scraper"],
     summary="Get popular recipes from internet",
-    description="Returns a list of URLs pointing to popular recipes from around the \
-      internet.",
+    description=(
+        "Returns a list of URLs pointing to popular recipes from around the internet."
+    ),
     response_class=JSONResponse,
 )
 def get_popular_recipes(

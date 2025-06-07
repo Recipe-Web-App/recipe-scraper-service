@@ -1,6 +1,11 @@
 ### Create Recipe from URL
-GET http://recipe.local/api/recipe-scraper/create-recipe?url=https://www.allrecipes.com/cheesy-bacon-ranch-burger-sliders-11738006
+POST http://recipe.local/api/recipe-scraper/create-recipe
 Accept: application/json
+Content-Type: application/json
+
+{
+  "recipeUrl": "https://www.allrecipes.com/cheesy-bacon-ranch-burger-sliders-11738006"
+}
 
 ###
 
