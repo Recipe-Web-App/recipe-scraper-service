@@ -54,13 +54,13 @@ spec:
               path: /api/recipe-scraper/health
               port: 8000
             initialDelaySeconds: 10
-            periodSeconds: 10
+            periodSeconds: 60
           readinessProbe:
             httpGet:
               path: /api/recipe-scraper/health
               port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 60
           resources:
             requests:
               cpu: "200m"
