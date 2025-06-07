@@ -6,12 +6,17 @@ associated ORM configurations.
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
+
+if TYPE_CHECKING:
+    from app.db.models.meal_plan_models.meal_plan_recipe import MealPlanRecipe
+    from app.db.models.user_models.user import User
 
 
 class MealPlan(BaseDatabaseModel):
@@ -59,4 +64,14 @@ class MealPlan(BaseDatabaseModel):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+    user: Mapped["User"] = relationship(
+        "User",
+        lazy="joined",
+    )
+    meal_plan_recipes: Mapped[list["MealPlanRecipe"]] = relationship(
+        "MealPlanRecipe",
+        back_populates="meal_plan",
+        cascade="all, delete-orphan",
+        lazy="joined",
     )

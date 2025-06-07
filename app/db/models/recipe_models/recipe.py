@@ -7,15 +7,22 @@ relationships for storing recipes.
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
 from app.enums.difficulty_level_enum import DifficultyLevelEnum
+
+if TYPE_CHECKING:
+    from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
+    from app.db.models.recipe_models.recipe_review import RecipeReview
+    from app.db.models.recipe_models.recipe_step import RecipeStep
+    from app.db.models.recipe_models.recipe_tag_junction import RecipeTagJunction
 
 
 class Recipe(BaseDatabaseModel):
@@ -81,4 +88,29 @@ class Recipe(BaseDatabaseModel):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+    ingredients: Mapped[list["RecipeIngredient"]] = relationship(
+        "RecipeIngredient",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        lazy="joined",
+    )
+    steps: Mapped[list["RecipeStep"]] = relationship(
+        "RecipeStep",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        order_by="RecipeStep.step_number",
+        lazy="joined",
+    )
+    tags: Mapped[list["RecipeTagJunction"]] = relationship(
+        "RecipeTagJunction",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        lazy="joined",
+    )
+    reviews: Mapped[list["RecipeReview"]] = relationship(
+        "RecipeReview",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        lazy="joined",
     )
