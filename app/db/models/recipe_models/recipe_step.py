@@ -5,11 +5,15 @@ associated ORM configurations.
 """
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
+
+if TYPE_CHECKING:
+    from app.db.models.recipe_models.recipe import Recipe
 
 
 class RecipeStep(BaseDatabaseModel):
@@ -52,4 +56,9 @@ class RecipeStep(BaseDatabaseModel):
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+    recipe: Mapped["Recipe"] = relationship(
+        "Recipe",
+        back_populates="steps",
+        lazy="joined",
     )
