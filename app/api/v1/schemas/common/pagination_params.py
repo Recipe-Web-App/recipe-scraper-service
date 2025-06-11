@@ -1,9 +1,11 @@
 """Reusable model for pagination query parameters."""
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.api.v1.schemas.base_schema import BaseSchema
 
 
-class PaginationParams(BaseModel):
+class PaginationParams(BaseSchema):
     """Parameters for controlling pagination in API requests.
 
     Attributes:

@@ -4,13 +4,14 @@ Defines the Pydantic model for ingredient or recipe substitution recommendations
 returned in responses.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.common.ingredient import Ingredient, Quantity
 from app.api.v1.schemas.common.pagination_params import PaginationParams
 
 
-class IngredientSubstitution(BaseModel):
+class IngredientSubstitution(BaseSchema):
     """Represents a single substitution recommendation for an ingredient.
 
     Attributes:
@@ -28,7 +29,7 @@ class IngredientSubstitution(BaseModel):
     )
 
 
-class RecommendedSubstitutionsResponse(BaseModel):
+class RecommendedSubstitutionsResponse(BaseSchema):
     """Response schema representing a list of substitutions for an ingredient.
 
     Attributes:
