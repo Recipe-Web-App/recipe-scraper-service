@@ -8,10 +8,12 @@ Classes:
     CreateRecipeRequest: Request schema for creating a recipe from a URL.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.api.v1.schemas.base_schema import BaseSchema
 
 
-class CreateRecipeRequest(BaseModel):
+class CreateRecipeRequest(BaseSchema):
     """Request schema for creating a recipe from a URL.
 
     This Pydantic model is used to validate and document the request body for

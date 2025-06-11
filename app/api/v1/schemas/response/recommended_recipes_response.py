@@ -3,13 +3,14 @@
 Defines the Pydantic model for popular recipes returned in response payloads.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.common.pagination_params import PaginationParams
 from app.api.v1.schemas.common.web_recipe import WebRecipe
 
 
-class PopularRecipesResponse(BaseModel):
+class PopularRecipesResponse(BaseSchema):
     """Response schema representing a list of popular recipes from the internet.
 
     Attributes:

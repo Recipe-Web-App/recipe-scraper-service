@@ -1,9 +1,11 @@
 """Schema for a recipe from the internet."""
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.api.v1.schemas.base_schema import BaseSchema
 
 
-class WebRecipe(BaseModel):
+class WebRecipe(BaseSchema):
     """Schema containing a recipe from the internet."""
 
     recipe_name: str = Field(

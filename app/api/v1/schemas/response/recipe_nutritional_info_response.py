@@ -4,14 +4,15 @@ Defines the Pydantic model representing nutritional information for recipes in A
 responses, including a list of ingredient nutritional info objects.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse,
 )
 
 
-class RecipeNutritionalInfoResponse(BaseModel):
+class RecipeNutritionalInfoResponse(BaseSchema):
     """Response schema representing nutritional information for a recipe.
 
     Attributes:

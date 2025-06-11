@@ -4,54 +4,13 @@ Defines Pydantic models related to ingredient data structures shared between req
 response schemas.
 """
 
-from enum import Enum
+from pydantic import Field
 
-from pydantic import BaseModel, Field
-
-
-class Measurement(str, Enum):
-    """Enumeration of common measurement units for ingredients.
-
-    Inherits from:
-        str: Allows enum values to behave like strings.
-        Enum: Enables creation of enumerated constants.
-
-    Members:
-        GRAM (str): Grams
-        KILOGRAM (str): Kilograms
-        MILLIGRAM (str): Milligrams
-        LITER (str): Liters
-        MILLILITER (str): Milliliters
-        CUP (str): Cups
-        TABLESPOON (str): Tablespoons
-        TEASPOON (str): Teaspoons
-        OUNCE (str): Ounces
-        POUND (str): Pounds
-        PIECE (str): A single unit or item
-        SLICE (str): Slices
-        PINCH (str): Small pinch, typically for spices
-        DASH (str): Very small amount, usually liquid
-        UNIT (str): Generic catch-all unit
-    """
-
-    GRAM = "gram"
-    KILOGRAM = "kilogram"
-    MILLIGRAM = "milligram"
-    LITER = "liter"
-    MILLILITER = "milliliter"
-    CUP = "cup"
-    TABLESPOON = "tablespoon"
-    TEASPOON = "teaspoon"
-    OUNCE = "ounce"
-    POUND = "pound"
-    PIECE = "piece"
-    SLICE = "slice"
-    PINCH = "pinch"
-    DASH = "dash"
-    UNIT = "unit"
+from app.api.v1.schemas.base_schema import BaseSchema
+from app.enums.ingredient_unit_enum import IngredientUnitEnum
 
 
-class Quantity(BaseModel):
+class Quantity(BaseSchema):
     """Sub-schema for ingredient quantity.
 
     Inherits from:
@@ -62,17 +21,17 @@ class Quantity(BaseModel):
         measurement (Measurement): The measurement unit for the quantity.
     """
 
-    quantity_value: float = Field(
+    quantity_value: float | None = Field(
         ...,
         description="The numeric value of the ingredient quantity",
     )
-    measurement: Measurement = Field(
-        ...,
+    measurement: IngredientUnitEnum = Field(
+        default=IngredientUnitEnum.UNIT,
         description="The measurement unit for the quantity",
     )
 
 
-class Ingredient(BaseModel):
+class Ingredient(BaseSchema):
     """Common schema for ingredient data.
 
     Inherits from:

@@ -3,13 +3,14 @@
 Defines the Pydantic model for suggested pairings of ingredients or recipes.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.common.pagination_params import PaginationParams
 from app.api.v1.schemas.common.web_recipe import WebRecipe
 
 
-class PairingSuggestionsResponse(BaseModel):
+class PairingSuggestionsResponse(BaseSchema):
     """Response model for pairing suggestions.
 
     Attributes:
