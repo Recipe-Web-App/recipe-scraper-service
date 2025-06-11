@@ -5,7 +5,7 @@ Defines the base data model for a recipe including its list of ingredients.
 
 from datetime import datetime
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.common.ingredient import Ingredient, Quantity
@@ -60,7 +60,6 @@ class Recipe(BaseSchema):
         description="List of preparation steps",
     )
 
-    @model_validator(mode="before")
     @classmethod
     def from_db_model(cls, recipe: RecipeModel) -> "Recipe":
         """Convert ORM model to Pydantic model, handling nested ingredients.
