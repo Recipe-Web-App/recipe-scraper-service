@@ -6,12 +6,16 @@ associated ORM configurations.
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
+
+if TYPE_CHECKING:
+    from app.db.models.user_models.user import User
 
 
 class UserFollow(BaseDatabaseModel):
@@ -39,4 +43,17 @@ class UserFollow(BaseDatabaseModel):
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+
+    followee: Mapped["User"] = relationship(
+        "User",
+        foreign_keys="[UserFollow.followee_id]",
+        back_populates="followers",
+        lazy="joined",
+    )
+    follower: Mapped["User"] = relationship(
+        "User",
+        foreign_keys="[UserFollow.follower_id]",
+        back_populates="following",
+        lazy="joined",
     )

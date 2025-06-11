@@ -4,10 +4,15 @@ Defines the data model for an ingredient entity, including its attributes and an
 associated ORM configurations.
 """
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
+
+if TYPE_CHECKING:
+    from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 
 
 class Ingredient(BaseDatabaseModel):
@@ -50,4 +55,10 @@ class Ingredient(BaseDatabaseModel):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
+        "RecipeIngredient",
+        back_populates="ingredient",
+        lazy="joined",
     )

@@ -5,14 +5,19 @@ associated ORM configurations.
 """
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Boolean
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Numeric
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
+
+if TYPE_CHECKING:
+    from app.db.models.ingredient_models.ingredient import Ingredient
+    from app.db.models.recipe_models.recipe import Recipe
 
 
 class RecipeIngredient(BaseDatabaseModel):
@@ -48,6 +53,7 @@ class RecipeIngredient(BaseDatabaseModel):
             schema="recipe_manager",
             native_enum=False,
             create_constraint=False,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
         ),
         nullable=True,
     )
@@ -55,4 +61,14 @@ class RecipeIngredient(BaseDatabaseModel):
         Boolean,
         nullable=False,
         server_default="false",
+    )
+    recipe: Mapped["Recipe"] = relationship(
+        "Recipe",
+        back_populates="ingredients",
+        lazy="joined",
+    )
+    ingredient: Mapped["Ingredient"] = relationship(
+        "Ingredient",
+        back_populates="recipe_ingredients",
+        lazy="joined",
     )

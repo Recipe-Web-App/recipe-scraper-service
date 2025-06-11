@@ -5,14 +5,18 @@ associated ORM configurations.
 """
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Date
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base_database_model import BaseDatabaseModel
 from app.enums.meal_type_enum import MealTypeEnum
+
+if TYPE_CHECKING:
+    from app.db.models.meal_plan_models.meal_plan import MealPlan
 
 
 class MealPlanRecipe(BaseDatabaseModel):
@@ -51,4 +55,9 @@ class MealPlanRecipe(BaseDatabaseModel):
             create_constraint=False,
         ),
         nullable=False,
+    )
+    meal_plan: Mapped["MealPlan"] = relationship(
+        "MealPlan",
+        back_populates="meal_plan_recipes",
+        lazy="joined",
     )
