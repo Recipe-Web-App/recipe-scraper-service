@@ -1,8 +1,9 @@
 """Contains common schema definitions for nutritional information."""
 
-from enum import Enum
+from pydantic import Field
 
-from pydantic import BaseModel, Field
+from app.api.v1.schemas.base_schema import BaseSchema
+from app.enums.allergy import Allergy
 
 
 def _sum_float_optional(a: float | None, b: float | None) -> float | None:
@@ -36,7 +37,7 @@ def _sum_int_optional(a: int | None, b: int | None) -> int | None:
     return (a or 0) + (b or 0)
 
 
-class MacroNutrients(BaseModel):
+class MacroNutrients(BaseSchema):
     """Contains macro-nutrient information for an ingredient.
 
     Attributes:
@@ -115,7 +116,7 @@ class MacroNutrients(BaseModel):
         )
 
 
-class Vitamins(BaseModel):
+class Vitamins(BaseSchema):
     """Contains vitamin information for an ingredient.
 
     Attributes:
@@ -159,7 +160,7 @@ class Vitamins(BaseModel):
         )
 
 
-class Minerals(BaseModel):
+class Minerals(BaseSchema):
     """Contains mineral information for an ingredient.
 
     Attributes:
@@ -197,37 +198,7 @@ class Minerals(BaseModel):
         )
 
 
-class Allergy(str, Enum):
-    """Enumeration of common allergens.
-
-    Attributes:
-        GLUTEN (str): Contains gluten.
-        PEANUTS (str): Contains peanuts.
-        TREE_NUTS (str): Contains tree nuts.
-        DAIRY (str): Contains dairy.
-        SOY (str): Contains soy.
-        EGG (str): Contains egg.
-        FISH (str): Contains fish.
-        SHELLFISH (str): Contains shellfish.
-        SESAME (str): Contains sesame.
-        MUSTARD (str): Contains mustard.
-        SULFITES (str): Contains sulfites.
-    """
-
-    GLUTEN = "gluten"
-    PEANUTS = "peanuts"
-    TREE_NUTS = "tree_nuts"
-    DAIRY = "dairy"
-    SOY = "soy"
-    EGG = "egg"
-    FISH = "fish"
-    SHELLFISH = "shellfish"
-    SESAME = "sesame"
-    MUSTARD = "mustard"
-    SULFITES = "sulfites"
-
-
-class IngredientNutritionalInfoResponse(BaseModel):
+class IngredientNutritionalInfoResponse(BaseSchema):
     """Contains overall nutritional information.
 
     Attributes:
