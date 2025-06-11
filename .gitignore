@@ -57,6 +57,9 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# ruff
+.ruff_cache/
+
 # env files
 .env
 .env.*
@@ -107,3 +110,6 @@ venv.bak/
 # Other system files
 *.swp
 *~
+
+# Tmp folder
+tmp/
