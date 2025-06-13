@@ -60,96 +60,17 @@ class NutritionalInfoService:
             include_ingredients,
         )
 
-        ingredients = {
-            1: IngredientNutritionalInfoResponse(
-                ingredient={
-                    "ingredient_id": 1,
-                    "name": "Almond",
-                    "quantity": {
-                        "quantity_value": 100.0,
-                        "measurement": "gram",
-                    },
-                },
-                macro_nutrients={
-                    "calories": 579.0,
-                    "protein_g": 21.15,
-                    "fat_g": 49.93,
-                    "saturated_fat_g": 3.73,
-                    "monounsaturated_fat_g": 31.55,
-                    "polyunsaturated_fat_g": 12.33,
-                    "trans_fat_g": 0.0,
-                    "cholesterol_mg": 0.0,
-                    "carbs_g": 21.55,
-                    "fiber_g": 12.5,
-                    "sugar_g": 4.35,
-                },
-                vitamins={
-                    "vitamin_a_mcg": 1.0,
-                    "vitamin_c_mg": 0.0,
-                    "vitamin_d_mcg": None,
-                    "vitamin_k_mcg": 0.0,
-                    "vitamin_b6_mg": 0.14,
-                    "vitamin_b12_mcg": None,
-                },
-                minerals={
-                    "calcium_mg": 269.0,
-                    "iron_mg": 3.71,
-                    "magnesium_mg": 270.0,
-                    "potassium_mg": 733.0,
-                    "sodium_mg": 1.0,
-                    "zinc_mg": 3.12,
-                },
-                allergies=["tree_nuts"],
-            ),
-            2: IngredientNutritionalInfoResponse(
-                ingredient={
-                    "ingredient_id": 2,
-                    "name": "Oats",
-                    "quantity": {
-                        "quantity_value": 100.0,
-                        "measurement": "gram",
-                    },
-                },
-                macro_nutrients={
-                    "calories": 389.0,
-                    "protein_g": 16.89,
-                    "fat_g": 6.9,
-                    "saturated_fat_g": 1.22,
-                    "monounsaturated_fat_g": 2.18,
-                    "polyunsaturated_fat_g": 2.54,
-                    "trans_fat_g": 0.0,
-                    "cholesterol_mg": 0.0,
-                    "carbs_g": 66.27,
-                    "fiber_g": 10.6,
-                    "sugar_g": 0.99,
-                },
-                vitamins={
-                    "vitamin_a_mcg": 0.0,
-                    "vitamin_c_mg": 0.0,
-                    "vitamin_d_mcg": None,
-                    "vitamin_k_mcg": 2.0,
-                    "vitamin_b6_mg": 0.12,
-                    "vitamin_b12_mcg": None,
-                },
-                minerals={
-                    "calcium_mg": 54.0,
-                    "iron_mg": 4.72,
-                    "magnesium_mg": 177.0,
-                    "potassium_mg": 429.0,
-                    "sodium_mg": 2.0,
-                    "zinc_mg": 3.97,
-                },
-                allergies=["gluten"],
-            ),
-        }
+        ingredients: dict[int, IngredientNutritionalInfoResponse] = {}
 
         response = RecipeNutritionalInfoResponse()
         if include_ingredients:
             response.ingredients = ingredients
         if include_total:
-            response.total = IngredientNutritionalInfoResponse()
-            for ingredient in ingredients.values():
-                response.total += ingredient
+            response.total = (
+                IngredientNutritionalInfoResponse.calculate_total_nutritional_info(
+                    list(ingredients.values()),
+                )
+            )
 
         return response
 
@@ -178,43 +99,4 @@ class NutritionalInfoService:
             quantity.measurement,
         )
 
-        return IngredientNutritionalInfoResponse(
-            ingredient={
-                "ingredient_id": 123,
-                "name": "Almond",
-                "quantity": {
-                    "quantity_value": 100.0,
-                    "measurement": "gram",
-                },
-            },
-            macro_nutrients={
-                "calories": 579.0,
-                "protein_g": 21.15,
-                "fat_g": 49.93,
-                "saturated_fat_g": 3.73,
-                "monounsaturated_fat_g": 31.55,
-                "polyunsaturated_fat_g": 12.33,
-                "trans_fat_g": 0.0,
-                "cholesterol_mg": 0.0,
-                "carbs_g": 21.55,
-                "fiber_g": 12.5,
-                "sugar_g": 4.35,
-            },
-            vitamins={
-                "vitamin_a_mcg": 1.0,
-                "vitamin_c_mg": 0.0,
-                "vitamin_d_mcg": None,
-                "vitamin_k_mcg": 0.0,
-                "vitamin_b6_mg": 0.14,
-                "vitamin_b12_mcg": None,
-            },
-            minerals={
-                "calcium_mg": 269.0,
-                "iron_mg": 3.71,
-                "magnesium_mg": 270.0,
-                "potassium_mg": 733.0,
-                "sodium_mg": 1.0,
-                "zinc_mg": 3.12,
-            },
-            allergies=["tree_nuts"],
-        )
+        return IngredientNutritionalInfoResponse()
