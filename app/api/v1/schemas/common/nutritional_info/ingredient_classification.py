@@ -20,7 +20,8 @@ class IngredientClassification(BaseSchema):
         allergies (list[Allergy]): Key allergy indicators for the ingredient.
         food_groups (list[FoodGroupEnum] | None): Food groups this ingredient belongs
             to.
-        nutriscore_score (int | None): Nutri-Score value for the ingredient.
+        nutriscore_score (int | None): Nutri-Score value for the ingredient
+            (-15 to +40 range).
         nutriscore_grade (str | None): Nutri-Score letter grade for the ingredient.
         product_name (str | None): Product name from nutritional database.
         brands (str | None): Brand information from nutritional database.
@@ -37,9 +38,9 @@ class IngredientClassification(BaseSchema):
     )
     nutriscore_score: int | None = Field(
         None,
-        ge=1,
-        le=5,
-        description="Nutri-Score value for the ingredient, between 1 and 5",
+        ge=-15,
+        description="Nutri-Score value for the ingredient, from -15 (very healthy) to "
+        "+40 (unhealthy)",
     )
     nutriscore_grade: str | None = Field(
         None,
