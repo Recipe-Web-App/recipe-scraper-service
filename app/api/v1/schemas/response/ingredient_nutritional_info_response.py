@@ -8,6 +8,7 @@ from pydantic import Field
 from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.common.ingredient import Quantity
 from app.enums.allergen_enum import AllergenEnum
+from app.enums.food_group_enum import FoodGroupEnum
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.utils.unit_converter import UnitConverter
 
@@ -581,7 +582,8 @@ class IngredientClassification(BaseSchema):
 
     Attributes:
         allergies (list[Allergy]): Key allergy indicators for the ingredient.
-        food_groups (list[str]): Food groups this ingredient belongs to.
+        food_groups (list[FoodGroupEnum] | None): Food groups this ingredient belongs
+            to.
         nutriscore_score (int | None): Nutri-Score value for the ingredient.
         nutriscore_grade (str | None): Nutri-Score letter grade for the ingredient.
         product_name (str | None): Product name from nutritional database.
@@ -593,7 +595,7 @@ class IngredientClassification(BaseSchema):
         None,
         description="List of allergens associated with the ingredient",
     )
-    food_groups: list[str] | None = Field(
+    food_groups: list[FoodGroupEnum] | None = Field(
         None,
         description="Food groups this ingredient belongs to",
     )
@@ -922,7 +924,7 @@ class IngredientNutritionalInfoResponse(BaseSchema):
                 food_groups=(
                     [nutritional_info.food_groups]
                     if nutritional_info.food_groups
-                    else []
+                    else None
                 ),
                 nutriscore_score=nutritional_info.nutriscore_score,
                 nutriscore_grade=nutritional_info.nutriscore_grade,

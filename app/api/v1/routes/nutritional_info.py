@@ -42,6 +42,7 @@ def get_nutritional_info_service() -> NutritionalInfoService:
         "Returns a list of all nutritional info for all ingredients in the recipe."
     ),
     response_class=JSONResponse,
+    response_model=RecipeNutritionalInfoResponse,
 )
 def get_nutritional_info_for_recipe(
     service: Annotated[NutritionalInfoService, Depends(get_nutritional_info_service)],

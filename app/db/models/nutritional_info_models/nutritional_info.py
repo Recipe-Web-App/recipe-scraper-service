@@ -14,6 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_database_model import BaseDatabaseModel
 from app.enums.allergen_enum import AllergenEnum
+from app.enums.food_group_enum import FoodGroupEnum
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 
 
@@ -83,8 +84,15 @@ class NutritionalInfo(BaseDatabaseModel):
         nullable=True,
     )
 
-    food_groups: Mapped[str | None] = mapped_column(
-        Text,
+    food_groups: Mapped[FoodGroupEnum | None] = mapped_column(
+        SAEnum(
+            FoodGroupEnum,
+            name="food_group_enum",
+            schema="recipe_manager",
+            native_enum=False,
+            create_constraint=False,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
         nullable=True,
     )
 
