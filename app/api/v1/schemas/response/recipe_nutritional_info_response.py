@@ -27,6 +27,11 @@ class RecipeNutritionalInfoResponse(BaseSchema):
         description="A list of nutritional information for each ingredient in the \
           recipe.",
     )
+    missing_ingredients: list[int] | None = Field(
+        None,
+        description="A list of ingredient IDs for which nutritional information could "
+        "not be retrieved.",
+    )
     total: IngredientNutritionalInfoResponse | None = Field(
         None,
         description="The total aggregated nutritional information for the recipe.",
