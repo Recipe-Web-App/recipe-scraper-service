@@ -13,7 +13,7 @@ from sqlalchemy import Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_database_model import BaseDatabaseModel
-from app.enums.allergy import Allergy
+from app.enums.allergen_enum import AllergenEnum
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 
 
@@ -73,10 +73,10 @@ class NutritionalInfo(BaseDatabaseModel):
     )
 
     # Allergens (stored as PostgreSQL enum array)
-    allergens: Mapped[list[Allergy] | None] = mapped_column(
+    allergens: Mapped[list[AllergenEnum] | None] = mapped_column(
         ARRAY(
             SAEnum(
-                Allergy,
+                AllergenEnum,
                 values_callable=lambda enum_cls: [e.value for e in enum_cls],
             ),
         ),

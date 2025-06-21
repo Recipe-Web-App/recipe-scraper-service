@@ -7,7 +7,7 @@ from pydantic import Field
 
 from app.api.v1.schemas.base_schema import BaseSchema
 from app.api.v1.schemas.common.ingredient import Quantity
-from app.enums.allergy import Allergy
+from app.enums.allergen_enum import AllergenEnum
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.utils.unit_converter import UnitConverter
 
@@ -589,7 +589,7 @@ class IngredientClassification(BaseSchema):
         categories (str | None): Product categories from nutritional database.
     """
 
-    allergies: list[Allergy] | None = Field(
+    allergies: list[AllergenEnum] | None = Field(
         None,
         description="List of allergens associated with the ingredient",
     )

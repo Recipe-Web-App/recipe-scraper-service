@@ -3,7 +3,7 @@
 from enum import Enum
 
 
-class Allergy(str, Enum):
+class AllergenEnum(str, Enum):
     """Enumeration of common allergens.
 
     Attributes:
