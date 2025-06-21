@@ -22,7 +22,7 @@ class Quantity(BaseSchema):
     """
 
     quantity_value: float | None = Field(
-        ...,
+        None,
         description="The numeric value of the ingredient quantity",
     )
     measurement: IngredientUnitEnum = Field(

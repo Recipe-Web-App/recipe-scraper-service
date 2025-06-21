@@ -42,18 +42,52 @@ class BaseDatabaseModel(DeclarativeBase):
         Returns:
             str: A JSON representation of the Recipe instance.
         """
+        data = self._serialize(self)
+        return json.dumps(data, default=str, ensure_ascii=False)
 
-        def serialize(obj: object) -> object:
+    @staticmethod
+    def _get_circular_ref_repr(obj: object) -> str:
+        """Get a simple representation for circular references."""
+        if hasattr(obj, "__tablename__"):
+            # Try to find a primary key field to use as identifier
+            primary_key_value = "unknown"
+            for attr_name in dir(obj):
+                if attr_name.endswith("_id") and not attr_name.startswith("_"):
+                    try:
+                        primary_key_value = getattr(obj, attr_name, "unknown")
+                        break
+                    except (AttributeError, TypeError):
+                        # Skip attributes that can't be accessed
+                        continue
+
+            table_name = getattr(obj, "__tablename__", "UnknownTable")
+            class_name = obj.__class__.__name__
+            return f"<{class_name}({table_name}, id={primary_key_value})>"
+        return f"<circular_ref:{type(obj).__name__}>"
+
+    @staticmethod
+    def _serialize(obj: object, visited: set[int] | None = None) -> object:
+        if visited is None:
+            visited = set()
+
+        # Prevent infinite recursion by tracking visited objects
+        obj_id = id(obj)
+        if obj_id in visited:
+            return BaseDatabaseModel._get_circular_ref_repr(obj)
+
+        visited.add(obj_id)
+
+        try:
             # Handle lists of ORM objects
             if isinstance(obj, list):
-                return [serialize(item) for item in obj]
+                return [BaseDatabaseModel._serialize(item, visited) for item in obj]
             # Handle enums (must come before __dict__)
             if isinstance(obj, enum.Enum):
                 return obj.value
             # Handle ORM objects (with __dict__ and no _sa_instance_state)
             if hasattr(obj, "__dict__"):
                 return {
-                    k: serialize(v)
+                    k: BaseDatabaseModel._serialize(v, visited)
                     for k, v in vars(obj).items()
                     if not k.startswith("_sa_instance_state") and not k.startswith("__")
                 }
@@ -61,6 +95,5 @@ class BaseDatabaseModel(DeclarativeBase):
             if hasattr(obj, "isoformat"):
                 return obj.isoformat()
             return obj
-
-        data = serialize(self)
-        return json.dumps(data, default=str, ensure_ascii=False)
+        finally:
+            visited.remove(obj_id)

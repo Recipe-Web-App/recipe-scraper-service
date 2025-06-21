@@ -12,5 +12,5 @@ class RevisionCategoryEnum(str, Enum):
     Each member represents a category of recipe revision.
     """
 
-    INGREDIENT = "ingredient"
-    STEP = "step"
+    INGREDIENT = "INGREDIENT"
+    STEP = "STEP"

@@ -12,8 +12,8 @@ class DifficultyLevelEnum(str, Enum):
     Each member represents a supported difficulty level for a recipe.
     """
 
-    BEGINNER = "beginner"
-    EASY = "easy"
-    MEDIUM = "medium"
-    HARD = "hard"
-    EXPERT = "expert"
+    BEGINNER = "BEGINNER"
+    EASY = "EASY"
+    MEDIUM = "MEDIUM"
+    HARD = "HARD"
+    EXPERT = "EXPERT"

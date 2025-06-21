@@ -1,9 +1,15 @@
 ### Get nutritional info for a recipe
-GET http://recipe.local/api/recipe-scraper/recipes/1/nutritional-info?include_total=true&include_ingredients=true
+GET http://recipe.local/api/recipe-scraper/recipes/3/nutritional-info?include_total=true&include_ingredients=true
 Accept: application/json
 
 ###
 
 ### Get nutritional info for an ingredient
-GET http://recipe.local/api/recipe-scraper/ingredients/42/nutritional-info?quantity_value=100&measurement=gram
+GET http://recipe.local/api/recipe-scraper/ingredients/2/nutritional-info?quantity_value=50&measurement=G
+Accept: application/json
+
+###
+
+### Get nutritional info for an ingredient
+GET http://recipe.local/api/recipe-scraper/ingredients/2/nutritional-info
 Accept: application/json

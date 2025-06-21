@@ -10,53 +10,70 @@ from types import MappingProxyType
 class IngredientUnitEnum(str, Enum):
     """Units of measurement for recipe ingredients."""
 
-    G = "g"
-    KG = "kg"
-    OZ = "oz"
-    LB = "lb"
-    ML = "ml"
-    L = "l"
-    CUP = "cup"
-    TBSP = "tbsp"
-    TSP = "tsp"
-    PIECE = "piece"
-    CLOVE = "clove"
-    SLICE = "slice"
-    PINCH = "pinch"
-    CAN = "can"
-    BOTTLE = "bottle"
-    PACKET = "packet"
-    UNIT = "unit"
+    G = "G"
+    KG = "KG"
+    OZ = "OZ"
+    LB = "LB"
+    ML = "ML"
+    L = "L"
+    CUP = "CUP"
+    TBSP = "TBSP"
+    TSP = "TSP"
+    PIECE = "PIECE"
+    CLOVE = "CLOVE"
+    SLICE = "SLICE"
+    PINCH = "PINCH"
+    CAN = "CAN"
+    BOTTLE = "BOTTLE"
+    PACKET = "PACKET"
+    UNIT = "UNIT"
 
     __NORMALIZATION_MAP = MappingProxyType(
         {
-            "grams": "g",
-            "gram": "g",
-            "kilograms": "kg",
-            "kilogram": "kg",
-            "ounces": "oz",
-            "ounce": "oz",
-            "pounds": "lb",
-            "pound": "lb",
-            "#": "lb",
-            "#s": "lb",
-            "milliliters": "ml",
-            "milliliter": "ml",
-            "liters": "l",
-            "liter": "l",
-            "cups": "cup",
-            "tablespoons": "tbsp",
-            "tablespoon": "tbsp",
-            "teaspoons": "tsp",
-            "teaspoon": "tsp",
-            "pieces": "piece",
-            "cloves": "clove",
-            "slices": "slice",
-            "pinches": "pinch",
-            "cans": "can",
-            "bottles": "bottle",
-            "packets": "packet",
-            "units": "unit",
+            "g": "G",
+            "grams": "G",
+            "gram": "G",
+            "kg": "KG",
+            "kilograms": "KG",
+            "kilogram": "KG",
+            "oz": "OZ",
+            "ounces": "OZ",
+            "ounce": "OZ",
+            "lb": "LB",
+            "pounds": "LB",
+            "pound": "LB",
+            "#": "LB",
+            "#s": "LB",
+            "ml": "ML",
+            "milliliters": "ML",
+            "milliliter": "ML",
+            "l": "L",
+            "liters": "L",
+            "liter": "L",
+            "cup": "CUP",
+            "cups": "CUP",
+            "tbsp": "TBSP",
+            "tablespoons": "TBSP",
+            "tablespoon": "TBSP",
+            "tsp": "TSP",
+            "teaspoons": "TSP",
+            "teaspoon": "TSP",
+            "piece": "PIECE",
+            "pieces": "PIECE",
+            "clove": "CLOVE",
+            "cloves": "CLOVE",
+            "slice": "SLICE",
+            "slices": "SLICE",
+            "pinch": "PINCH",
+            "pinches": "PINCH",
+            "can": "CAN",
+            "cans": "CAN",
+            "bottle": "BOTTLE",
+            "bottles": "BOTTLE",
+            "packet": "PACKET",
+            "packets": "PACKET",
+            "unit": "UNIT",
+            "units": "UNIT",
         },
     )
 
@@ -65,7 +82,7 @@ class IngredientUnitEnum(str, Enum):
         """Convert a string to the correct enum, normalizing plural/long forms."""
         if not unit_str:
             return None
-        normalized = cls.__NORMALIZATION_MAP.get(unit_str.lower(), unit_str.lower())
+        normalized = cls.__NORMALIZATION_MAP.get(unit_str.lower(), unit_str.upper())
         try:
             return cls(normalized)
         except ValueError:

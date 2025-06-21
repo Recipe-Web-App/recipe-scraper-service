@@ -12,8 +12,8 @@ class MealTypeEnum(str, Enum):
     Each member represents a supported meal type.
     """
 
-    BREAKFAST = "breakfast"
-    LUNCH = "lunch"
-    DINNER = "dinner"
-    SNACK = "snack"
-    DESSERT = "dessert"
+    BREAKFAST = "BREAKFAST"
+    LUNCH = "LUNCH"
+    DINNER = "DINNER"
+    SNACK = "SNACK"
+    DESSERT = "DESSERT"
