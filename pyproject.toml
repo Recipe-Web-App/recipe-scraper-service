@@ -148,8 +148,8 @@ exclude_lines = [
 [tool.docformatter]
 in-place = true
 recursive = true
-wrap-summaries = 79
-wrap-descriptions = 79
+wrap-summaries = 88
+wrap-descriptions = 88
 style = "google"
 
 [tool.darglint]
