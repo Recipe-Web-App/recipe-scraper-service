@@ -1,6 +1,7 @@
 """Base class with Pydantic config for all schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class BaseSchema(BaseModel):
@@ -8,13 +9,19 @@ class BaseSchema(BaseModel):
 
     This class provides a common configuration for all Pydantic models used in the
     application, ensuring consistent behavior across all schemas.
+
+    Configured to:
+    - Convert snake_case Python fields to camelCase in JSON serialization
+    - Accept both camelCase and snake_case during deserialization
+    - Use enum values instead of enum names
+    - Forbid extra fields for strict validation
     """
 
-    class Config:
-        """Pydantic configuration for BaseSchema."""
-
-        from_attributes = True
-        allow_population_by_field_name = True
-        use_enum_values = True
-        extra = "forbid"
-        anystr_strip_whitespace = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        alias_generator=to_camel,
+        populate_by_name=True,
+        use_enum_values=True,
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
