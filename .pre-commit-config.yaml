@@ -34,6 +34,7 @@ repos:
           - starlette
           - types-python-dateutil
           - types-beautifulsoup4
+          - types-PyYAML
 
   - repo: https://github.com/jsh9/pydoclint
     rev: 0.6.7

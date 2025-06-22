@@ -31,12 +31,15 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
     IngredientSubstitution,
     RecommendedSubstitutionsResponse,
 )
+from app.core.config.config import settings
 from app.core.logging import get_logger
 from app.db.models.ingredient_models.ingredient import Ingredient as IngredientModel
 from app.db.models.recipe_models.recipe import Recipe
 from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.db.models.recipe_models.recipe_step import RecipeStep
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
+from app.exceptions.custom_exceptions import RecipeScrapingError
+from app.utils.popular_recipe_web_scraper import scrape_popular_recipes
 
 _log = get_logger(__name__)
 
@@ -265,53 +268,33 @@ class RecipeScraperService:
             pagination.count_only,
         )
 
-        popular_recipes = [
-            WebRecipe(
-                recipe_name="Dummy Recipe 1",
-                url="https://some-url.com/dummy-recipe-1",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 2",
-                url="https://some-url.com/dummy-recipe-2",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 3",
-                url="https://some-url.com/dummy-recipe-3",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 4",
-                url="https://some-url.com/dummy-recipe-4",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 5",
-                url="https://some-url.com/dummy-recipe-5",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 6",
-                url="https://some-url.com/dummy-recipe-6",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 7",
-                url="https://some-url.com/dummy-recipe-7",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 8",
-                url="https://some-url.com/dummy-recipe-8",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 9",
-                url="https://some-url.com/dummy-recipe-9",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 10",
-                url="https://some-url.com/dummy-recipe-10",
-            ),
-        ]
+        popular_recipes: list[WebRecipe] = []
 
-        return PopularRecipesResponse.from_all(
+        recipe_blog_urls = settings.popular_recipe_urls
+
+        for url in recipe_blog_urls:
+            try:
+                _log.debug("Scraping popular recipes from URL: {}", url)
+                scraped_recipes = scrape_popular_recipes(url)
+                _log.debug("Scraped recipes: {}", scraped_recipes)
+                popular_recipes.extend(scraped_recipes)
+            except RecipeScrapingError as e:
+                _log.error(
+                    "Failed to scrape popular recipes from URL '{}': {}",
+                    url,
+                    e,
+                )
+                continue
+
+        response = PopularRecipesResponse.from_all(
             popular_recipes,
             pagination,
         )
+        _log.debug(
+            "Generated PopularRecipesResponse: {}",
+            response,
+        )
+        return response
 
     def get_recommended_substitutions(
         self,
