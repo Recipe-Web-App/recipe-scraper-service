@@ -17,13 +17,13 @@ Accept: application/json
 ###
 
 ### Get Popular Recipes with Pagination
-GET http://recipe.local/api/recipe-scraper/popular-recipes?limit=10&offset=10&count_only=false
+GET http://recipe.local/api/recipe-scraper/popular-recipes?limit=10&offset=15&count_only=false
 Accept: application/json
 
 ###
 
 ### Get Popular Recipes with Pagination
-GET http://recipe.local/api/recipe-scraper/popular-recipes?count_only=true
+GET http://recipe.local/api/recipe-scraper/popular-recipes?count_only=True
 Accept: application/json
 
 ###

@@ -3,7 +3,6 @@
 
 set -euo pipefail
 
-CLUSTER_NAME="recipe-manager-system"
 NAMESPACE="recipe-scraper"
 CONFIG_DIR="k8s"
 SECRET_NAME="recipe-scraper-db-password"

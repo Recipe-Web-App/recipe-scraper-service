@@ -39,9 +39,8 @@ router = APIRouter()
     description="Returns a list of recommended substitutions for the given ingredient.",
     response_class=JSONResponse,
 )
-def get_recommended_substitutions(
+def get_recommended_substitutions(  # noqa: PLR0913
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
-    pagination: Annotated[PaginationParams, Depends()],
     ingredient_id: Annotated[
         int,
         Path(
@@ -49,6 +48,9 @@ def get_recommended_substitutions(
             description="The ID of the ingredient (must be > 0)",
         ),
     ],
+    limit: Annotated[int, Query(ge=1)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    count_only: Annotated[bool, Query()] = False,
     quantity_value: Annotated[
         float | None,
         Query(
@@ -69,8 +71,10 @@ def get_recommended_substitutions(
     Args:
         service (RecipeScraperService): RecipeScraperService dependency for processing
             the recipe.
-        pagination (PaginationParams): Pagination parameters for response control.
         ingredient_id (int): The ID of the ingredient (must be > 0).
+        limit (int): Number of items per page (minimum 1).
+        offset (int): Number of items to skip (minimum 0).
+        count_only (bool): Whether to return only count instead of substitutions.
         quantity_value (float): Quantity value for the ingredient.
         measurement (str): Measurement unit for the quantity.
 
@@ -78,6 +82,13 @@ def get_recommended_substitutions(
         RecommendedSubstitutionsResponse: A list of recommended substitutions for the
             ingredient.
     """
+    # Create pagination params from individual parameters
+    pagination = PaginationParams(
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+    )
+
     quantity = Quantity(quantity_value=quantity_value, measurement=measurement)
     return service.get_recommended_substitutions(
         ingredient_id,
@@ -99,18 +110,29 @@ def get_pairing_suggestions(
         int,
         Path(gt=0, description="The ID of the ingredient (must be > 0)"),
     ],
-    pagination: Annotated[PaginationParams, Depends()],
+    limit: Annotated[int, Query(ge=1)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    count_only: Annotated[bool, Query()] = False,
 ) -> PairingSuggestionsResponse:
     """Endpoint to take a recipe and return a list of suggested pairings.
 
     Args:
         service (RecipeScraperService): Service to use for processing the request.
         recipe_id (int): The ID of the ingredient.
-        pagination (PaginationParams): Pagination parameters for response control.
+        limit (int): Number of items per page (minimum 1).
+        offset (int): Number of items to skip (minimum 0).
+        count_only (bool): Whether to return only count instead of pairing suggestions.
 
     Returns:
         PairingSuggestionsResponse: The list of generated pairing suggestions.
     """
+    # Create pagination params from individual parameters
+    pagination = PaginationParams(
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+    )
+
     return service.get_pairing_suggestions(
         recipe_id,
         pagination,
