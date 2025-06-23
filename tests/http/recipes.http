@@ -11,7 +11,19 @@ X-User-Id: 11111111-1111-1111-1111-111111111111
 ###
 
 ### Get Popular Recipes with Pagination
-GET http://recipe.local/api/recipe-scraper/popular-recipes?limit=5&offset=5&count_only=false
+GET http://recipe.local/api/recipe-scraper/popular-recipes?limit=200
+Accept: application/json
+
+###
+
+### Get Popular Recipes with Pagination
+GET http://recipe.local/api/recipe-scraper/popular-recipes?limit=10&offset=15&count_only=false
+Accept: application/json
+
+###
+
+### Get Popular Recipes with Pagination
+GET http://recipe.local/api/recipe-scraper/popular-recipes?count_only=True
 Accept: application/json
 
 ###

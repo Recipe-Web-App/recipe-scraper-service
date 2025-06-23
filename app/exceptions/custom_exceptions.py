@@ -44,3 +44,47 @@ class IncompatibleUnitsError(ValueError):
             IngredientUnitEnum: The unit that conversion was attempted to.
         """
         return self.to_unit
+
+
+class RecipeScrapingError(Exception):
+    """Raised when a recipe URL cannot be scraped or processed.
+
+    This exception is raised when:
+    - The URL is invalid or malformed
+    - The recipe blog/website is not compatible with the scraper
+    - The website structure prevents successful scraping
+    - Network or access issues prevent scraping
+    """
+
+    def __init__(self, url: str, reason: str | None = None) -> None:
+        """Initialize the exception with the URL and optional reason.
+
+        Args:
+            url: The URL that could not be scraped.
+            reason: Optional specific reason for the scraping failure.
+        """
+        self.url = url
+        self.reason = reason
+
+        if reason:
+            message = f"Failed to scrape recipe from {url}: {reason}"
+        else:
+            message = f"Failed to scrape recipe from {url}"
+
+        super().__init__(message)
+
+    def get_url(self) -> str:
+        """Get the URL that caused the error.
+
+        Returns:
+            str: The URL that could not be scraped.
+        """
+        return self.url
+
+    def get_reason(self) -> str | None:
+        """Get the specific reason for the scraping failure.
+
+        Returns:
+            str | None: The reason for failure, if provided.
+        """
+        return self.reason

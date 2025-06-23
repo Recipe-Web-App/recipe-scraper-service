@@ -7,7 +7,7 @@ popular links.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Query
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -24,14 +24,22 @@ from app.services.recipe_scraper_service import RecipeScraperService
 
 __log = get_logger("RecipeScraperRoutes")
 
+# Singleton instance to maintain cache across requests
+_service_instance: RecipeScraperService | None = None
+
 
 def get_recipe_scraper_service() -> RecipeScraperService:
-    """Dependency provider function to instantiate RecipeScraperService.
+    """Dependency provider function to get RecipeScraperService instance.
+
+    Uses a singleton pattern to maintain cache across requests.
 
     Returns:
-        RecipeScraperService: A new instance of RecipeScraperService.
+        RecipeScraperService: The service instance.
     """
-    return RecipeScraperService()
+    global _service_instance  # noqa: PLW0603
+    if _service_instance is None:
+        _service_instance = RecipeScraperService()
+    return _service_instance
 
 
 router = APIRouter()
@@ -75,16 +83,26 @@ def create_recipe(
 )
 def get_popular_recipes(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
-    pagination: Annotated[PaginationParams, Depends()],
+    limit: Annotated[int, Query(ge=1)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    count_only: Annotated[bool, Query()] = False,
 ) -> PopularRecipesResponse:
     """Endpoint to extract popular recipes from the internet.
 
     Args:
         service (RecipeScraperService):
             RecipeScraperService dependency for processing the recipe.
-        pagination (PaginationParams): Pagination parameters for response control.
+        limit (int): Number of items per page (minimum 1).
+        offset (int): Number of items to skip (minimum 0).
+        count_only (bool): Whether to return only count instead of recipes.
 
     Returns:
         PopularRecipesResponse: A list of all gathered recipe data.
     """
+    pagination = PaginationParams(
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+    )
+
     return service.get_popular_recipes(pagination)

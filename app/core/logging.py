@@ -76,6 +76,14 @@ def _build_sink_kwargs(
 
 def configure_logging() -> None:
     """Configure global application logging using Loguru and settings-based config."""
+    # Disable noisy HTTP logging from httpx and HTTP core
+    import logging
+
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+
     loguru_logger.remove()
 
     # Always set extra["request_id"] if missing
