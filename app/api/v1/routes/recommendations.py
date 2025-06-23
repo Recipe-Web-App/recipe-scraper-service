@@ -19,14 +19,22 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
 )
 from app.services.recipe_scraper_service import RecipeScraperService
 
+# Singleton instance to maintain cache across requests
+_service_instance: RecipeScraperService | None = None
+
 
 def get_recipe_scraper_service() -> RecipeScraperService:
-    """Dependency provider function to instantiate RecipeScraperService.
+    """Dependency provider function to get RecipeScraperService instance.
+
+    Uses a singleton pattern to maintain cache across requests.
 
     Returns:
-        RecipeScraperService: A new instance of RecipeScraperService.
+        RecipeScraperService: The service instance.
     """
-    return RecipeScraperService()
+    global _service_instance  # noqa: PLW0603
+    if _service_instance is None:
+        _service_instance = RecipeScraperService()
+    return _service_instance
 
 
 router = APIRouter()

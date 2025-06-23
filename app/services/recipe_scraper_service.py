@@ -39,6 +39,7 @@ from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.db.models.recipe_models.recipe_step import RecipeStep
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import RecipeScrapingError
+from app.utils.cache_manager import CacheManager
 from app.utils.popular_recipe_web_scraper import scrape_popular_recipes
 
 _log = get_logger(__name__)
@@ -110,6 +111,10 @@ class RecipeScraperService:
     This service provides methods to obtain detailed recipe data using recipe_scraper
     and beautiful_soup.
     """
+
+    def __init__(self) -> None:
+        """Initialize the service with cache manager."""
+        self.cache_manager = CacheManager()
 
     def create_recipe(
         self,
@@ -255,6 +260,8 @@ class RecipeScraperService:
     ) -> PopularRecipesResponse:
         """Generate a list of popular recipes from the internet.
 
+        Uses 24-hour caching to avoid repeated scraping.
+
         Args:
             pagination (PaginationParams): Pagination params for response control.
 
@@ -268,8 +275,46 @@ class RecipeScraperService:
             pagination.count_only,
         )
 
-        popular_recipes: list[WebRecipe] = []
+        # Try to get from cache first
+        cache_key = "popular_recipes"
+        cached_recipes_data = self.cache_manager.get(cache_key)
 
+        if cached_recipes_data is not None:
+            _log.info("Using cached popular recipes (24h cache)")
+            # Convert cached data back to WebRecipe objects
+            if isinstance(cached_recipes_data, list):
+                popular_recipes = [
+                    WebRecipe(**recipe_data) for recipe_data in cached_recipes_data
+                ]
+            else:
+                _log.warning("Unexpected cache data format, falling back to scraping")
+                popular_recipes = self._scrape_all_popular_recipes()
+        else:
+            _log.info("Cache miss - scraping popular recipes from websites")
+            popular_recipes = self._scrape_all_popular_recipes()
+
+            # Cache the results for 24 hours
+            # Convert WebRecipe objects to dict for JSON serialization
+            recipes_data = [recipe.model_dump() for recipe in popular_recipes]
+            self.cache_manager.set(cache_key, recipes_data, expiry_hours=24)
+
+        response = PopularRecipesResponse.from_all(
+            popular_recipes,
+            pagination,
+        )
+        _log.debug(
+            "Generated PopularRecipesResponse with {} total recipes",
+            len(popular_recipes),
+        )
+        return response
+
+    def _scrape_all_popular_recipes(self) -> list[WebRecipe]:
+        """Scrape popular recipes from all configured URLs.
+
+        Returns:
+            List of scraped WebRecipe objects
+        """
+        popular_recipes: list[WebRecipe] = []
         recipe_blog_urls = settings.popular_recipe_urls
 
         for url in recipe_blog_urls:
@@ -286,15 +331,8 @@ class RecipeScraperService:
                 )
                 continue
 
-        response = PopularRecipesResponse.from_all(
-            popular_recipes,
-            pagination,
-        )
-        _log.debug(
-            "Generated PopularRecipesResponse: {}",
-            response,
-        )
-        return response
+        _log.info("Successfully scraped {} total popular recipes", len(popular_recipes))
+        return popular_recipes
 
     def get_recommended_substitutions(
         self,
