@@ -102,7 +102,7 @@ def get_recommended_substitutions(  # noqa: PLR0913
             detail="Both quantity_value and measurement must be provided together.",
         )
     if quantity_value is not None and measurement is not None:
-        quantity = Quantity(quantity_value=quantity_value, measurement=measurement)
+        quantity = Quantity(amount=quantity_value, measurement=measurement)
     else:
         quantity = None
     return service.get_recommended_substitutions(

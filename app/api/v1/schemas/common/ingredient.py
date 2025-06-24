@@ -17,12 +17,12 @@ class Quantity(BaseSchema):
         BaseModel: Pydantic base class for data validation.
 
     Attributes:
-        quantity_value (float): The numeric value of the ingredient quantity.
+        amount (float): The numeric value of the ingredient quantity.
         measurement (Measurement): The measurement unit for the quantity.
     """
 
-    quantity_value: float | None = Field(
-        None,
+    amount: float | None = Field(
+        ...,
         description="The numeric value of the ingredient quantity",
     )
     measurement: IngredientUnitEnum = Field(

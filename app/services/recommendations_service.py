@@ -332,12 +332,12 @@ class RecommendationsService:
         Returns:
             Adjusted quantity or None if no original quantity
         """
-        if not original_quantity or not original_quantity.quantity_value:
+        if not original_quantity or not original_quantity.amount:
             return None
 
-        adjusted_amount = float(original_quantity.quantity_value) * conversion_ratio
+        adjusted_amount = float(original_quantity.amount) * conversion_ratio
 
         return QuantitySchema(
-            quantity_value=round(adjusted_amount, 2),
+            amount=round(adjusted_amount, 2),
             measurement=original_quantity.measurement,
         )

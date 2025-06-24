@@ -165,7 +165,7 @@ def get_nutritional_info_for_ingredient(
     if quantity_value and measurement:
         try:
             quantity = Quantity(
-                quantity_value=quantity_value,
+                amount=quantity_value,
                 measurement=IngredientUnitEnum(measurement.upper()),
             )
         except ValueError as err:

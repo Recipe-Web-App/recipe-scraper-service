@@ -92,7 +92,7 @@ class NutritionalInfoService:
                 and recipe_ingredient.unit is not None
             ):
                 quantity = Quantity(
-                    quantity_value=recipe_ingredient.quantity,
+                    amount=recipe_ingredient.quantity,
                     measurement=recipe_ingredient.unit,
                 )
             else:
@@ -171,7 +171,7 @@ class NutritionalInfoService:
             _log.info(
                 "Getting nutritional info for ingredient ID {} ({} {})",
                 ingredient_id,
-                quantity.quantity_value,
+                quantity.amount,
                 quantity.measurement,
             )
         else:
@@ -262,7 +262,7 @@ class NutritionalInfoService:
                 _log.debug(
                     "Adjusted nutritional info for '{}' to quantity {} {}: {}",
                     ingredient_name,
-                    quantity.quantity_value,
+                    quantity.amount,
                     quantity.measurement,
                     response,
                 )
@@ -284,7 +284,7 @@ class NutritionalInfoService:
                 _log.exception(
                     "Error adjusting nutritional info for '{}' to quantity {} {}",
                     ingredient_name,
-                    quantity.quantity_value,
+                    quantity.amount,
                     quantity.measurement,
                     e,
                 )
