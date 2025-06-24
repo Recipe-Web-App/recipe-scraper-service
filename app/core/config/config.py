@@ -31,6 +31,7 @@ class _Settings(BaseSettings):
     WEB_SCRAPER_CATEGORY_PATTERNS: list[str] = Field(default_factory=list)
     WEB_SCRAPER_SINGLE_WORD_CATEGORIES: list[str] = Field(default_factory=list)
     WEB_SCRAPER_CATEGORY_INDICATORS: list[str] = Field(default_factory=list)
+    SPOONACULAR_API_KEY: str = Field(..., alias="SPOONACULAR_API_KEY")
 
     LOGGING_CONFIG_PATH: str = Field(
         str(
@@ -220,6 +221,11 @@ class _Settings(BaseSettings):
     def web_scraper_category_indicators(self) -> list[str]:
         """Get category indicators for filtering out category pages."""
         return self.WEB_SCRAPER_CATEGORY_INDICATORS
+
+    @property
+    def spoonacular_api_key(self) -> str:
+        """Get Spoonacular API key for ingredient substitution features."""
+        return self.SPOONACULAR_API_KEY
 
 
 settings = _Settings()

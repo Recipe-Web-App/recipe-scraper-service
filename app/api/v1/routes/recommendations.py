@@ -3,11 +3,13 @@
 Provides API endpoints for handling recommendations such as pairings & substitutions.
 """
 
+from functools import lru_cache
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.common.ingredient import Quantity
 from app.api.v1.schemas.common.pagination_params import PaginationParams
@@ -17,24 +19,20 @@ from app.api.v1.schemas.response.pairing_suggestions_response import (
 from app.api.v1.schemas.response.recommended_substitutions_response import (
     RecommendedSubstitutionsResponse,
 )
-from app.services.recipe_scraper_service import RecipeScraperService
-
-# Singleton instance to maintain cache across requests
-_service_instance: RecipeScraperService | None = None
+from app.deps.db import get_db
+from app.services.recommendations_service import RecommendationsService
 
 
-def get_recipe_scraper_service() -> RecipeScraperService:
-    """Dependency provider function to get RecipeScraperService instance.
+@lru_cache(maxsize=1)
+def get_recommendations_service() -> RecommendationsService:
+    """Dependency provider function to get RecommendationsService instance.
 
-    Uses a singleton pattern to maintain cache across requests.
+    Uses @lru_cache to ensure only one instance is created and reused.
 
     Returns:
-        RecipeScraperService: The service instance.
+        RecommendationsService: The service instance.
     """
-    global _service_instance  # noqa: PLW0603
-    if _service_instance is None:
-        _service_instance = RecipeScraperService()
-    return _service_instance
+    return RecommendationsService()
 
 
 router = APIRouter()
@@ -48,7 +46,8 @@ router = APIRouter()
     response_class=JSONResponse,
 )
 def get_recommended_substitutions(  # noqa: PLR0913
-    service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
+    service: Annotated[RecommendationsService, Depends(get_recommendations_service)],
+    db: Annotated[Session, Depends(get_db)],
     ingredient_id: Annotated[
         int,
         Path(
@@ -74,11 +73,11 @@ def get_recommended_substitutions(  # noqa: PLR0913
         ),
     ] = None,
 ) -> RecommendedSubstitutionsResponse:
-    """Endpoint to return recommended substitutes for an ingredient from the internet.
+    """Endpoint to return recommended substitutes for an ingredient using AI.
 
     Args:
-        service (RecipeScraperService): RecipeScraperService dependency for processing
-            the recipe.
+        service (RecommendationsService): Service used to process the request.
+        db (Session): Database session dependency for ingredient lookup.
         ingredient_id (int): The ID of the ingredient (must be > 0).
         limit (int): Number of items per page (minimum 1).
         offset (int): Number of items to skip (minimum 0).
@@ -87,8 +86,8 @@ def get_recommended_substitutions(  # noqa: PLR0913
         measurement (str): Measurement unit for the quantity.
 
     Returns:
-        RecommendedSubstitutionsResponse: A list of recommended substitutions for the
-            ingredient.
+        RecommendedSubstitutionsResponse: A list of AI-powered recommended
+            substitutions for the ingredient.
     """
     # Create pagination params from individual parameters
     pagination = PaginationParams(
@@ -97,11 +96,20 @@ def get_recommended_substitutions(  # noqa: PLR0913
         count_only=count_only,
     )
 
-    quantity = Quantity(quantity_value=quantity_value, measurement=measurement)
+    if (quantity_value is not None) != (measurement is not None):
+        raise HTTPException(
+            status_code=400,
+            detail="Both quantity_value and measurement must be provided together.",
+        )
+    if quantity_value is not None and measurement is not None:
+        quantity = Quantity(quantity_value=quantity_value, measurement=measurement)
+    else:
+        quantity = None
     return service.get_recommended_substitutions(
         ingredient_id,
         quantity,
         pagination,
+        db,
     )
 
 
@@ -113,7 +121,7 @@ def get_recommended_substitutions(  # noqa: PLR0913
     response_class=JSONResponse,
 )
 def get_pairing_suggestions(
-    service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
+    service: Annotated[RecommendationsService, Depends(get_recommendations_service)],
     recipe_id: Annotated[
         int,
         Path(gt=0, description="The ID of the ingredient (must be > 0)"),
@@ -125,7 +133,7 @@ def get_pairing_suggestions(
     """Endpoint to take a recipe and return a list of suggested pairings.
 
     Args:
-        service (RecipeScraperService): Service to use for processing the request.
+        service (RecommendationsService): Service to use to process the request.
         recipe_id (int): The ID of the ingredient.
         limit (int): Number of items per page (minimum 1).
         offset (int): Number of items to skip (minimum 0).

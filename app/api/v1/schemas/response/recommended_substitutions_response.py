@@ -23,7 +23,7 @@ class IngredientSubstitution(BaseSchema):
         ...,
         description="The name of the suggested substitute ingredient.",
     )
-    quantity: Quantity = Field(
+    quantity: Quantity | None = Field(
         ...,
         description="The amount of the substitute ingredient to use.",
     )
