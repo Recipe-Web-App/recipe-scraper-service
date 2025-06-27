@@ -13,12 +13,14 @@ from app.api.v1.schemas.response.pairing_suggestions_response import (
     PairingSuggestionsResponse,
 )
 from app.api.v1.schemas.response.recommended_substitutions_response import (
+    ConversionRatio,
     IngredientSubstitution,
     RecommendedSubstitutionsResponse,
 )
 from app.core.logging import get_logger
 from app.db.models.ingredient_models.ingredient import Ingredient as IngredientModel
 from app.deps.downstream_service_manager import get_downstream_service_manager
+from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import SubstitutionNotFoundError
 from app.utils.cache_manager import CacheManager
 
@@ -67,10 +69,16 @@ class RecommendationsService:
         Raises:
             HTTPException: If ingredient not found or Spoonacular API unavailable.
         """
+        quantity_str = (
+            "Quantity = " + f"{quantity.amount} {quantity.measurement}"
+            if quantity
+            else "None"
+        )
         _log.info(
             "Getting Spoonacular-powered substitutions for Ingredient ID {} "
-            "(limit={} | offset={} | count_only={})",
+            "({} | limit={} | offset={} | count_only={})",
             ingredient_id,
+            quantity_str,
             pagination.limit,
             pagination.offset,
             pagination.count_only,
@@ -95,23 +103,24 @@ class RecommendationsService:
         # Get Spoonacular substitutions
         recommended_substitutions = self._get_spoonacular_substitutions(
             ingredient_name=ingredient.name,
-            quantity=quantity,
         )
-        _log.info(
-            "Generated {} substitutions for ingredient '{}' using Spoonacular",
-            len(recommended_substitutions),
-            ingredient.name,
-        )
+        _log.info("Generated substitutions: {}", recommended_substitutions)
 
-        return RecommendedSubstitutionsResponse.from_all(
+        response = RecommendedSubstitutionsResponse.from_all(
             IngredientSchema(
                 ingredient_id=ingredient_id,
                 name=ingredient.name,
-                quantity=quantity or QuantitySchema(),
+                quantity=quantity,
             ),
             recommended_substitutions,
             pagination,
         )
+        _log.info(
+            "Generated RecommendedSubstitutionsResponse: {}",
+            response,
+        )
+
+        return response
 
     def get_pairing_suggestions(
         self,
@@ -179,7 +188,6 @@ class RecommendationsService:
     def _get_spoonacular_substitutions(
         self,
         ingredient_name: str,
-        quantity: QuantitySchema | None = None,
     ) -> list[IngredientSubstitution]:
         """Get substitutions using Spoonacular API.
 
@@ -197,7 +205,7 @@ class RecommendationsService:
         if cached_substitutions:
             _log.info("Using cached substitutions for ingredient '{}'", ingredient_name)
             if isinstance(cached_substitutions, list):
-                return self._parse_cached_substitutions(cached_substitutions, quantity)
+                return self._parse_cached_substitutions(cached_substitutions)
             _log.warning("Unexpected cache format, regenerating substitutions")
 
         # Get substitutions from Spoonacular
@@ -210,7 +218,7 @@ class RecommendationsService:
             provider_data = self.spoonacular_service.get_ingredient_substitutes(
                 ingredient_name,
             )
-            substitutions = self._parse_provider_response(provider_data, quantity)
+            substitutions = self._parse_provider_response(provider_data)
 
             # Cache the results for 24 hours
             cache_data = [
@@ -260,7 +268,6 @@ class RecommendationsService:
     def _parse_cached_substitutions(
         self,
         cached_data: list[dict[str, Any]],
-        quantity: QuantitySchema | None,
     ) -> list[IngredientSubstitution]:
         """Parse cached substitution data into IngredientSubstitution objects.
 
@@ -273,15 +280,25 @@ class RecommendationsService:
         """
         substitutions = []
         for sub_data in cached_data:
-            adjusted_quantity = self._calculate_adjusted_quantity(
-                quantity,
-                sub_data.get("conversion_ratio", 1.0),
+            # Extract conversion ratio data
+            conversion_ratio_data = sub_data.get("conversion_ratio", {})
+
+            # Calculate adjusted quantity using the ratio value
+            ratio_value = conversion_ratio_data.get("ratio")
+
+            # Create ConversionRatio object for the response
+            conversion_ratio = ConversionRatio(
+                ratio=ratio_value,
+                measurement=conversion_ratio_data.get(
+                    "measurement",
+                    IngredientUnitEnum.UNIT,
+                ),
             )
 
             substitutions.append(
                 IngredientSubstitution(
                     ingredient=sub_data["ingredient"],
-                    quantity=adjusted_quantity,
+                    conversion_ratio=conversion_ratio,
                 ),
             )
 
@@ -290,7 +307,6 @@ class RecommendationsService:
     def _parse_provider_response(
         self,
         provider_data: list[dict[str, Any]],
-        original_quantity: QuantitySchema | None,
     ) -> list[IngredientSubstitution]:
         """Parse provider response into IngredientSubstitution objects.
 
@@ -303,41 +319,26 @@ class RecommendationsService:
         """
         substitutions = []
         for sub_data in provider_data:
-            # Calculate adjusted quantity
-            adjusted_quantity = self._calculate_adjusted_quantity(
-                original_quantity,
-                sub_data.get("conversion_ratio", 1.0),
+            # Extract conversion ratio data
+            conversion_ratio_data = sub_data.get("conversion_ratio", {})
+
+            # Calculate adjusted quantity using the ratio value
+            ratio_value = conversion_ratio_data.get("ratio", 1.0)
+
+            # Create ConversionRatio object for the response
+            conversion_ratio = ConversionRatio(
+                ratio=ratio_value,
+                measurement=conversion_ratio_data.get(
+                    "measurement",
+                    IngredientUnitEnum.UNIT,
+                ),
             )
 
             substitutions.append(
                 IngredientSubstitution(
                     ingredient=sub_data["substitute_ingredient"],
-                    quantity=adjusted_quantity,
+                    conversion_ratio=conversion_ratio,
                 ),
             )
 
         return substitutions
-
-    def _calculate_adjusted_quantity(
-        self,
-        original_quantity: QuantitySchema | None,
-        conversion_ratio: float,
-    ) -> QuantitySchema | None:
-        """Calculate adjusted quantity based on conversion ratio.
-
-        Args:
-            original_quantity: Original quantity to convert
-            conversion_ratio: Ratio to apply for conversion
-
-        Returns:
-            Adjusted quantity or None if no original quantity
-        """
-        if not original_quantity or not original_quantity.amount:
-            return None
-
-        adjusted_amount = float(original_quantity.amount) * conversion_ratio
-
-        return QuantitySchema(
-            amount=round(adjusted_amount, 2),
-            measurement=original_quantity.measurement,
-        )

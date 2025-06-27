@@ -11,8 +11,10 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
+from app.api.v1.schemas.downstream.spoonacular import SpoonacularSubstitutesResponse
 from app.core.config.config import settings
 from app.core.logging import get_logger
+from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import SubstitutionNotFoundError
 
 _log = get_logger(__name__)
@@ -124,9 +126,25 @@ class SpoonacularService:
         Returns:
             List of standardized substitute information
         """
+        # Parse the raw response using the Pydantic model
+        try:
+            spoonacular_response = SpoonacularSubstitutesResponse(**data)
+        except (ValueError, TypeError) as e:
+            _log.error(
+                "Failed to parse Spoonacular response for '{}': {}",
+                original_ingredient,
+                e,
+            )
+            raise SubstitutionNotFoundError(
+                ingredient_name=original_ingredient,
+                reason="Invalid response format from Spoonacular API",
+            ) from e
+
         # Check if Spoonacular returned a failure response
-        if data.get("status") == "failure":
-            error_message = data.get("message", "Unknown error from Spoonacular API")
+        if spoonacular_response.status == "failure":
+            error_message = (
+                spoonacular_response.message or "Unknown error from Spoonacular API"
+            )
             _log.warning(
                 "Spoonacular API returned failure for '{}': {}",
                 original_ingredient,
@@ -139,31 +157,36 @@ class SpoonacularService:
 
         substitutes = []
 
-        # Handle different response formats from Spoonacular
-        substitute_list = data.get("substitutes", [])
+        # Process each substitute item using the model's helper methods
+        for substitute_item in spoonacular_response.substitutes:
+            raw_ingredient_text = spoonacular_response.get_ingredient_name(
+                substitute_item,
+            )
+            description = spoonacular_response.get_description(substitute_item)
 
-        if isinstance(substitute_list, list):
-            for substitute in substitute_list:
-                if isinstance(substitute, str):
-                    # Simple string format
-                    parsed = self._parse_substitute_string(substitute)
-                    if parsed:
-                        substitutes.append(parsed)
-                elif isinstance(substitute, dict):
-                    # Dict format with more details
-                    substitutes.append(
-                        {
-                            "substitute_ingredient": substitute.get(
-                                "name",
-                                substitute.get("substitute", ""),
-                            ),
-                            "conversion_ratio": self._extract_ratio_from_description(
-                                substitute.get("description", ""),
-                            ),
-                            "notes": substitute.get("description", ""),
-                            "confidence_score": 0.8,  # Default for Spoonacular data
-                        },
-                    )
+            if not raw_ingredient_text:
+                continue
+
+            # Extract clean ingredient name from the raw text
+            clean_ingredient_name = self._extract_clean_ingredient_name(
+                raw_ingredient_text,
+            )
+
+            ratio_value = self._extract_ratio_from_description(description)
+
+            substitutes.append(
+                {
+                    "substitute_ingredient": clean_ingredient_name,
+                    "conversion_ratio": {
+                        "ratio": ratio_value,
+                        "measurement": IngredientUnitEnum.find_unit_in_text(
+                            description,
+                        ),
+                    },
+                    "notes": description,
+                    "confidence_score": 0.8,  # Default for Spoonacular data
+                },
+            )
 
         _log.info(
             "Parsed {} substitutes for '{}' from Spoonacular",
@@ -183,34 +206,6 @@ class SpoonacularService:
             )
 
         return substitutes
-
-    def _parse_substitute_string(self, substitute_str: str) -> dict[str, Any] | None:
-        """Parse a substitute string into structured data.
-
-        Args:
-            substitute_str: Raw substitute string from API
-
-        Returns:
-            Structured substitute information or None if parsing fails
-        """
-        if not substitute_str or not substitute_str.strip():
-            return None
-
-        # Clean up the string
-        substitute_str = substitute_str.strip()
-
-        # Extract ratio information if present
-        ratio = self._extract_ratio_from_description(substitute_str)
-
-        # Extract the main ingredient name (before any ratio/description)
-        ingredient_name = substitute_str.split(" (")[0].split(" -")[0].strip()
-
-        return {
-            "substitute_ingredient": ingredient_name,
-            "conversion_ratio": ratio,
-            "notes": substitute_str,
-            "confidence_score": 0.8,
-        }
 
     def _extract_ratio_from_description(self, description: str) -> float:
         """Extract conversion ratio from description text.
@@ -239,3 +234,39 @@ class SpoonacularService:
 
         # Default ratio
         return 1.0
+
+    def _extract_clean_ingredient_name(self, raw_ingredient_text: str) -> str:
+        """Extract clean ingredient name from Spoonacular format.
+
+        Handles formats like:
+        - "1 cup = 1 cup American cheese" -> "American Cheese"
+        - "2 tablespoons = 1 ounce cream cheese" -> "Cream Cheese"
+
+        Args:
+            raw_ingredient_text: Raw text from Spoonacular API
+
+        Returns:
+            Clean ingredient name without ratio/quantity information, title cased
+        """
+        clean_name = ""
+
+        # Handle format like "1 cup = 1 cup American cheese"
+        if " = " in raw_ingredient_text:
+            # Extract the part after the equals sign
+            ingredient_part = raw_ingredient_text.split(" = ", 1)[1].strip()
+
+            # Remove leading quantity/unit from "1 cup American cheese"
+            parts = ingredient_part.split()
+            min_parts_with_unit = 3  # quantity + unit + ingredient
+
+            if len(parts) >= min_parts_with_unit:
+                # Skip first two parts (quantity and unit) and join the rest
+                clean_name = " ".join(parts[2:])
+            else:
+                clean_name = ingredient_part
+        else:
+            # For other formats, extract name before parentheses or dashes
+            clean_name = raw_ingredient_text.split(" (")[0].split(" -")[0].strip()
+
+        # Convert to title case (capitalize first letter of each word)
+        return clean_name.title()

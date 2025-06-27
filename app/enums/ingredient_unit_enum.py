@@ -53,6 +53,7 @@ class IngredientUnitEnum(str, Enum):
             "cup": "CUP",
             "cups": "CUP",
             "tbsp": "TBSP",
+            "tbs": "TBSP",
             "tablespoons": "TBSP",
             "tablespoon": "TBSP",
             "tsp": "TSP",
@@ -87,3 +88,39 @@ class IngredientUnitEnum(str, Enum):
             return cls(normalized)
         except ValueError:
             return None
+
+    @classmethod
+    def find_unit_in_text(cls, text: str) -> "IngredientUnitEnum":
+        """Find the most appropriate unit from text description.
+
+        This method searches for unit patterns in the provided text and returns
+        the first matching unit found, or UNIT as default.
+
+        Args:
+            text: Text that may contain unit information
+
+        Returns:
+            IngredientUnitEnum: The most appropriate unit (defaults to UNIT)
+        """
+        if not text:
+            return cls.UNIT
+
+        text_lower = text.lower()
+
+        # Check all normalization patterns to find matches
+        # Sort by length (longest first) to match more specific terms first
+        sorted_patterns = sorted(
+            cls.__NORMALIZATION_MAP.items(),
+            key=lambda x: len(x[0]),
+            reverse=True,
+        )
+
+        for pattern, unit_value in sorted_patterns:
+            if pattern in text_lower:
+                try:
+                    return cls(unit_value)
+                except ValueError:
+                    continue
+
+        # Default to UNIT if no specific unit is found
+        return cls.UNIT

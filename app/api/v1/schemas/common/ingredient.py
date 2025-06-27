@@ -21,7 +21,7 @@ class Quantity(BaseSchema):
         measurement (Measurement): The measurement unit for the quantity.
     """
 
-    amount: float | None = Field(
+    amount: float = Field(
         ...,
         description="The numeric value of the ingredient quantity",
     )
@@ -45,7 +45,7 @@ class Ingredient(BaseSchema):
 
     ingredient_id: int = Field(..., description="The ID of the ingredient")
     name: str | None = Field(None, description="Name of the ingredient")
-    quantity: Quantity = Field(
-        ...,
+    quantity: Quantity | None = Field(
+        default=None,
         description="The quantity details of the ingredient",
     )
