@@ -82,7 +82,7 @@ class Recipe(BaseSchema):
                 ingredient_id=ingredient.ingredient_id,
                 name=getattr(getattr(ingredient, "ingredient", None), "name", None),
                 quantity=Quantity(
-                    quantity_value=float(getattr(ingredient, "quantity", 0.0)),
+                    amount=float(getattr(ingredient, "quantity", 0.0)),
                     measurement=(
                         IngredientUnitEnum(ingredient.unit)
                         if ingredient.unit

@@ -88,3 +88,46 @@ class RecipeScrapingError(Exception):
             str | None: The reason for failure, if provided.
         """
         return self.reason
+
+
+class SubstitutionNotFoundError(Exception):
+    """Raised when no substitutes can be found for an ingredient.
+
+    This exception is raised when:
+    - The external substitution service has no data for the ingredient
+    - The ingredient is too specific or rare to have common substitutes
+    - The substitution service API returns a "no results" response
+    """
+
+    def __init__(self, ingredient_name: str, reason: str | None = None) -> None:
+        """Initialize the exception with the ingredient name and optional reason.
+
+        Args:
+            ingredient_name: The name of the ingredient that has no substitutes.
+            reason: Optional specific reason why no substitutes were found.
+        """
+        self.ingredient_name = ingredient_name
+        self.reason = reason
+
+        if reason:
+            message = f"No substitutes found for '{ingredient_name}': {reason}"
+        else:
+            message = f"No substitutes found for '{ingredient_name}'"
+
+        super().__init__(message)
+
+    def get_ingredient_name(self) -> str:
+        """Get the ingredient name that caused the error.
+
+        Returns:
+            str: The ingredient name that has no substitutes.
+        """
+        return self.ingredient_name
+
+    def get_reason(self) -> str | None:
+        """Get the specific reason why no substitutes were found.
+
+        Returns:
+            str | None: The reason for no substitutes, if provided.
+        """
+        return self.reason

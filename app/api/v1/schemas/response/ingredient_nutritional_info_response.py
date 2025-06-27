@@ -67,11 +67,7 @@ class IngredientNutritionalInfoResponse(BaseSchema):
         Args:
             new_quantity (Quantity): The new quantity to scale to.
         """
-        if (
-            not self.quantity
-            or not self.quantity.quantity_value
-            or not new_quantity.quantity_value
-        ):
+        if not self.quantity or not self.quantity.amount or not new_quantity.amount:
             self.quantity = new_quantity
             return
 
@@ -89,9 +85,9 @@ class IngredientNutritionalInfoResponse(BaseSchema):
 
         # Calculate scaling factor using proper unit conversion
         scale_factor = UnitConverter.calculate_scale_factor(
-            old_quantity=Decimal(str(self.quantity.quantity_value)),
+            old_quantity=Decimal(str(self.quantity.amount)),
             old_unit=old_unit,
-            new_quantity=Decimal(str(new_quantity.quantity_value)),
+            new_quantity=Decimal(str(new_quantity.amount)),
             new_unit=new_unit,
         )
 
@@ -229,14 +225,14 @@ class IngredientNutritionalInfoResponse(BaseSchema):
         if not ingredients:
             return IngredientNutritionalInfoResponse(
                 quantity=Quantity(
-                    quantity_value=Decimal("0"),
+                    amount=Decimal("0"),
                     measurement=IngredientUnitEnum.UNIT,
                 ),
             )
 
         total = IngredientNutritionalInfoResponse(
             quantity=Quantity(
-                quantity_value=Decimal("0"),
+                amount=Decimal("0"),
                 measurement=IngredientUnitEnum.UNIT,
             ),
         )
@@ -272,7 +268,7 @@ class IngredientNutritionalInfoResponse(BaseSchema):
         """
         return cls(
             quantity=Quantity(
-                quantity_value=nutritional_info.serving_quantity,
+                amount=nutritional_info.serving_quantity,
                 measurement=(
                     nutritional_info.serving_measurement
                     if nutritional_info.serving_measurement is not None

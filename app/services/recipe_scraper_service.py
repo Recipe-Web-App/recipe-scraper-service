@@ -15,21 +15,12 @@ from fastapi import HTTPException
 from recipe_scrapers import scrape_me
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.common.ingredient import Ingredient as IngredientSchema
-from app.api.v1.schemas.common.ingredient import Quantity as QuantitySchema
 from app.api.v1.schemas.common.pagination_params import PaginationParams
 from app.api.v1.schemas.common.recipe import Recipe as RecipeSchema
 from app.api.v1.schemas.common.web_recipe import WebRecipe
 from app.api.v1.schemas.response.create_recipe_response import CreateRecipeResponse
-from app.api.v1.schemas.response.pairing_suggestions_response import (
-    PairingSuggestionsResponse,
-)
 from app.api.v1.schemas.response.recommended_recipes_response import (
     PopularRecipesResponse,
-)
-from app.api.v1.schemas.response.recommended_substitutions_response import (
-    IngredientSubstitution,
-    RecommendedSubstitutionsResponse,
 )
 from app.core.config.config import settings
 from app.core.logging import get_logger
@@ -39,6 +30,7 @@ from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.db.models.recipe_models.recipe_step import RecipeStep
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import RecipeScrapingError
+from app.services.downstream.spoonacular_service import SpoonacularService
 from app.utils.cache_manager import CacheManager
 from app.utils.popular_recipe_web_scraper import scrape_popular_recipes
 
@@ -113,8 +105,9 @@ class RecipeScraperService:
     """
 
     def __init__(self) -> None:
-        """Initialize the service with cache manager."""
+        """Initialize the service with cache manager and Spoonacular service."""
         self.cache_manager = CacheManager()
+        self.spoonacular_service = SpoonacularService()
 
     def create_recipe(
         self,
@@ -333,143 +326,3 @@ class RecipeScraperService:
 
         _log.info("Successfully scraped {} total popular recipes", len(popular_recipes))
         return popular_recipes
-
-    def get_recommended_substitutions(
-        self,
-        ingredient_id: int,
-        quantity: QuantitySchema | None,
-        pagination: PaginationParams,
-    ) -> RecommendedSubstitutionsResponse:
-        """Generate a list of recommended substitutions from the internet.
-
-        Args:
-            ingredient_id (int): The ID of the ingredient to process.
-            quantity (Quantity): The quantity of the ingredient to process.
-            pagination (PaginationParams): Pagination params for response control.
-
-        Returns:
-            RecommendedSubstitutionsResponse: The created recommended recipe data.
-        """
-        _log.info(
-            "Getting recommended substitutions for Ingredient ID {} (limit={} | \
-              offset={} | count_only={})",
-            ingredient_id,
-            pagination.limit,
-            pagination.offset,
-            pagination.count_only,
-        )
-
-        recommended_substitutions = [
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 1",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 2",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 3",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 4",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 5",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 6",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 7",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 8",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 9",
-                quantity=quantity,
-            ),
-            IngredientSubstitution(
-                ingredient="Ingredient Substitution 10",
-                quantity=quantity,
-            ),
-        ]
-
-        return RecommendedSubstitutionsResponse.from_all(
-            IngredientSchema(
-                ingredient_id=ingredient_id,
-                quantity=quantity,
-            ),
-            recommended_substitutions,
-            pagination,
-        )
-
-    def get_pairing_suggestions(
-        self,
-        recipe_id: int,
-        pagination: PaginationParams,
-    ) -> PairingSuggestionsResponse:
-        """Identify suggested pairings for the given recipe.
-
-        Args:
-            recipe_id (int): The ID of the ingredient.
-            pagination (PaginationParams): Pagination params for response control.
-
-        Returns:
-            PairingSuggestionsResponse: The generated list of suggested pairings.
-        """
-        pairing_suggestions = [
-            WebRecipe(
-                recipe_name="Dummy Recipe 1",
-                url="https://some-url.com/dummy-recipe-1",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 2",
-                url="https://some-url.com/dummy-recipe-2",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 3",
-                url="https://some-url.com/dummy-recipe-3",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 4",
-                url="https://some-url.com/dummy-recipe-4",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 5",
-                url="https://some-url.com/dummy-recipe-5",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 6",
-                url="https://some-url.com/dummy-recipe-6",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 7",
-                url="https://some-url.com/dummy-recipe-7",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 8",
-                url="https://some-url.com/dummy-recipe-8",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 9",
-                url="https://some-url.com/dummy-recipe-9",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 10",
-                url="https://some-url.com/dummy-recipe-10",
-            ),
-        ]
-
-        return PairingSuggestionsResponse.from_all(
-            recipe_id,
-            pairing_suggestions,
-            pagination,
-        )
