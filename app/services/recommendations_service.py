@@ -1,7 +1,5 @@
 """Recommendations service for generating ingredient substitutions and pairings."""
 
-from typing import Any
-
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,8 +13,6 @@ from app.api.v1.schemas.response.pairing_suggestions_response import (
     PairingSuggestionsResponse,
 )
 from app.api.v1.schemas.response.recommended_substitutions_response import (
-    ConversionRatio,
-    IngredientSubstitution,
     RecommendedSubstitutionsResponse,
 )
 from app.core.logging import get_logger
@@ -25,8 +21,6 @@ from app.db.models.recipe_models.recipe import Recipe as RecipeModel
 from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.db.models.recipe_models.recipe_tag_junction import RecipeTagJunction
 from app.deps.downstream_service_manager import get_downstream_service_manager
-from app.enums.ingredient_unit_enum import IngredientUnitEnum
-from app.exceptions.custom_exceptions import SubstitutionNotFoundError
 from app.utils.cache_manager import CacheManager
 
 _log = get_logger(__name__)
@@ -108,8 +102,10 @@ class RecommendationsService:
             )
 
         # Get Spoonacular substitutions
-        recommended_substitutions = self._get_spoonacular_substitutions(
-            ingredient_name=ingredient.name,
+        recommended_substitutions = (
+            self.spoonacular_service.get_ingredient_substitutions(
+                ingredient_name=ingredient.name,
+            )
         )
         _log.info("Generated substitutions: {}", recommended_substitutions)
 
@@ -264,18 +260,15 @@ class RecommendationsService:
             recipe_ingredients = self._get_recipe_ingredients(target_recipe, db)
             if recipe_ingredients:
                 try:
-                    ingredient_based_recipes = (
+                    suggestions = (
                         self.spoonacular_service.search_recipes_by_ingredients(
                             ingredients=recipe_ingredients,
+                            limit=100,  # Use maximum limit
                         )
                     )
-                    spoonacular_recipes = self._convert_spoonacular_to_web_recipes(
-                        ingredient_based_recipes,
-                    )
-                    suggestions.extend(spoonacular_recipes)
                     _log.debug(
                         "Found {} Spoonacular recipes based on ingredients",
-                        len(spoonacular_recipes),
+                        len(suggestions),
                     )
                 except HTTPException as e:
                     _log.warning("Spoonacular ingredient search failed: {}", e.detail)
@@ -326,191 +319,6 @@ class RecommendationsService:
             return []
         else:
             return ingredient_names
-
-    def _convert_spoonacular_to_web_recipes(
-        self,
-        spoonacular_recipes: list[dict[str, Any]],
-    ) -> list[WebRecipe]:
-        """Convert Spoonacular recipe format to WebRecipe objects.
-
-        Args:
-            spoonacular_recipes: List of standardized Spoonacular recipe dictionaries
-
-        Returns:
-            List of WebRecipe objects
-        """
-        web_recipes = []
-
-        for recipe_data in spoonacular_recipes:
-            try:
-                web_recipe = WebRecipe(
-                    recipe_name=recipe_data.get("recipe_name", "Unknown Recipe"),
-                    url=recipe_data.get("url", ""),
-                )
-                web_recipes.append(web_recipe)
-            except (ValueError, TypeError) as e:
-                _log.warning("Failed to convert Spoonacular recipe to WebRecipe: {}", e)
-                continue
-
-        return web_recipes
-
-    def _get_spoonacular_substitutions(
-        self,
-        ingredient_name: str,
-    ) -> list[IngredientSubstitution]:
-        """Get substitutions using Spoonacular API.
-
-        Args:
-            ingredient_name: Name of the ingredient to substitute
-            quantity: Optional quantity information for context
-
-        Returns:
-            List of ingredient substitutions from Spoonacular
-        """
-        # Check cache first
-        cache_key = f"substitutions_{ingredient_name.lower().replace(' ', '_')}"
-        cached_substitutions = self.cache_manager.get(cache_key)
-
-        if cached_substitutions:
-            _log.info("Using cached substitutions for ingredient '{}'", ingredient_name)
-            if isinstance(cached_substitutions, list):
-                return self._parse_cached_substitutions(cached_substitutions)
-            _log.warning("Unexpected cache format, regenerating substitutions")
-
-        # Get substitutions from Spoonacular
-        try:
-            _log.debug(
-                "Getting substitutions from Spoonacular for '{}'",
-                ingredient_name,
-            )
-
-            provider_data = self.spoonacular_service.get_ingredient_substitutes(
-                ingredient_name,
-            )
-            substitutions = self._parse_provider_response(provider_data)
-
-            # Cache the results for 24 hours
-            cache_data = [
-                {
-                    "ingredient": sub_data["substitute_ingredient"],
-                    "conversion_ratio": sub_data.get("conversion_ratio", 1.0),
-                    "source": "spoonacular",
-                }
-                for sub_data in provider_data
-            ]
-            self.cache_manager.set(cache_key, cache_data, expiry_hours=24)
-
-            _log.info(
-                "Successfully got {} substitutions from Spoonacular for '{}'",
-                len(substitutions),
-                ingredient_name,
-            )
-
-        except SubstitutionNotFoundError as e:
-            _log.warning(
-                "Spoonacular could not find substitutes for '{}': {}",
-                ingredient_name,
-                e.get_reason() if hasattr(e, "get_reason") else str(e),
-            )
-            raise HTTPException(
-                status_code=404,
-                detail=f"No substitutes available for ingredient: {ingredient_name}",
-            ) from e
-
-        except HTTPException:
-            # Let HTTPExceptions from Spoonacular service bubble up
-            raise
-
-        except (ConnectionError, TimeoutError) as e:
-            _log.error(
-                "Network error from Spoonacular for '{}': {}",
-                ingredient_name,
-                e,
-            )
-            raise HTTPException(
-                status_code=503,
-                detail="Ingredient substitution service temporarily unavailable",
-            ) from e
-        else:
-            return substitutions
-
-    def _parse_cached_substitutions(
-        self,
-        cached_data: list[dict[str, Any]],
-    ) -> list[IngredientSubstitution]:
-        """Parse cached substitution data into IngredientSubstitution objects.
-
-        Args:
-            cached_data: Cached substitution data
-            quantity: Current quantity for conversion calculations
-
-        Returns:
-            List of ingredient substitutions with adjusted quantities
-        """
-        substitutions = []
-        for sub_data in cached_data:
-            # Extract conversion ratio data
-            conversion_ratio_data = sub_data.get("conversion_ratio", {})
-
-            # Calculate adjusted quantity using the ratio value
-            ratio_value = conversion_ratio_data.get("ratio")
-
-            # Create ConversionRatio object for the response
-            conversion_ratio = ConversionRatio(
-                ratio=ratio_value,
-                measurement=conversion_ratio_data.get(
-                    "measurement",
-                    IngredientUnitEnum.UNIT,
-                ),
-            )
-
-            substitutions.append(
-                IngredientSubstitution(
-                    ingredient=sub_data["ingredient"],
-                    conversion_ratio=conversion_ratio,
-                ),
-            )
-
-        return substitutions
-
-    def _parse_provider_response(
-        self,
-        provider_data: list[dict[str, Any]],
-    ) -> list[IngredientSubstitution]:
-        """Parse provider response into IngredientSubstitution objects.
-
-        Args:
-            provider_data: Response from any provider service
-            original_quantity: Original quantity for conversion calculations
-
-        Returns:
-            List of parsed ingredient substitutions
-        """
-        substitutions = []
-        for sub_data in provider_data:
-            # Extract conversion ratio data
-            conversion_ratio_data = sub_data.get("conversion_ratio", {})
-
-            # Calculate adjusted quantity using the ratio value
-            ratio_value = conversion_ratio_data.get("ratio", 1.0)
-
-            # Create ConversionRatio object for the response
-            conversion_ratio = ConversionRatio(
-                ratio=ratio_value,
-                measurement=conversion_ratio_data.get(
-                    "measurement",
-                    IngredientUnitEnum.UNIT,
-                ),
-            )
-
-            substitutions.append(
-                IngredientSubstitution(
-                    ingredient=sub_data["substitute_ingredient"],
-                    conversion_ratio=conversion_ratio,
-                ),
-            )
-
-        return substitutions
 
     def _get_recipe_by_id(self, recipe_id: int, db: Session) -> RecipeModel:
         """Get recipe from database by ID.

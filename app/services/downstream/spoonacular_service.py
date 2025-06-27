@@ -11,9 +11,14 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
+from app.api.v1.schemas.common.web_recipe import WebRecipe
 from app.api.v1.schemas.downstream.spoonacular import (
     SpoonacularSimilarRecipesResponse,
     SpoonacularSubstitutesResponse,
+)
+from app.api.v1.schemas.response.recommended_substitutions_response import (
+    ConversionRatio,
+    IngredientSubstitution,
 )
 from app.core.config.config import settings
 from app.core.logging import get_logger
@@ -277,7 +282,7 @@ class SpoonacularService:
     def get_similar_recipes(
         self,
         recipe_id: int,
-        limit: int = 10,
+        limit: int = 100,  # Use max by default
     ) -> list[dict[str, Any]]:
         """Get similar recipes from Spoonacular API.
 
@@ -346,88 +351,6 @@ class SpoonacularService:
             _log.error(
                 "Spoonacular API request failed for recipe ID {}: {}",
                 recipe_id,
-                e,
-            )
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail="Recipe recommendation service temporarily unavailable",
-            ) from e
-
-    def search_recipes_by_ingredients(
-        self,
-        ingredients: list[str],
-        limit: int = 100,
-        ranking: int | None = None,
-    ) -> list[dict[str, Any]]:
-        """Search for recipes based on ingredients using Spoonacular API.
-
-        Args:
-            ingredients: List of ingredient names to search for
-            limit: limit of recipes to return
-            ranking: How to rank the results (1=minimize missing, 2=maximize used)
-
-        Returns:
-            List of recipes with standardized format
-
-        Raises:
-            HTTPException: If API call fails
-        """
-        try:
-            _log.debug(
-                "Searching recipes by ingredients: {} (limit={})",
-                ingredients,
-                limit,
-            )
-
-            # Spoonacular's recipe search by ingredients endpoint
-            url = f"{self.base_url}/recipes/findByIngredients"
-
-            # Join ingredients with comma
-            ingredients_str = ",".join(ingredients)
-
-            params = {
-                "ingredients": ingredients_str,
-                "limit": min(limit, 100),
-                "ignorePantry": True,
-                "apiKey": self.api_key,
-            }
-
-            if ranking is not None:
-                params["ranking"] = ranking
-
-            response = self.client.get(url, params=params)
-            response.raise_for_status()
-
-            recipe_list = response.json()
-
-            _log.debug(
-                "Spoonacular ingredient search successful, found {} recipes",
-                len(recipe_list),
-            )
-
-            # This endpoint returns a different format, convert to standard format
-            return self._convert_ingredient_search_to_standard_format(recipe_list)
-
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == HTTPStatus.PAYMENT_REQUIRED:
-                _log.error("Spoonacular API quota exceeded or payment required")
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                    detail=(
-                        "Recipe recommendation service temporarily unavailable "
-                        "due to quota limits"
-                    ),
-                ) from e
-
-            _log.error("Spoonacular API HTTP error {}: {}", e.response.status_code, e)
-            raise HTTPException(
-                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                detail="Recipe recommendation service temporarily unavailable",
-            ) from e
-
-        except httpx.RequestError as e:
-            _log.error(
-                "Spoonacular API request failed for ingredient search: {}",
                 e,
             )
             raise HTTPException(
@@ -515,3 +438,144 @@ class SpoonacularService:
             )
 
         return standardized_recipes
+
+    def get_ingredient_substitutions(
+        self,
+        ingredient_name: str,
+    ) -> list[IngredientSubstitution]:
+        """Get ingredient substitutions as domain objects.
+
+        Args:
+            ingredient_name: Name of the ingredient to substitute
+
+        Returns:
+            List of IngredientSubstitution domain objects
+        """
+        # Get raw data from existing method
+        raw_substitutes = self.get_ingredient_substitutes(ingredient_name)
+
+        # Convert to domain objects
+        substitutions = []
+        for sub_data in raw_substitutes:
+            # Extract conversion ratio data
+            conversion_ratio_data = sub_data.get("conversion_ratio", {})
+
+            # Calculate adjusted quantity using the ratio value
+            ratio_value = conversion_ratio_data.get("ratio", 1.0)
+
+            # Create ConversionRatio object for the response
+            conversion_ratio = ConversionRatio(
+                ratio=ratio_value,
+                measurement=conversion_ratio_data.get(
+                    "measurement",
+                    IngredientUnitEnum.UNIT,
+                ),
+            )
+
+            substitutions.append(
+                IngredientSubstitution(
+                    ingredient=sub_data["substitute_ingredient"],
+                    conversion_ratio=conversion_ratio,
+                ),
+            )
+
+        return substitutions
+
+    def search_recipes_by_ingredients(
+        self,
+        ingredients: list[str],
+        limit: int = 100,  # Use max by default
+        ranking: int | None = None,
+    ) -> list[WebRecipe]:
+        """Search for recipes based on ingredients and return as WebRecipe objects.
+
+        Args:
+            ingredients: List of ingredient names to search for
+            limit: Number of recipes to return (max 100)
+            ranking: How to rank the results (1=minimize missing, 2=maximize used)
+
+        Returns:
+            List of WebRecipe objects
+
+        Raises:
+            HTTPException: If API call fails
+        """
+        try:
+            _log.debug(
+                "Searching recipes by ingredients: {} (limit={})",
+                ingredients,
+                limit,
+            )
+
+            # Spoonacular's recipe search by ingredients endpoint
+            url = f"{self.base_url}/recipes/findByIngredients"
+
+            # Join ingredients with comma
+            ingredients_str = ",".join(ingredients)
+
+            params = {
+                "ingredients": ingredients_str,
+                "limit": min(limit, 100),
+                "ignorePantry": True,
+                "apiKey": self.api_key,
+            }
+
+            if ranking is not None:
+                params["ranking"] = ranking
+
+            response = self.client.get(url, params=params)
+            response.raise_for_status()
+
+            recipe_list = response.json()
+
+            _log.debug(
+                "Spoonacular ingredient search successful, found {} recipes",
+                len(recipe_list),
+            )
+
+            # This endpoint returns a different format, convert to standard format
+            raw_recipes = self._convert_ingredient_search_to_standard_format(
+                recipe_list,
+            )
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == HTTPStatus.PAYMENT_REQUIRED:
+                _log.error("Spoonacular API quota exceeded or payment required")
+                raise HTTPException(
+                    status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                    detail=(
+                        "Recipe recommendation service temporarily unavailable "
+                        "due to quota limits"
+                    ),
+                ) from e
+
+            _log.error("Spoonacular API HTTP error {}: {}", e.response.status_code, e)
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="Recipe recommendation service temporarily unavailable",
+            ) from e
+
+        except httpx.RequestError as e:
+            _log.error(
+                "Spoonacular API request failed for ingredient search: {}",
+                e,
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail="Recipe recommendation service temporarily unavailable",
+            ) from e
+
+        # Convert to WebRecipe objects
+        web_recipes = []
+        for recipe_data in raw_recipes:
+            try:
+                web_recipe = WebRecipe(
+                    recipe_name=recipe_data.get("recipe_name", "Unknown Recipe"),
+                    url=recipe_data.get("url", ""),
+                )
+                web_recipes.append(web_recipe)
+            except (ValueError, TypeError) as e:
+                _log.warning("Failed to convert Spoonacular recipe to WebRecipe: {}", e)
+                continue
+
+        return web_recipes
