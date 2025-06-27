@@ -277,13 +277,13 @@ class SpoonacularService:
     def get_similar_recipes(
         self,
         recipe_id: int,
-        number: int = 10,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """Get similar recipes from Spoonacular API.
 
         Args:
             recipe_id: Spoonacular recipe ID to find similar recipes for
-            number: Number of similar recipes to return
+            limit: limit of similar recipes to return
 
         Returns:
             List of similar recipes with standardized format
@@ -301,7 +301,7 @@ class SpoonacularService:
             url = f"{self.base_url}/recipes/{recipe_id}/similar"
 
             params = {
-                "number": min(number, 100),  # Spoonacular limit
+                "limit": min(limit, 100),  # Spoonacular limit
                 "apiKey": self.api_key,
             }
 
@@ -356,14 +356,14 @@ class SpoonacularService:
     def search_recipes_by_ingredients(
         self,
         ingredients: list[str],
-        number: int = 10,
-        ranking: int = 2,
+        limit: int = 100,
+        ranking: int | None = None,
     ) -> list[dict[str, Any]]:
         """Search for recipes based on ingredients using Spoonacular API.
 
         Args:
             ingredients: List of ingredient names to search for
-            number: Number of recipes to return
+            limit: limit of recipes to return
             ranking: How to rank the results (1=minimize missing, 2=maximize used)
 
         Returns:
@@ -374,9 +374,9 @@ class SpoonacularService:
         """
         try:
             _log.debug(
-                "Searching recipes by ingredients: {} (number={})",
+                "Searching recipes by ingredients: {} (limit={})",
                 ingredients,
-                number,
+                limit,
             )
 
             # Spoonacular's recipe search by ingredients endpoint
@@ -387,11 +387,13 @@ class SpoonacularService:
 
             params = {
                 "ingredients": ingredients_str,
-                "number": min(number, 100),  # Spoonacular limit
-                "ranking": ranking,
-                "ignorePantry": True,  # Don't assume pantry ingredients
+                "limit": min(limit, 100),
+                "ignorePantry": True,
                 "apiKey": self.api_key,
             }
+
+            if ranking is not None:
+                params["ranking"] = ranking
 
             response = self.client.get(url, params=params)
             response.raise_for_status()

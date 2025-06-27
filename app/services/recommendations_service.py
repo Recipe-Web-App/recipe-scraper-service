@@ -266,9 +266,7 @@ class RecommendationsService:
                 try:
                     ingredient_based_recipes = (
                         self.spoonacular_service.search_recipes_by_ingredients(
-                            ingredients=recipe_ingredients[:10],  # Limit to top 10
-                            number=5,
-                            ranking=2,  # Maximize used ingredients
+                            ingredients=recipe_ingredients,
                         )
                     )
                     spoonacular_recipes = self._convert_spoonacular_to_web_recipes(
