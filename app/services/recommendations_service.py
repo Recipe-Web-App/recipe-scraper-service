@@ -259,6 +259,37 @@ class RecommendationsService:
             # Strategy 1: Use ingredients from the recipe to search for similar recipes
             recipe_ingredients = self._get_recipe_ingredients(target_recipe, db)
             if recipe_ingredients:
+                # Generate cache key based on recipe ingredients
+                ingredients_key = "_".join(sorted(recipe_ingredients))
+                cache_key = (
+                    f"spoonacular_pairing_{target_recipe.recipe_id}_"
+                    f"{hash(ingredients_key) % 1000000}"
+                )
+
+                # Try to get from cache first
+                cached_suggestions = self.cache_manager.get(cache_key)
+                if cached_suggestions is not None:
+                    _log.debug(
+                        "Cache hit for Spoonacular pairing suggestions for recipe {}",
+                        target_recipe.recipe_id,
+                    )
+                    # Convert cached data back to WebRecipe objects
+                    # Ensure cached_suggestions is a list of dictionaries
+                    if isinstance(cached_suggestions, list):
+                        return [
+                            WebRecipe(
+                                recipe_name=item.get("recipe_name", "Unknown Recipe"),
+                                url=item.get("url", ""),
+                            )
+                            for item in cached_suggestions
+                            if isinstance(item, dict)
+                        ]
+
+                    _log.warning(
+                        "Invalid cached data format for recipe {}, ignoring cache",
+                        target_recipe.recipe_id,
+                    )
+
                 try:
                     suggestions = (
                         self.spoonacular_service.search_recipes_by_ingredients(
@@ -270,6 +301,33 @@ class RecommendationsService:
                         "Found {} Spoonacular recipes based on ingredients",
                         len(suggestions),
                     )
+
+                    # Cache results - convert WebRecipe objects for JSON serialization
+                    if suggestions:
+                        cache_data = [
+                            {"recipe_name": recipe.recipe_name, "url": recipe.url}
+                            for recipe in suggestions
+                        ]
+                        try:
+                            self.cache_manager.set(
+                                cache_key,
+                                cache_data,
+                                expiry_hours=24,
+                            )
+                            _log.debug(
+                                "Cached {} Spoonacular pairing suggestions "
+                                "for recipe {}",
+                                len(cache_data),
+                                target_recipe.recipe_id,
+                            )
+                        except (OSError, ValueError) as cache_error:
+                            _log.warning(
+                                "Failed to cache Spoonacular pairing suggestions "
+                                "for recipe {}: {}",
+                                target_recipe.recipe_id,
+                                cache_error,
+                            )
+
                 except HTTPException as e:
                     _log.warning("Spoonacular ingredient search failed: {}", e.detail)
 
