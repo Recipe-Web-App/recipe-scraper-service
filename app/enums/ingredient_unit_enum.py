@@ -5,6 +5,10 @@ Defines the units of measurement that can be used for ingredients in recipes.
 
 from enum import Enum
 from types import MappingProxyType
+from typing import Any, Union
+
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
 
 
 class IngredientUnitEnum(str, Enum):
@@ -77,6 +81,55 @@ class IngredientUnitEnum(str, Enum):
             "units": "UNIT",
         },
     )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        source_type: type[Any],
+        handler: GetCoreSchemaHandler,
+    ) -> CoreSchema:
+        """Get custom Pydantic v2 core schema for the enum.
+
+        This enables automatic conversion from strings to enum values in FastAPI
+        query parameters and other Pydantic validation contexts.
+
+        Args:
+            source_type: The source type being validated
+            handler: The core schema handler
+
+        Returns:
+            CoreSchema: The core schema for validation
+        """
+        # Use the default enum schema as base and add our custom validation
+        return core_schema.no_info_before_validator_function(
+            cls._validate_string,
+            handler(cls),
+        )
+
+    @classmethod
+    def _validate_string(
+        cls,
+        value: Union[str, "IngredientUnitEnum"],
+    ) -> "IngredientUnitEnum":
+        """Validate a string value and convert to enum.
+
+        Args:
+            value: The input value to validate
+
+        Returns:
+            IngredientUnitEnum: The validated enum instance
+
+        Raises:
+            ValueError: If the value cannot be converted to a valid unit
+        """
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, str):
+            result = cls.from_string(value)
+            if result is not None:
+                return result
+        error_msg = f"Invalid measurement unit: {value}"
+        raise ValueError(error_msg)
 
     @classmethod
     def from_string(cls, unit_str: str) -> "IngredientUnitEnum | None":

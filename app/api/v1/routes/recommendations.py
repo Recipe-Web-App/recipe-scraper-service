@@ -20,6 +20,7 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
     RecommendedSubstitutionsResponse,
 )
 from app.deps.db import get_db
+from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.services.recommendations_service import RecommendationsService
 
 
@@ -66,10 +67,12 @@ def get_recommended_substitutions(  # noqa: PLR0913
         ),
     ] = None,
     measurement: Annotated[
-        str | None,
+        IngredientUnitEnum | None,
         Query(
-            min_length=1,
-            description="Measurement unit for the quantity",
+            description=(
+                "Measurement unit for the quantity. If not provided, "
+                "default serving size will be used."
+            ),
         ),
     ] = None,
 ) -> RecommendedSubstitutionsResponse:

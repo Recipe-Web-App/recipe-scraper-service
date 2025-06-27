@@ -127,9 +127,8 @@ def get_nutritional_info_for_ingredient(
         Query(gt=0, description="Quantity value for the ingredient"),
     ] = None,
     measurement: Annotated[
-        str | None,
+        IngredientUnitEnum | None,
         Query(
-            min_length=1,
             description=(
                 "Measurement unit for the quantity. If not provided, "
                 "default serving size will be used."
@@ -161,20 +160,11 @@ def get_nutritional_info_for_ingredient(
             ),
         )
 
-    quantity: Quantity | None
-    if quantity_value and measurement:
-        try:
-            quantity = Quantity(
-                amount=quantity_value,
-                measurement=IngredientUnitEnum(measurement.upper()),
-            )
-        except ValueError as err:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid measurement: {measurement}",
-            ) from err
-    else:
-        quantity = None
+    quantity = (
+        Quantity(amount=quantity_value, measurement=measurement)
+        if quantity_value and measurement
+        else None
+    )
 
     return service.get_ingredient_nutritional_info(
         ingredient_id,
