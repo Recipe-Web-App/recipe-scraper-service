@@ -5,7 +5,7 @@ Accept: application/json
 ###
 
 ### Get nutritional info for an ingredient
-GET http://recipe.local/api/recipe-scraper/ingredients/2/nutritional-info?quantity_value=50&measurement=G
+GET http://recipe.local/api/recipe-scraper/ingredients/2/nutritional-info?amount=50&measurement=G
 Accept: application/json
 
 ###

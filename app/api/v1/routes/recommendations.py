@@ -59,7 +59,7 @@ def get_recommended_substitutions(  # noqa: PLR0913
     limit: Annotated[int, Query(ge=1)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     count_only: Annotated[bool, Query()] = False,
-    quantity_value: Annotated[
+    amount: Annotated[
         float | None,
         Query(
             gt=0,
@@ -85,7 +85,7 @@ def get_recommended_substitutions(  # noqa: PLR0913
         limit (int): Number of items per page (minimum 1).
         offset (int): Number of items to skip (minimum 0).
         count_only (bool): Whether to return only count instead of substitutions.
-        quantity_value (float): Quantity value for the ingredient.
+        amount (float): Quantity value for the ingredient.
         measurement (str): Measurement unit for the quantity.
 
     Returns:
@@ -99,13 +99,13 @@ def get_recommended_substitutions(  # noqa: PLR0913
         count_only=count_only,
     )
 
-    if (quantity_value is not None) != (measurement is not None):
+    if (amount is not None) != (measurement is not None):
         raise HTTPException(
             status_code=400,
-            detail="Both quantity_value and measurement must be provided together.",
+            detail="Both amount and measurement must be provided together.",
         )
-    if quantity_value is not None and measurement is not None:
-        quantity = Quantity(amount=quantity_value, measurement=measurement)
+    if amount is not None and measurement is not None:
+        quantity = Quantity(amount=amount, measurement=measurement)
     else:
         quantity = None
     return service.get_recommended_substitutions(

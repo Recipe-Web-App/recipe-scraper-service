@@ -5,7 +5,7 @@ Accept: application/json
 ###
 
 ### Get Recommended Substitutions for Ingredient with Quantity Adjustment
-GET http://recipe.local/api/recipe-scraper/ingredients/15/recommended-substitutions?quantity_value=2&measurement=LB
+GET http://recipe.local/api/recipe-scraper/ingredients/15/recommended-substitutions?amount=2&measurement=LB
 Accept: application/json
 
 ###

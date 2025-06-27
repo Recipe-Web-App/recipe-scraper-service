@@ -122,9 +122,9 @@ def get_nutritional_info_for_ingredient(
         int,
         Path(gt=0, description="The ID of the ingredient (must be > 0)"),
     ],
-    quantity_value: Annotated[
+    amount: Annotated[
         float | None,
-        Query(gt=0, description="Quantity value for the ingredient"),
+        Query(gt=0, description="Quantity amount for the ingredient"),
     ] = None,
     measurement: Annotated[
         IngredientUnitEnum | None,
@@ -145,24 +145,24 @@ def get_nutritional_info_for_ingredient(
         service (NutritionalInfoService): The service instance (injected).
         db (Session): Injected database session for ORM operations.
         ingredient_id (int): The ID of the ingredient.
-        quantity_value (float): The quantity value for the ingredient.
+        amount (float): The quantity value for the ingredient.
         measurement (str): The measurement unit for the quantity.
 
     Returns:
         IngredientNutritionalInfoResponse: Nutritional information for the ingredient.
     """
-    if (quantity_value is None) != (measurement is None):
+    if (amount is None) != (measurement is None):
         raise HTTPException(
             status_code=400,
             detail=(
-                "Both 'quantity_value' and 'measurement' must be provided "
+                "Both 'amount' and 'measurement' must be provided "
                 "together when used."
             ),
         )
 
     quantity = (
-        Quantity(amount=quantity_value, measurement=measurement)
-        if quantity_value and measurement
+        Quantity(amount=amount, measurement=measurement)
+        if amount and measurement
         else None
     )
 
