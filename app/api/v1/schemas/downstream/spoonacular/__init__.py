@@ -4,6 +4,12 @@ This package contains Pydantic models for parsing and validating responses from 
 Spoonacular API service.
 """
 
+from .recipe_search_response import (
+    ParsedRecipeResult,
+    SpoonacularRecipeInfo,
+    SpoonacularRecipeSearchResponse,
+    SpoonacularSimilarRecipesResponse,
+)
 from .substitutes_response import (
     ParsedSubstituteResult,
     SpoonacularSubstituteItem,
@@ -11,7 +17,11 @@ from .substitutes_response import (
 )
 
 __all__ = [
+    "ParsedRecipeResult",
     "ParsedSubstituteResult",
+    "SpoonacularRecipeInfo",
+    "SpoonacularRecipeSearchResponse",
+    "SpoonacularSimilarRecipesResponse",
     "SpoonacularSubstituteItem",
     "SpoonacularSubstitutesResponse",
 ]
