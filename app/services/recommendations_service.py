@@ -3,6 +3,8 @@
 from typing import Any
 
 from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.common.ingredient import Ingredient as IngredientSchema
@@ -19,6 +21,9 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
 )
 from app.core.logging import get_logger
 from app.db.models.ingredient_models.ingredient import Ingredient as IngredientModel
+from app.db.models.recipe_models.recipe import Recipe as RecipeModel
+from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
+from app.db.models.recipe_models.recipe_tag_junction import RecipeTagJunction
 from app.deps.downstream_service_manager import get_downstream_service_manager
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import SubstitutionNotFoundError
@@ -40,6 +45,9 @@ class RecommendationsService:
         cache_manager: Manager for caching recommendation results
         spoonacular_service: Service for Spoonacular API interactions
     """
+
+    _MIN_SUGGESTIONS_BEFORE_FALLBACK = 3
+    _MIN_SHARED_INGREDIENTS = 2
 
     def __init__(self) -> None:
         """Initialize the RecommendationsService with dependencies."""
@@ -126,64 +134,101 @@ class RecommendationsService:
         self,
         recipe_id: int,
         pagination: PaginationParams,
+        db: Session,
     ) -> PairingSuggestionsResponse:
-        """Identify suggested pairings for the given recipe.
+        """Identify suggested pairings using database analysis.
 
         Args:
-            recipe_id (int): The ID of the ingredient.
+            recipe_id (int): The ID of the recipe.
             pagination (PaginationParams): Pagination params for response control.
+            db (Session): Database session for recipe lookup.
 
         Returns:
             PairingSuggestionsResponse: The generated list of suggested pairings.
         """
-        pairing_suggestions = [
-            WebRecipe(
-                recipe_name="Dummy Recipe 1",
-                url="https://some-url.com/dummy-recipe-1",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 2",
-                url="https://some-url.com/dummy-recipe-2",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 3",
-                url="https://some-url.com/dummy-recipe-3",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 4",
-                url="https://some-url.com/dummy-recipe-4",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 5",
-                url="https://some-url.com/dummy-recipe-5",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 6",
-                url="https://some-url.com/dummy-recipe-6",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 7",
-                url="https://some-url.com/dummy-recipe-7",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 8",
-                url="https://some-url.com/dummy-recipe-8",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 9",
-                url="https://some-url.com/dummy-recipe-9",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 10",
-                url="https://some-url.com/dummy-recipe-10",
-            ),
-        ]
+        _log.info("Getting pairing suggestions for recipe ID {}", recipe_id)
 
-        return PairingSuggestionsResponse.from_all(
-            recipe_id,
-            pairing_suggestions,
-            pagination,
-        )
+        try:
+            # Get the target recipe from database
+            target_recipe = self._get_recipe_by_id(recipe_id, db)
+
+            all_suggestions = []
+
+            # Strategy 1: Database - Similar ingredients (most relevant)
+            try:
+                similar_recipes = self._find_recipes_with_similar_ingredients(
+                    target_recipe,
+                    db,
+                    limit=5,
+                )
+                all_suggestions.extend(similar_recipes)
+                _log.debug(
+                    "Found {} recipes with similar ingredients",
+                    len(similar_recipes),
+                )
+            except SQLAlchemyError as e:
+                _log.warning("Failed to find similar ingredient recipes: {}", e)
+
+            # Strategy 2: Database - Similar tags (cuisine, course, etc.)
+            try:
+                tagged_recipes = self._find_recipes_with_similar_tags(
+                    target_recipe,
+                    db,
+                    limit=5,
+                )
+                all_suggestions.extend(tagged_recipes)
+                _log.debug("Found {} recipes with similar tags", len(tagged_recipes))
+            except SQLAlchemyError as e:
+                _log.warning("Failed to find similar tagged recipes: {}", e)
+
+            # Strategy 3: Database - Random popular recipes (fallback)
+            if len(all_suggestions) < self._MIN_SUGGESTIONS_BEFORE_FALLBACK:
+                try:
+                    random_recipes = self._find_random_popular_recipes(
+                        target_recipe.recipe_id,
+                        db,
+                        limit=5,
+                    )
+                    all_suggestions.extend(random_recipes)
+                    _log.debug("Added {} random popular recipes", len(random_recipes))
+                except SQLAlchemyError as e:
+                    _log.warning("Failed to find random recipes: {}", e)
+
+            # Remove duplicates and limit results
+            unique_suggestions = self._deduplicate_suggestions(all_suggestions)
+
+            _log.info(
+                "Generated {} unique pairing suggestions for recipe {}",
+                len(unique_suggestions),
+                recipe_id,
+            )
+
+            return PairingSuggestionsResponse.from_all(
+                recipe_id,
+                unique_suggestions,
+                pagination,
+            )
+
+        except HTTPException:
+            # Re-raise HTTP exceptions (like 404 for recipe not found)
+            raise
+        except SQLAlchemyError as e:
+            _log.error(
+                "Database error while generating pairing suggestions for recipe {}: {}",
+                recipe_id,
+                e,
+            )
+            # Return empty suggestions rather than crash
+            return PairingSuggestionsResponse.from_all(recipe_id, [], pagination)
+        except Exception as e:  # noqa: BLE001
+            _log.error(
+                "Unexpected error while generating pairing suggestions "
+                "for recipe {}: {}",
+                recipe_id,
+                e,
+            )
+            # Return empty suggestions rather than crash
+            return PairingSuggestionsResponse.from_all(recipe_id, [], pagination)
 
     def _get_spoonacular_substitutions(
         self,
@@ -342,3 +387,181 @@ class RecommendationsService:
             )
 
         return substitutions
+
+    def _get_recipe_by_id(self, recipe_id: int, db: Session) -> RecipeModel:
+        """Get recipe from database by ID.
+
+        Args:
+            recipe_id: The ID of the recipe to retrieve
+            db: Database session
+
+        Returns:
+            RecipeModel: The recipe model
+
+        Raises:
+            HTTPException: If recipe not found
+        """
+        recipe = (
+            db.query(RecipeModel).filter(RecipeModel.recipe_id == recipe_id).first()
+        )
+        if not recipe:
+            raise HTTPException(status_code=404, detail=f"Recipe {recipe_id} not found")
+        return recipe
+
+    def _find_recipes_with_similar_ingredients(
+        self,
+        target_recipe: RecipeModel,
+        db: Session,
+        limit: int = 10,
+    ) -> list[WebRecipe]:
+        """Find recipes that share ingredients with the target recipe.
+
+        Args:
+            target_recipe: The target recipe to find similar recipes for
+            db: Database session
+            limit: Maximum number of recipes to return
+
+        Returns:
+            List of WebRecipe objects with similar ingredients
+        """
+        # Get ingredients for the target recipe
+        target_ingredients_query = db.query(RecipeIngredient.ingredient_id).filter(
+            RecipeIngredient.recipe_id == target_recipe.recipe_id,
+        )
+
+        # Find recipes with overlapping ingredients
+        similar_recipes = (
+            db.query(
+                RecipeModel,
+                func.count(RecipeIngredient.ingredient_id).label("shared_count"),
+            )
+            .join(RecipeIngredient)
+            .filter(
+                RecipeIngredient.ingredient_id.in_(target_ingredients_query),
+                RecipeModel.recipe_id
+                != target_recipe.recipe_id,  # Exclude target recipe
+            )
+            .group_by(RecipeModel.recipe_id)
+            .having(
+                func.count(RecipeIngredient.ingredient_id)
+                >= self._MIN_SHARED_INGREDIENTS,
+            )  # At least _MIN_SHARED_INGREDIENTS shared ingredients
+            .order_by(func.count(RecipeIngredient.ingredient_id).desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            WebRecipe(
+                recipe_name=recipe.title,
+                url=recipe.origin_url
+                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+            )
+            for recipe, _ in similar_recipes
+        ]
+
+    def _find_recipes_with_similar_tags(
+        self,
+        target_recipe: RecipeModel,
+        db: Session,
+        limit: int = 10,
+    ) -> list[WebRecipe]:
+        """Find recipes that share tags with the target recipe.
+
+        Args:
+            target_recipe: The target recipe to find similar recipes for
+            db: Database session
+            limit: Maximum number of recipes to return
+
+        Returns:
+            List of WebRecipe objects with similar tags
+        """
+        # Get tags for the target recipe
+        target_tags_query = db.query(RecipeTagJunction.tag_id).filter(
+            RecipeTagJunction.recipe_id == target_recipe.recipe_id,
+        )
+
+        # Find recipes with overlapping tags
+        similar_recipes = (
+            db.query(
+                RecipeModel,
+                func.count(RecipeTagJunction.tag_id).label("shared_count"),
+            )
+            .join(RecipeTagJunction)
+            .filter(
+                RecipeTagJunction.tag_id.in_(target_tags_query),
+                RecipeModel.recipe_id
+                != target_recipe.recipe_id,  # Exclude target recipe
+            )
+            .group_by(RecipeModel.recipe_id)
+            .having(func.count(RecipeTagJunction.tag_id) >= 1)  # At least 1 shared tag
+            .order_by(func.count(RecipeTagJunction.tag_id).desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            WebRecipe(
+                recipe_name=recipe.title,
+                url=recipe.origin_url
+                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+            )
+            for recipe, _ in similar_recipes
+        ]
+
+    def _find_random_popular_recipes(
+        self,
+        exclude_recipe_id: int,
+        db: Session,
+        limit: int = 10,
+    ) -> list[WebRecipe]:
+        """Find random popular recipes as fallback suggestions.
+
+        Args:
+            exclude_recipe_id: Recipe ID to exclude from results
+            db: Database session
+            limit: Maximum number of recipes to return
+
+        Returns:
+            List of WebRecipe objects for random popular recipes
+        """
+        # Get random recipes (excluding the target recipe)
+        # Since we don't have a popularity metric, we'll just get random recipes
+        random_recipes = (
+            db.query(RecipeModel)
+            .filter(RecipeModel.recipe_id != exclude_recipe_id)
+            .order_by(func.random())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            WebRecipe(
+                recipe_name=recipe.title,
+                url=recipe.origin_url
+                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+            )
+            for recipe in random_recipes
+        ]
+
+    def _deduplicate_suggestions(self, suggestions: list[WebRecipe]) -> list[WebRecipe]:
+        """Remove duplicate recipe suggestions based on name similarity.
+
+        Args:
+            suggestions: List of WebRecipe suggestions
+
+        Returns:
+            List of unique WebRecipe suggestions
+        """
+        seen_names = set()
+        unique_suggestions = []
+
+        for suggestion in suggestions:
+            # Normalize name for comparison
+            normalized_name = suggestion.recipe_name.lower().strip()
+
+            if normalized_name not in seen_names:
+                seen_names.add(normalized_name)
+                unique_suggestions.append(suggestion)
+
+        return unique_suggestions

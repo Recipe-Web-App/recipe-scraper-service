@@ -123,11 +123,12 @@ def get_recommended_substitutions(  # noqa: PLR0913
     description="Recommends various recipes to pair with the given recipe.",
     response_class=JSONResponse,
 )
-def get_pairing_suggestions(
+def get_pairing_suggestions(  # noqa: PLR0913
     service: Annotated[RecommendationsService, Depends(get_recommendations_service)],
+    db: Annotated[Session, Depends(get_db)],
     recipe_id: Annotated[
         int,
-        Path(gt=0, description="The ID of the ingredient (must be > 0)"),
+        Path(gt=0, description="The ID of the recipe (must be > 0)"),
     ],
     limit: Annotated[int, Query(ge=1)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -137,7 +138,8 @@ def get_pairing_suggestions(
 
     Args:
         service (RecommendationsService): Service to use to process the request.
-        recipe_id (int): The ID of the ingredient.
+        db (Session): Database session for recipe lookup.
+        recipe_id (int): The ID of the recipe.
         limit (int): Number of items per page (minimum 1).
         offset (int): Number of items to skip (minimum 0).
         count_only (bool): Whether to return only count instead of pairing suggestions.
@@ -155,4 +157,5 @@ def get_pairing_suggestions(
     return service.get_pairing_suggestions(
         recipe_id,
         pagination,
+        db,
     )
