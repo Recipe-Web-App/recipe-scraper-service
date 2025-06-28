@@ -44,10 +44,10 @@ class RecommendationsService:
 
     def __init__(self) -> None:
         """Initialize the RecommendationsService with dependencies."""
-        self.cache_manager = CacheManager()
+        self._cache_manager = CacheManager()
 
         service_manager = get_downstream_service_manager()
-        self.spoonacular_service = service_manager.get_spoonacular_service()
+        self._spoonacular_service = service_manager.get_spoonacular_service()
 
     def get_recommended_substitutions(
         self,
@@ -103,7 +103,7 @@ class RecommendationsService:
 
         # Get Spoonacular substitutions
         recommended_substitutions = (
-            self.spoonacular_service.get_ingredient_substitutions(
+            self._spoonacular_service.get_ingredient_substitutions(
                 ingredient_name=ingredient.name,
             )
         )
@@ -267,7 +267,7 @@ class RecommendationsService:
                 )
 
                 # Try to get from cache first
-                cached_suggestions = self.cache_manager.get(cache_key)
+                cached_suggestions = self._cache_manager.get(cache_key)
                 if cached_suggestions is not None:
                     _log.debug(
                         "Cache hit for Spoonacular pairing suggestions for recipe {}",
@@ -292,7 +292,7 @@ class RecommendationsService:
 
                 try:
                     suggestions = (
-                        self.spoonacular_service.search_recipes_by_ingredients(
+                        self._spoonacular_service.search_recipes_by_ingredients(
                             ingredients=recipe_ingredients,
                             limit=100,  # Use maximum limit
                         )
@@ -309,7 +309,7 @@ class RecommendationsService:
                             for recipe in suggestions
                         ]
                         try:
-                            self.cache_manager.set(
+                            self._cache_manager.set(
                                 cache_key,
                                 cache_data,
                                 expiry_hours=24,
