@@ -1,8 +1,8 @@
 """Recommendations service for generating ingredient substitutions and pairings."""
 
-from typing import Any
-
 from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.common.ingredient import Ingredient as IngredientSchema
@@ -13,15 +13,14 @@ from app.api.v1.schemas.response.pairing_suggestions_response import (
     PairingSuggestionsResponse,
 )
 from app.api.v1.schemas.response.recommended_substitutions_response import (
-    ConversionRatio,
-    IngredientSubstitution,
     RecommendedSubstitutionsResponse,
 )
 from app.core.logging import get_logger
 from app.db.models.ingredient_models.ingredient import Ingredient as IngredientModel
+from app.db.models.recipe_models.recipe import Recipe as RecipeModel
+from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
+from app.db.models.recipe_models.recipe_tag_junction import RecipeTagJunction
 from app.deps.downstream_service_manager import get_downstream_service_manager
-from app.enums.ingredient_unit_enum import IngredientUnitEnum
-from app.exceptions.custom_exceptions import SubstitutionNotFoundError
 from app.utils.cache_manager import CacheManager
 
 _log = get_logger(__name__)
@@ -40,6 +39,8 @@ class RecommendationsService:
         cache_manager: Manager for caching recommendation results
         spoonacular_service: Service for Spoonacular API interactions
     """
+
+    _MIN_SHARED_INGREDIENTS = 2
 
     def __init__(self) -> None:
         """Initialize the RecommendationsService with dependencies."""
@@ -101,8 +102,10 @@ class RecommendationsService:
             )
 
         # Get Spoonacular substitutions
-        recommended_substitutions = self._get_spoonacular_substitutions(
-            ingredient_name=ingredient.name,
+        recommended_substitutions = (
+            self.spoonacular_service.get_ingredient_substitutions(
+                ingredient_name=ingredient.name,
+            )
         )
         _log.info("Generated substitutions: {}", recommended_substitutions)
 
@@ -126,219 +129,394 @@ class RecommendationsService:
         self,
         recipe_id: int,
         pagination: PaginationParams,
+        db: Session,
     ) -> PairingSuggestionsResponse:
-        """Identify suggested pairings for the given recipe.
+        """Identify suggested pairings using database and Spoonacular analysis.
 
         Args:
-            recipe_id (int): The ID of the ingredient.
+            recipe_id (int): The ID of the recipe.
             pagination (PaginationParams): Pagination params for response control.
+            db (Session): Database session for recipe lookup.
 
         Returns:
             PairingSuggestionsResponse: The generated list of suggested pairings.
         """
-        pairing_suggestions = [
-            WebRecipe(
-                recipe_name="Dummy Recipe 1",
-                url="https://some-url.com/dummy-recipe-1",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 2",
-                url="https://some-url.com/dummy-recipe-2",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 3",
-                url="https://some-url.com/dummy-recipe-3",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 4",
-                url="https://some-url.com/dummy-recipe-4",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 5",
-                url="https://some-url.com/dummy-recipe-5",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 6",
-                url="https://some-url.com/dummy-recipe-6",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 7",
-                url="https://some-url.com/dummy-recipe-7",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 8",
-                url="https://some-url.com/dummy-recipe-8",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 9",
-                url="https://some-url.com/dummy-recipe-9",
-            ),
-            WebRecipe(
-                recipe_name="Dummy Recipe 10",
-                url="https://some-url.com/dummy-recipe-10",
-            ),
-        ]
+        _log.info("Getting pairing suggestions for recipe ID {}", recipe_id)
 
-        return PairingSuggestionsResponse.from_all(
-            recipe_id,
-            pairing_suggestions,
-            pagination,
-        )
-
-    def _get_spoonacular_substitutions(
-        self,
-        ingredient_name: str,
-    ) -> list[IngredientSubstitution]:
-        """Get substitutions using Spoonacular API.
-
-        Args:
-            ingredient_name: Name of the ingredient to substitute
-            quantity: Optional quantity information for context
-
-        Returns:
-            List of ingredient substitutions from Spoonacular
-        """
-        # Check cache first
-        cache_key = f"substitutions_{ingredient_name.lower().replace(' ', '_')}"
-        cached_substitutions = self.cache_manager.get(cache_key)
-
-        if cached_substitutions:
-            _log.info("Using cached substitutions for ingredient '{}'", ingredient_name)
-            if isinstance(cached_substitutions, list):
-                return self._parse_cached_substitutions(cached_substitutions)
-            _log.warning("Unexpected cache format, regenerating substitutions")
-
-        # Get substitutions from Spoonacular
         try:
-            _log.debug(
-                "Getting substitutions from Spoonacular for '{}'",
-                ingredient_name,
+            # Get the target recipe from database
+            target_recipe = self._get_recipe_by_id(recipe_id, db)
+
+            # Get suggestions from both database and Spoonacular
+            db_suggestions = self._get_database_pairing_suggestions(target_recipe, db)
+            spoonacular_suggestions = self._get_spoonacular_pairing_suggestions(
+                target_recipe,
+                db,
             )
 
-            provider_data = self.spoonacular_service.get_ingredient_substitutes(
-                ingredient_name,
-            )
-            substitutions = self._parse_provider_response(provider_data)
-
-            # Cache the results for 24 hours
-            cache_data = [
-                {
-                    "ingredient": sub_data["substitute_ingredient"],
-                    "conversion_ratio": sub_data.get("conversion_ratio", 1.0),
-                    "source": "spoonacular",
-                }
-                for sub_data in provider_data
-            ]
-            self.cache_manager.set(cache_key, cache_data, expiry_hours=24)
+            # Combine and deduplicate results
+            all_suggestions = db_suggestions + spoonacular_suggestions
+            unique_suggestions = self._deduplicate_suggestions(all_suggestions)
 
             _log.info(
-                "Successfully got {} substitutions from Spoonacular for '{}'",
-                len(substitutions),
-                ingredient_name,
+                "Generated {} unique pairing suggestions for recipe {} "
+                "(DB: {}, Spoonacular: {})",
+                len(unique_suggestions),
+                recipe_id,
+                len(db_suggestions),
+                len(spoonacular_suggestions),
             )
 
-        except SubstitutionNotFoundError as e:
-            _log.warning(
-                "Spoonacular could not find substitutes for '{}': {}",
-                ingredient_name,
-                e.get_reason() if hasattr(e, "get_reason") else str(e),
+            return PairingSuggestionsResponse.from_all(
+                recipe_id,
+                unique_suggestions,
+                pagination,
             )
-            raise HTTPException(
-                status_code=404,
-                detail=f"No substitutes available for ingredient: {ingredient_name}",
-            ) from e
 
         except HTTPException:
-            # Let HTTPExceptions from Spoonacular service bubble up
+            # Re-raise HTTP exceptions (like 404 for recipe not found)
             raise
-
-        except (ConnectionError, TimeoutError) as e:
+        except SQLAlchemyError as e:
             _log.error(
-                "Network error from Spoonacular for '{}': {}",
-                ingredient_name,
+                "Database error while generating pairing suggestions for recipe {}: {}",
+                recipe_id,
                 e,
             )
-            raise HTTPException(
-                status_code=503,
-                detail="Ingredient substitution service temporarily unavailable",
-            ) from e
+            # Return empty suggestions rather than crash
+            return PairingSuggestionsResponse.from_all(recipe_id, [], pagination)
+        except Exception as e:  # noqa: BLE001
+            _log.error(
+                "Unexpected error while generating pairing suggestions "
+                "for recipe {}: {}",
+                recipe_id,
+                e,
+            )
+            # Return empty suggestions rather than crash
+            return PairingSuggestionsResponse.from_all(recipe_id, [], pagination)
+
+    def _get_database_pairing_suggestions(
+        self,
+        target_recipe: RecipeModel,
+        db: Session,
+    ) -> list[WebRecipe]:
+        """Get pairing suggestions using database analysis.
+
+        Args:
+            target_recipe: The target recipe to find similar recipes for
+            db: Database session
+
+        Returns:
+            List of WebRecipe objects from database analysis
+        """
+        suggestions = []
+
+        # Strategy 1: Database - Similar ingredients (most relevant)
+        try:
+            similar_recipes = self._find_recipes_with_similar_ingredients(
+                target_recipe,
+                db,
+                limit=5,
+            )
+            suggestions.extend(similar_recipes)
+            _log.debug(
+                "Found {} recipes with similar ingredients",
+                len(similar_recipes),
+            )
+        except SQLAlchemyError as e:
+            _log.warning("Failed to find similar ingredient recipes: {}", e)
+
+        # Strategy 2: Database - Similar tags (cuisine, course, etc.)
+        try:
+            tagged_recipes = self._find_recipes_with_similar_tags(
+                target_recipe,
+                db,
+                limit=5,
+            )
+            suggestions.extend(tagged_recipes)
+            _log.debug("Found {} recipes with similar tags", len(tagged_recipes))
+        except SQLAlchemyError as e:
+            _log.warning("Failed to find similar tagged recipes: {}", e)
+
+        return suggestions
+
+    def _get_spoonacular_pairing_suggestions(
+        self,
+        target_recipe: RecipeModel,
+        db: Session,
+    ) -> list[WebRecipe]:
+        """Get pairing suggestions using Spoonacular API.
+
+        Args:
+            target_recipe: The target recipe to find similar recipes for
+            db: Database session for ingredient lookup
+
+        Returns:
+            List of WebRecipe objects from Spoonacular API
+        """
+        suggestions = []
+
+        try:
+            # Strategy 1: Use ingredients from the recipe to search for similar recipes
+            recipe_ingredients = self._get_recipe_ingredients(target_recipe, db)
+            if recipe_ingredients:
+                # Generate cache key based on recipe ingredients
+                ingredients_key = "_".join(sorted(recipe_ingredients))
+                cache_key = (
+                    f"spoonacular_pairing_{target_recipe.recipe_id}_"
+                    f"{hash(ingredients_key) % 1000000}"
+                )
+
+                # Try to get from cache first
+                cached_suggestions = self.cache_manager.get(cache_key)
+                if cached_suggestions is not None:
+                    _log.debug(
+                        "Cache hit for Spoonacular pairing suggestions for recipe {}",
+                        target_recipe.recipe_id,
+                    )
+                    # Convert cached data back to WebRecipe objects
+                    # Ensure cached_suggestions is a list of dictionaries
+                    if isinstance(cached_suggestions, list):
+                        return [
+                            WebRecipe(
+                                recipe_name=item.get("recipe_name", "Unknown Recipe"),
+                                url=item.get("url", ""),
+                            )
+                            for item in cached_suggestions
+                            if isinstance(item, dict)
+                        ]
+
+                    _log.warning(
+                        "Invalid cached data format for recipe {}, ignoring cache",
+                        target_recipe.recipe_id,
+                    )
+
+                try:
+                    suggestions = (
+                        self.spoonacular_service.search_recipes_by_ingredients(
+                            ingredients=recipe_ingredients,
+                            limit=100,  # Use maximum limit
+                        )
+                    )
+                    _log.debug(
+                        "Found {} Spoonacular recipes based on ingredients",
+                        len(suggestions),
+                    )
+
+                    # Cache results - convert WebRecipe objects for JSON serialization
+                    if suggestions:
+                        cache_data = [
+                            {"recipe_name": recipe.recipe_name, "url": recipe.url}
+                            for recipe in suggestions
+                        ]
+                        try:
+                            self.cache_manager.set(
+                                cache_key,
+                                cache_data,
+                                expiry_hours=24,
+                            )
+                            _log.debug(
+                                "Cached {} Spoonacular pairing suggestions "
+                                "for recipe {}",
+                                len(cache_data),
+                                target_recipe.recipe_id,
+                            )
+                        except (OSError, ValueError) as cache_error:
+                            _log.warning(
+                                "Failed to cache Spoonacular pairing suggestions "
+                                "for recipe {}: {}",
+                                target_recipe.recipe_id,
+                                cache_error,
+                            )
+
+                except HTTPException as e:
+                    _log.warning("Spoonacular ingredient search failed: {}", e.detail)
+
+        except Exception as e:  # noqa: BLE001
+            _log.warning(
+                "Unexpected error getting Spoonacular pairing suggestions: {}",
+                e,
+            )
+
+        return suggestions
+
+    def _get_recipe_ingredients(
+        self,
+        recipe: RecipeModel,
+        db: Session,
+    ) -> list[str]:
+        """Get ingredient names for a recipe.
+
+        Args:
+            recipe: Recipe model
+            db: Database session
+
+        Returns:
+            List of ingredient names
+        """
+        try:
+            # Get ingredients for the recipe
+            ingredients = (
+                db.query(RecipeIngredient)
+                .filter(RecipeIngredient.recipe_id == recipe.recipe_id)
+                .all()
+            )
+
+            # Extract ingredient names using list comprehension
+            ingredient_names = [
+                recipe_ingredient.ingredient.name
+                for recipe_ingredient in ingredients
+                if recipe_ingredient.ingredient and recipe_ingredient.ingredient.name
+            ]
+
+        except SQLAlchemyError as e:
+            _log.warning(
+                "Failed to get ingredients for recipe {}: {}",
+                recipe.recipe_id,
+                e,
+            )
+            return []
         else:
-            return substitutions
+            return ingredient_names
 
-    def _parse_cached_substitutions(
-        self,
-        cached_data: list[dict[str, Any]],
-    ) -> list[IngredientSubstitution]:
-        """Parse cached substitution data into IngredientSubstitution objects.
+    def _get_recipe_by_id(self, recipe_id: int, db: Session) -> RecipeModel:
+        """Get recipe from database by ID.
 
         Args:
-            cached_data: Cached substitution data
-            quantity: Current quantity for conversion calculations
+            recipe_id: The ID of the recipe to retrieve
+            db: Database session
 
         Returns:
-            List of ingredient substitutions with adjusted quantities
+            RecipeModel: The recipe model
+
+        Raises:
+            HTTPException: If recipe not found
         """
-        substitutions = []
-        for sub_data in cached_data:
-            # Extract conversion ratio data
-            conversion_ratio_data = sub_data.get("conversion_ratio", {})
+        recipe = (
+            db.query(RecipeModel).filter(RecipeModel.recipe_id == recipe_id).first()
+        )
+        if not recipe:
+            raise HTTPException(status_code=404, detail=f"Recipe {recipe_id} not found")
+        return recipe
 
-            # Calculate adjusted quantity using the ratio value
-            ratio_value = conversion_ratio_data.get("ratio")
-
-            # Create ConversionRatio object for the response
-            conversion_ratio = ConversionRatio(
-                ratio=ratio_value,
-                measurement=conversion_ratio_data.get(
-                    "measurement",
-                    IngredientUnitEnum.UNIT,
-                ),
-            )
-
-            substitutions.append(
-                IngredientSubstitution(
-                    ingredient=sub_data["ingredient"],
-                    conversion_ratio=conversion_ratio,
-                ),
-            )
-
-        return substitutions
-
-    def _parse_provider_response(
+    def _find_recipes_with_similar_ingredients(
         self,
-        provider_data: list[dict[str, Any]],
-    ) -> list[IngredientSubstitution]:
-        """Parse provider response into IngredientSubstitution objects.
+        target_recipe: RecipeModel,
+        db: Session,
+        limit: int = 10,
+    ) -> list[WebRecipe]:
+        """Find recipes that share ingredients with the target recipe.
 
         Args:
-            provider_data: Response from any provider service
-            original_quantity: Original quantity for conversion calculations
+            target_recipe: The target recipe to find similar recipes for
+            db: Database session
+            limit: Maximum number of recipes to return
 
         Returns:
-            List of parsed ingredient substitutions
+            List of WebRecipe objects with similar ingredients
         """
-        substitutions = []
-        for sub_data in provider_data:
-            # Extract conversion ratio data
-            conversion_ratio_data = sub_data.get("conversion_ratio", {})
+        # Get ingredients for the target recipe
+        target_ingredients_query = db.query(RecipeIngredient.ingredient_id).filter(
+            RecipeIngredient.recipe_id == target_recipe.recipe_id,
+        )
 
-            # Calculate adjusted quantity using the ratio value
-            ratio_value = conversion_ratio_data.get("ratio", 1.0)
-
-            # Create ConversionRatio object for the response
-            conversion_ratio = ConversionRatio(
-                ratio=ratio_value,
-                measurement=conversion_ratio_data.get(
-                    "measurement",
-                    IngredientUnitEnum.UNIT,
-                ),
+        # Find recipes with overlapping ingredients
+        similar_recipes = (
+            db.query(
+                RecipeModel,
+                func.count(RecipeIngredient.ingredient_id).label("shared_count"),
             )
-
-            substitutions.append(
-                IngredientSubstitution(
-                    ingredient=sub_data["substitute_ingredient"],
-                    conversion_ratio=conversion_ratio,
-                ),
+            .join(RecipeIngredient)
+            .filter(
+                RecipeIngredient.ingredient_id.in_(target_ingredients_query),
+                RecipeModel.recipe_id
+                != target_recipe.recipe_id,  # Exclude target recipe
             )
+            .group_by(RecipeModel.recipe_id)
+            .having(
+                func.count(RecipeIngredient.ingredient_id)
+                >= self._MIN_SHARED_INGREDIENTS,
+            )  # At least _MIN_SHARED_INGREDIENTS shared ingredients
+            .order_by(func.count(RecipeIngredient.ingredient_id).desc())
+            .limit(limit)
+            .all()
+        )
 
-        return substitutions
+        return [
+            WebRecipe(
+                recipe_name=recipe.title,
+                url=recipe.origin_url
+                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+            )
+            for recipe, _ in similar_recipes
+        ]
+
+    def _find_recipes_with_similar_tags(
+        self,
+        target_recipe: RecipeModel,
+        db: Session,
+        limit: int = 10,
+    ) -> list[WebRecipe]:
+        """Find recipes that share tags with the target recipe.
+
+        Args:
+            target_recipe: The target recipe to find similar recipes for
+            db: Database session
+            limit: Maximum number of recipes to return
+
+        Returns:
+            List of WebRecipe objects with similar tags
+        """
+        # Get tags for the target recipe
+        target_tags_query = db.query(RecipeTagJunction.tag_id).filter(
+            RecipeTagJunction.recipe_id == target_recipe.recipe_id,
+        )
+
+        # Find recipes with overlapping tags
+        similar_recipes = (
+            db.query(
+                RecipeModel,
+                func.count(RecipeTagJunction.tag_id).label("shared_count"),
+            )
+            .join(RecipeTagJunction)
+            .filter(
+                RecipeTagJunction.tag_id.in_(target_tags_query),
+                RecipeModel.recipe_id
+                != target_recipe.recipe_id,  # Exclude target recipe
+            )
+            .group_by(RecipeModel.recipe_id)
+            .having(func.count(RecipeTagJunction.tag_id) >= 1)  # At least 1 shared tag
+            .order_by(func.count(RecipeTagJunction.tag_id).desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            WebRecipe(
+                recipe_name=recipe.title,
+                url=recipe.origin_url
+                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+            )
+            for recipe, _ in similar_recipes
+        ]
+
+    def _deduplicate_suggestions(self, suggestions: list[WebRecipe]) -> list[WebRecipe]:
+        """Remove duplicate recipe suggestions based on name similarity.
+
+        Args:
+            suggestions: List of WebRecipe suggestions
+
+        Returns:
+            List of unique WebRecipe suggestions
+        """
+        seen_names = set()
+        unique_suggestions = []
+
+        for suggestion in suggestions:
+            # Normalize name for comparison
+            normalized_name = suggestion.recipe_name.lower().strip()
+
+            if normalized_name not in seen_names:
+                seen_names.add(normalized_name)
+                unique_suggestions.append(suggestion)
+
+        return unique_suggestions
