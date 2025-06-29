@@ -37,6 +37,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 recipe-scraper-service = "app.main:main"  # Adjust as needed
 dev = "scripts.python.run_local:main"
+test-unit = "tests.run_unit_tests:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
@@ -63,6 +64,10 @@ sphinx-rtd-theme = "^3.0.2"
 sphinxcontrib-openapi = "^0.8.4"
 black = "^25.1.0"
 types-pyyaml = "^6.0.12.20250516"
+factory-boy = "^3.3.3"
+pytest-postgresql = "^7.0.2"
+pytest-xdist = "^3.7.0"
+pytest-random-order = "^1.2.0"
 
 [tool.black]
 line-length = 88
@@ -105,6 +110,9 @@ lint.ignore = [
 ]
 fix = true
 
+[tool.ruff.per-file-ignores]
+"tests/*.py" = ["S101"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
@@ -118,33 +126,60 @@ disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "--strict-markers --tb=short -ra --cov=app --cov-report=term-missing"
-testpaths = [
-    "tests/unit",
-    "tests/component",
-    "tests/dependency",
-    "tests/performance"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"                           # Auto-detect async tests
+addopts = [
+    "--strict-markers",                         # Strict marker validation
+    "--tb=short",                              # Shorter traceback format
+    "-ra",                                     # Show summary of all test results
+    "--cov=app",                               # Coverage for app directory
+    "--cov-report=html",                       # HTML coverage report
+    "--cov-report=term-missing",               # Show missing lines in terminal
+    "--cov-fail-under=80",                     # Fail if coverage below 80%
+    "--disable-warnings",                      # Cleaner test output
 ]
 markers = [
-    "unit: marks unit tests",
-    "component: marks component tests",
-    "dependency: marks tests requiring external services",
-    "performance: marks performance benchmark tests"
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (slower, with real dependencies)",
+    "slow: Slow tests that take >1 second",
+    "api: API endpoint tests",
+    "database: Tests requiring database",
+    "external: Tests calling external APIs",
 ]
 
 [tool.coverage.run]
 branch = true
 source = ["app"]
+omit = [
+    "app/__init__.py",
+    "app/main.py",                              # Entry point, hard to test
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
 
 [tool.coverage.report]
 show_missing = true
-skip_covered = true
+skip_covered = false                            # Show all files for better overview
+precision = 2                                  # Show percentage to 2 decimal places
 exclude_lines = [
     "pragma: no cover",
-    "if __name__ == .__main__.:",
+    "def __repr__",
     "def __str__",
-    "def __repr__"
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "class .*\\(.*Protocol.*\\):",
+    "@abstractmethod",
 ]
+
+[tool.coverage.html]
+directory = "htmlcov"                           # HTML coverage report directory
 
 [tool.docformatter]
 in-place = true
