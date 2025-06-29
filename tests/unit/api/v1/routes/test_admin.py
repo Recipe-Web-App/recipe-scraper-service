@@ -43,10 +43,10 @@ class TestAdminRoutes:
         test_app.dependency_overrides[get_admin_service] = lambda: mock_admin_service
         test_app.include_router(router)
 
-        override_client = TestClient(test_app)
+        client = TestClient(test_app)
 
         # Act
-        response = override_client.post("/recipe-scraper/admin/clear-cache")
+        response = client.post("/recipe-scraper/admin/clear-cache")
 
         # Assert
         assert response.status_code == HTTPStatus.OK
