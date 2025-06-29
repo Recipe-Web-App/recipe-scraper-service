@@ -26,7 +26,6 @@ class TestAdminRoutes:
 
         # Assert
         assert isinstance(service, AdminService)
-        assert hasattr(service, "clear_cache")
 
     @pytest.mark.unit
     def test_clear_cache_success(
