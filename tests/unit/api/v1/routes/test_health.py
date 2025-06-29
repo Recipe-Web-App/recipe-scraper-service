@@ -21,7 +21,6 @@ class TestHealthRoutes:
         # Arrange
         test_app = FastAPI()
         test_app.include_router(router)
-
         client = TestClient(test_app)
 
         # Act

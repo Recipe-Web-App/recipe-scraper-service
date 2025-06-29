@@ -41,7 +41,6 @@ class TestAdminRoutes:
         test_app = FastAPI()
         test_app.dependency_overrides[get_admin_service] = lambda: mock_admin_service
         test_app.include_router(router)
-
         client = TestClient(test_app)
 
         # Act
