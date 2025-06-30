@@ -69,7 +69,7 @@ def create_recipe(
     Returns:
         CreateRecipeResponse: The created recipe response.
     """
-    return service.create_recipe(request.recipe_url, db, user_id=user_id)
+    return service.create_recipe(request.recipe_url, db, user_id)
 
 
 @router.get(
