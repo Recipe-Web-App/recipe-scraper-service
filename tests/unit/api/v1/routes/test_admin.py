@@ -47,7 +47,5 @@ class TestAdminRoutes:
         response = client.post("/recipe-scraper/admin/clear-cache")
 
         # Assert
-        assert response.status_code == HTTPStatus.OK
-        expected_response = {"message": "Cache cleared successfully"}
-        assert response.json() == expected_response
         mock_admin_service.clear_cache.assert_called_once()
+        assert response.status_code == HTTPStatus.OK

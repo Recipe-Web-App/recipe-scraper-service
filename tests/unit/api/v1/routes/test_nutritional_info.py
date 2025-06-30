@@ -1,12 +1,13 @@
 """Unit tests for the nutritional info API routes."""
 
 from http import HTTPStatus
-from unittest.mock import ANY, Mock
+from unittest.mock import Mock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.api.v1.routes.nutritional_info import get_nutritional_info_service, router
 from app.api.v1.schemas.common.ingredient import Quantity
@@ -14,13 +15,14 @@ from app.api.v1.schemas.response.recipe_nutritional_info_response import (
     RecipeNutritionalInfoResponse,
 )
 from app.services.nutritional_info_service import NutritionalInfoService
+from tests.conftest import IsType
 
 
 class TestNutritionalInfoRoutes:
     """Test suite for nutritional info API routes."""
 
     @pytest.mark.unit
-    def test_get_nutritional_info_service_dependency(self) -> None:
+    def test_get_nutritional_info_service(self) -> None:
         """Test that get_nutritional_info_service returns NutritionalInfoService."""
         # Act
         service = get_nutritional_info_service()
@@ -50,7 +52,7 @@ class TestNutritionalInfoRoutes:
             1,
             True,
             False,
-            ANY,
+            IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
 
@@ -82,7 +84,7 @@ class TestNutritionalInfoRoutes:
             1,
             False,
             True,
-            ANY,
+            IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
 
@@ -110,7 +112,7 @@ class TestNutritionalInfoRoutes:
         )
 
         # Assert
-        assert mock_nutritional_info_service.get_recipe_nutritional_info.call_count == 0
+        mock_nutritional_info_service.get_recipe_nutritional_info.assert_not_called()
         assert response.status_code == HTTPStatus.BAD_REQUEST
 
     @pytest.mark.unit
@@ -142,7 +144,7 @@ class TestNutritionalInfoRoutes:
             3,
             True,
             False,
-            ANY,
+            IsType(Session),
         )
         assert response.status_code == HTTPStatus.PARTIAL_CONTENT
         expected = jsonable_encoder(
@@ -172,7 +174,7 @@ class TestNutritionalInfoRoutes:
         mock_nutritional_info_service.get_ingredient_nutritional_info.assert_called_once_with(
             1,
             None,
-            ANY,
+            IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
 
@@ -204,7 +206,7 @@ class TestNutritionalInfoRoutes:
         mock_nutritional_info_service.get_ingredient_nutritional_info.assert_called_once_with(
             1,
             mock_quantity,
-            ANY,
+            IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
 
@@ -229,8 +231,5 @@ class TestNutritionalInfoRoutes:
         )
 
         # Assert
-        assert (
-            mock_nutritional_info_service.get_ingredient_nutritional_info.call_count
-            == 0
-        )
+        mock_nutritional_info_service.get_ingredient_nutritional_info.assert_not_called()
         assert response.status_code == HTTPStatus.BAD_REQUEST
