@@ -145,6 +145,35 @@ class TestRecipesRoutes:
         assert response.status_code == HTTPStatus.OK
 
     @pytest.mark.unit
+    def test_get_popular_recipes_with_invalid_pagination_parameters(
+        self,
+        mock_recipe_scraper_service: Mock,
+        mock_pagination_params_invalid_range: PaginationParams,
+    ) -> None:
+        """Test retrieval of popular recipes with invalid pagination parameters."""
+        # Arrange
+        test_app = FastAPI()
+        test_app.dependency_overrides[get_recipe_scraper_service] = (
+            lambda: mock_recipe_scraper_service
+        )
+        test_app.include_router(router)
+        client = TestClient(test_app)
+
+        # Act
+        response = client.get(
+            "/recipe-scraper/popular-recipes",
+            params={
+                "limit": mock_pagination_params_invalid_range.limit,
+                "offset": mock_pagination_params_invalid_range.offset,
+                "count_only": mock_pagination_params_invalid_range.count_only,
+            },
+        )
+
+        # Assert
+        mock_recipe_scraper_service.get_popular_recipes.assert_not_called()
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
     def test_get_popular_recipes_with_invalid_limit_parameter(
         self,
         mock_recipe_scraper_service: Mock,
