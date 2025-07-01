@@ -4,6 +4,10 @@ Defines application-specific exceptions used to handle error cases with meaningf
 messages.
 """
 
+from http import HTTPStatus
+
+from fastapi import HTTPException
+
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 
 
@@ -131,3 +135,14 @@ class SubstitutionNotFoundError(Exception):
             str | None: The reason for no substitutes, if provided.
         """
         return self.reason
+
+
+class InvalidPaginationRangeError(HTTPException):
+    """Raised when pagination offset is greater than limit."""
+
+    def __init__(self) -> None:
+        """Initialize the exception with a detail message."""
+        super().__init__(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Offset cannot be greater than limit.",
+        )

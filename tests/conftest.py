@@ -21,6 +21,7 @@ from app.api.v1.schemas.common.nutritional_info.macro_nutrients import MacroNutr
 from app.api.v1.schemas.common.nutritional_info.minerals import Minerals
 from app.api.v1.schemas.common.nutritional_info.sugars import Sugars
 from app.api.v1.schemas.common.nutritional_info.vitams import Vitamins
+from app.api.v1.schemas.common.pagination_params import PaginationParams
 from app.api.v1.schemas.common.recipe import Recipe
 from app.api.v1.schemas.common.web_recipe import WebRecipe
 from app.api.v1.schemas.request.create_recipe_request import CreateRecipeRequest
@@ -28,11 +29,19 @@ from app.api.v1.schemas.response.create_recipe_response import CreateRecipeRespo
 from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse,
 )
+from app.api.v1.schemas.response.pairing_suggestions_response import (
+    PairingSuggestionsResponse,
+)
 from app.api.v1.schemas.response.recipe_nutritional_info_response import (
     RecipeNutritionalInfoResponse,
 )
 from app.api.v1.schemas.response.recommended_recipes_response import (
     PopularRecipesResponse,
+)
+from app.api.v1.schemas.response.recommended_substitutions_response import (
+    ConversionRatio,
+    IngredientSubstitution,
+    RecommendedSubstitutionsResponse,
 )
 from app.enums.allergen_enum import AllergenEnum
 from app.enums.difficulty_level_enum import DifficultyLevelEnum
@@ -41,6 +50,7 @@ from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.services.admin_service import AdminService
 from app.services.nutritional_info_service import NutritionalInfoService
 from app.services.recipe_scraper_service import RecipeScraperService
+from app.services.recommendations_service import RecommendationsService
 
 
 ###################################
@@ -369,6 +379,86 @@ def mock_popular_recipes_response(
     )
 
 
+##########################################
+# Mocked Recommendations Service Schemas #
+##########################################
+
+
+@pytest.fixture
+def mock_ingredient_substitution_list() -> list[IngredientSubstitution]:
+    """Fixture for a list of mocked IngredientSubstitution objects."""
+    return [
+        IngredientSubstitution(
+            ingredient="Mock Substitute 1",
+            quantity=Quantity(
+                amount=Decimal(100),
+                measurement=IngredientUnitEnum.G,
+            ),
+            conversion_ratio=ConversionRatio(
+                ratio=1.0,
+                measurement=IngredientUnitEnum.G,
+            ),
+        ),
+        IngredientSubstitution(
+            ingredient="Mock Substitute 2",
+            quantity=Quantity(
+                amount=Decimal(50),
+                measurement=IngredientUnitEnum.G,
+            ),
+            conversion_ratio=ConversionRatio(
+                ratio=0.5,
+                measurement=IngredientUnitEnum.G,
+            ),
+        ),
+        IngredientSubstitution(
+            ingredient="Mock Substitute 3",
+            quantity=Quantity(
+                amount=Decimal(75),
+                measurement=IngredientUnitEnum.G,
+            ),
+            conversion_ratio=ConversionRatio(
+                ratio=0.75,
+                measurement=IngredientUnitEnum.G,
+            ),
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_recommended_substitutions_response(
+    mock_ingredient_substitution_list: list[IngredientSubstitution],
+) -> RecommendedSubstitutionsResponse:
+    """Fixture for a mocked RecommendedSubstitutionsResponse object."""
+    return RecommendedSubstitutionsResponse(
+        ingredient=Ingredient(
+            ingredient_id=1,
+            name="Mock Ingredient",
+            quantity=Quantity(
+                amount=Decimal(100),
+                measurement=IngredientUnitEnum.G,
+            ),
+        ),
+        recommended_substitutions=mock_ingredient_substitution_list,
+        limit=50,
+        offset=0,
+        count=len(mock_ingredient_substitution_list),
+    )
+
+
+@pytest.fixture
+def mock_pairing_suggestions_response(
+    mock_web_recipe_list: list[WebRecipe],
+) -> PairingSuggestionsResponse:
+    """Fixture for a mocked PairingSuggestionsResponse object."""
+    return PairingSuggestionsResponse(
+        recipe_id=1,
+        pairing_suggestions=mock_web_recipe_list,
+        limit=50,
+        offset=0,
+        count=len(mock_web_recipe_list),
+    )
+
+
 #########################
 # Mocked Common Schemas #
 #########################
@@ -376,6 +466,33 @@ def mock_popular_recipes_response(
 def mock_quantity() -> Quantity:
     """Fixture for a mocked Quantity object."""
     return Quantity(amount=Decimal(100), measurement=IngredientUnitEnum.G)
+
+
+@pytest.fixture
+def mock_pagination_params() -> PaginationParams:
+    """Fixture for a mocked PaginationParams object."""
+    return PaginationParams(limit=2, offset=2, count_only=False)
+
+
+@pytest.fixture
+def mock_pagination_params_count_only(
+    default_pagination_params: PaginationParams,
+) -> PaginationParams:
+    """Fixture for a mocked PaginationParams object configured for count only."""
+    default_pagination_params.count_only = True
+    return default_pagination_params
+
+
+@pytest.fixture
+def mock_pagination_params_invalid_range() -> PaginationParams:
+    """Fixture for a mocked PaginationParams object with invalid limit & offset vals."""
+    return PaginationParams(limit=5, offset=10)
+
+
+@pytest.fixture
+def default_pagination_params() -> PaginationParams:
+    """Fixture for a PaginationParams object with the default runtime values."""
+    return PaginationParams(limit=50, offset=0, count_only=False)
 
 
 #####################
@@ -447,6 +564,20 @@ def mock_recipe_scraper_service(
     mock = Mock(spec=RecipeScraperService)
     mock.create_recipe.return_value = mock_create_recipe_response
     mock.get_popular_recipes.return_value = mock_popular_recipes_response
+    return mock
+
+
+@pytest.fixture
+def mock_recommendations_service(
+    mock_recommended_substitutions_response: RecommendedSubstitutionsResponse,
+    mock_pairing_suggestions_response: PairingSuggestionsResponse,
+) -> Mock:
+    """Fixture for a mocked RecommendationsService with preset return values."""
+    mock = Mock(spec=RecommendationsService)
+    mock.get_recommended_substitutions.return_value = (
+        mock_recommended_substitutions_response
+    )
+    mock.get_pairing_suggestions.return_value = mock_pairing_suggestions_response
     return mock
 
 

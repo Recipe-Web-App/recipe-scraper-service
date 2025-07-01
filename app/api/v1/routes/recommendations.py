@@ -4,6 +4,7 @@ Provides API endpoints for handling recommendations such as pairings & substitut
 """
 
 from functools import lru_cache
+from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Query
@@ -21,6 +22,7 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
 )
 from app.deps.db import get_db
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
+from app.exceptions.custom_exceptions import InvalidPaginationRangeError
 from app.services.recommendations_service import RecommendationsService
 
 
@@ -98,12 +100,14 @@ def get_recommended_substitutions(  # noqa: PLR0913
         offset=offset,
         count_only=count_only,
     )
-
+    if offset > limit:
+        raise InvalidPaginationRangeError
     if (amount is not None) != (measurement is not None):
         raise HTTPException(
-            status_code=400,
+            status_code=HTTPStatus.BAD_REQUEST,
             detail="Both amount and measurement must be provided together.",
         )
+
     if amount is not None and measurement is not None:
         quantity = Quantity(amount=amount, measurement=measurement)
     else:
@@ -147,6 +151,9 @@ def get_pairing_suggestions(  # noqa: PLR0913
     Returns:
         PairingSuggestionsResponse: The list of generated pairing suggestions.
     """
+    if offset > limit:
+        raise InvalidPaginationRangeError
+
     # Create pagination params from individual parameters
     pagination = PaginationParams(
         limit=limit,
