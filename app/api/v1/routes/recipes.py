@@ -20,8 +20,8 @@ from app.api.v1.schemas.response.recommended_recipes_response import (
 )
 from app.core.logging import get_logger
 from app.deps.db import get_db
-from app.exceptions.custom_exceptions import InvalidPaginationRangeError
 from app.services.recipe_scraper_service import RecipeScraperService
+from app.utils.validators import validate_pagination_params
 
 __log = get_logger("RecipeScraperRoutes")
 
@@ -100,13 +100,11 @@ def get_popular_recipes(
     Returns:
         PopularRecipesResponse: A list of all gathered recipe data.
     """
-    if offset > limit:
-        raise InvalidPaginationRangeError
-
     pagination = PaginationParams(
         limit=limit,
         offset=offset,
         count_only=count_only,
     )
+    validate_pagination_params(pagination)
 
     return service.get_popular_recipes(pagination)
