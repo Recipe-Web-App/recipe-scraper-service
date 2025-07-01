@@ -45,11 +45,12 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         # Act
-        response = client.get("/recipe-scraper/recipes/1/nutritional-info")
+        recipe_id = 1
+        response = client.get(f"/recipe-scraper/recipes/{recipe_id}/nutritional-info")
 
         # Assert
         mock_nutritional_info_service.get_recipe_nutritional_info.assert_called_once_with(
-            1,
+            recipe_id,
             True,
             False,
             IsType(Session),
@@ -71,8 +72,9 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         # Act
+        recipe_id = 2
         response = client.get(
-            "/recipe-scraper/recipes/1/nutritional-info",
+            f"/recipe-scraper/recipes/{recipe_id}/nutritional-info",
             params={
                 "include_total": False,
                 "include_ingredients": True,
@@ -81,7 +83,7 @@ class TestNutritionalInfoRoutes:
 
         # Assert
         mock_nutritional_info_service.get_recipe_nutritional_info.assert_called_once_with(
-            1,
+            recipe_id,
             False,
             True,
             IsType(Session),
@@ -103,8 +105,9 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         # Act
+        recipe_id = 3
         response = client.get(
-            "/recipe-scraper/recipes/2/nutritional-info",
+            f"/recipe-scraper/recipes/{recipe_id}/nutritional-info",
             params={
                 "include_total": "False",
                 "include_ingredients": "False",
@@ -137,11 +140,12 @@ class TestNutritionalInfoRoutes:
         )
 
         # Act
-        response = client.get("/recipe-scraper/recipes/3/nutritional-info")
+        recipe_id = 4
+        response = client.get(f"/recipe-scraper/recipes/{recipe_id}/nutritional-info")
 
         # Assert
         mock_nutritional_info_service.get_recipe_nutritional_info.assert_called_once_with(
-            3,
+            recipe_id,
             True,
             False,
             IsType(Session),
@@ -168,11 +172,14 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         # Act
-        response = client.get("/recipe-scraper/ingredients/1/nutritional-info")
+        ingredient_id = 1
+        response = client.get(
+            f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
+        )
 
         # Assert
         mock_nutritional_info_service.get_ingredient_nutritional_info.assert_called_once_with(
-            1,
+            ingredient_id,
             None,
             IsType(Session),
         )
@@ -194,8 +201,9 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         # Act
+        ingredient_id = 2
         response = client.get(
-            "/recipe-scraper/ingredients/1/nutritional-info",
+            f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
             params={
                 "amount": mock_quantity.amount,
                 "measurement": mock_quantity.measurement,
@@ -204,18 +212,19 @@ class TestNutritionalInfoRoutes:
 
         # Assert
         mock_nutritional_info_service.get_ingredient_nutritional_info.assert_called_once_with(
-            1,
+            ingredient_id,
             mock_quantity,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
 
     @pytest.mark.unit
-    def test_get_ingredient_nutritional_info_with_invalid_quantity(
+    def test_get_ingredient_nutritional_info_with_missing_measurement_parameter(
         self,
         mock_nutritional_info_service: Mock,
+        mock_quantity: Quantity,
     ) -> None:
-        """Test retrieval of nutritional info with invalid quantity."""
+        """Test retrieval of nutritional info with missing measurement parameter."""
         # Arrange
         test_app = FastAPI()
         test_app.dependency_overrides[get_nutritional_info_service] = (
@@ -225,9 +234,36 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         # Act
+        ingredient_id = 3
         response = client.get(
-            "/recipe-scraper/ingredients/1/nutritional-info",
-            params={"amount": "1"},
+            f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
+            params={"amount": mock_quantity.amount},
+        )
+
+        # Assert
+        mock_nutritional_info_service.get_ingredient_nutritional_info.assert_not_called()
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    def test_get_ingredient_nutritional_info_with_missing_amount_parameter(
+        self,
+        mock_nutritional_info_service: Mock,
+        mock_quantity: Quantity,
+    ) -> None:
+        """Test retrieval of nutritional info with missing amount parameter."""
+        # Arrange
+        test_app = FastAPI()
+        test_app.dependency_overrides[get_nutritional_info_service] = (
+            lambda: mock_nutritional_info_service
+        )
+        test_app.include_router(router)
+        client = TestClient(test_app)
+
+        # Act
+        ingredient_id = 4
+        response = client.get(
+            f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
+            params={"measurement": mock_quantity.measurement},
         )
 
         # Assert
