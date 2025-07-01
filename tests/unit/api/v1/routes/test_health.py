@@ -1,4 +1,4 @@
-"""Unit tests for admin API routes.
+"""Unit tests for health API routes.
 
 This module contains comprehensive unit tests for the health check API endpoints,
 """
