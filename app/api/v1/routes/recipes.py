@@ -21,6 +21,7 @@ from app.api.v1.schemas.response.recommended_recipes_response import (
 from app.core.logging import get_logger
 from app.deps.db import get_db
 from app.services.recipe_scraper_service import RecipeScraperService
+from app.utils.validators import validate_pagination_params
 
 __log = get_logger("RecipeScraperRoutes")
 
@@ -69,7 +70,7 @@ def create_recipe(
     Returns:
         CreateRecipeResponse: The created recipe response.
     """
-    return service.create_recipe(request.recipe_url, db, user_id=user_id)
+    return service.create_recipe(request.recipe_url, db, user_id)
 
 
 @router.get(
@@ -104,5 +105,6 @@ def get_popular_recipes(
         offset=offset,
         count_only=count_only,
     )
+    validate_pagination_params(pagination)
 
     return service.get_popular_recipes(pagination)

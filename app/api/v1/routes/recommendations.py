@@ -4,6 +4,7 @@ Provides API endpoints for handling recommendations such as pairings & substitut
 """
 
 from functools import lru_cache
+from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Query
@@ -22,6 +23,7 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
 from app.deps.db import get_db
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.services.recommendations_service import RecommendationsService
+from app.utils.validators import validate_pagination_params
 
 
 @lru_cache(maxsize=1)
@@ -98,12 +100,14 @@ def get_recommended_substitutions(  # noqa: PLR0913
         offset=offset,
         count_only=count_only,
     )
+    validate_pagination_params(pagination)
 
     if (amount is not None) != (measurement is not None):
         raise HTTPException(
-            status_code=400,
+            status_code=HTTPStatus.BAD_REQUEST,
             detail="Both amount and measurement must be provided together.",
         )
+
     if amount is not None and measurement is not None:
         quantity = Quantity(amount=amount, measurement=measurement)
     else:
@@ -153,6 +157,7 @@ def get_pairing_suggestions(  # noqa: PLR0913
         offset=offset,
         count_only=count_only,
     )
+    validate_pagination_params(pagination)
 
     return service.get_pairing_suggestions(
         recipe_id,
