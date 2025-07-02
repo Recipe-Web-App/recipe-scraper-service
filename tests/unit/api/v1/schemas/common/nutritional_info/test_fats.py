@@ -195,8 +195,8 @@ def test_fats_addition() -> None:
 
 
 @pytest.mark.unit
-def test_fats_addition_with_none_on_right_side() -> None:
-    """Test the __add__ method of Fats handles with all None vals on the right side."""
+def test_fats_addition_with_none_on_one_side() -> None:
+    """Test the __add__ method of Fats handles with all None vals on one side."""
     # Arrange
     f1 = Fats(
         fat_g=Decimal("1.0"),
