@@ -139,27 +139,3 @@ class SpoonacularSimilarRecipesResponse(BaseSchema):
                     continue
 
         return cls(recipes=validated_recipes)
-
-
-class ParsedRecipeResult(BaseSchema):
-    """Model for standardized recipe result from service processing.
-
-    This represents the final processed recipe data returned by the SpoonacularService,
-    converted to our internal WebRecipe format.
-    """
-
-    recipe_name: str = Field(..., description="The name of the recipe")
-    url: str = Field(..., description="The URL to the recipe")
-    image_url: str | None = Field(default=None, description="Recipe image URL")
-    summary: str | None = Field(default=None, description="Recipe summary")
-    ready_in_minutes: int | None = Field(
-        default=None,
-        description="Preparation time in minutes",
-    )
-    servings: int | None = Field(default=None, description="Number of servings")
-    confidence_score: float = Field(
-        default=0.7,
-        description="Confidence score for the recipe recommendation quality",
-        ge=0.0,
-        le=1.0,
-    )

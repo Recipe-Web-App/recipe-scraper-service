@@ -133,30 +133,3 @@ class SpoonacularSubstitutesResponse(BaseSchema):
             return item
 
         return item.description or item.name or item.substitute or ""
-
-
-class ParsedSubstituteResult(BaseSchema):
-    """Model for standardized substitute result from service processing.
-
-    This represents the final processed substitute data returned by the
-    SpoonacularService, with validated conversion ratio structure.
-    """
-
-    substitute_ingredient: str = Field(
-        ...,
-        description="The name of the substitute ingredient.",
-    )
-    conversion_ratio: dict[str, Any] = Field(
-        ...,
-        description="Conversion ratio with 'ratio' and 'measurement' keys.",
-    )
-    notes: str = Field(
-        default="",
-        description="Additional notes about the substitution.",
-    )
-    confidence_score: float = Field(
-        default=0.8,
-        description="Confidence score for the substitution quality.",
-        ge=0.0,
-        le=1.0,
-    )
