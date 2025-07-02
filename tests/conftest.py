@@ -72,7 +72,7 @@ from app.services.recommendations_service import RecommendationsService
 # Mocked Nutritional Info Schemas #
 ###################################
 @pytest.fixture
-def mock_ingredient_nutritional_info_list() -> (
+def mock_ingredient_nutritional_info_schema_list() -> (
     list[IngredientNutritionalInfoResponseSchema]
 ):
     """Fixture for a list of fully mocked IngredientNutritionalInfoResponse objects."""
@@ -252,26 +252,26 @@ def mock_ingredient_nutritional_info_list() -> (
 
 
 @pytest.fixture
-def mock_ingredient_nutritional_info_response(
-    mock_ingredient_nutritional_info_list: list[
+def mock_ingredient_nutritional_info_response_schema(
+    mock_ingredient_nutritional_info_schema_list: list[
         IngredientNutritionalInfoResponseSchema
     ],
 ) -> IngredientNutritionalInfoResponseSchema:
     """Fixture for a mocked IngredientNutritionalInfoResponse."""
-    return mock_ingredient_nutritional_info_list[0]
+    return mock_ingredient_nutritional_info_schema_list[0]
 
 
 @pytest.fixture
-def mock_recipe_nutritional_info_response(
-    mock_ingredient_nutritional_info_list: list[
+def mock_recipe_nutritional_info_response_schema(
+    mock_ingredient_nutritional_info_schema_list: list[
         IngredientNutritionalInfoResponseSchema
     ],
 ) -> RecipeNutritionalInfoResponseSchema:
     """Fixture for a mocked RecipeNutritionalInfoResponse including all ingredients."""
     mock_ingredient_nutritional_info_dict = {}
-    for i in range(len(mock_ingredient_nutritional_info_list)):
+    for i in range(len(mock_ingredient_nutritional_info_schema_list)):
         mock_ingredient_nutritional_info_dict[i] = (
-            mock_ingredient_nutritional_info_list[i]
+            mock_ingredient_nutritional_info_schema_list[i]
         )
     return RecipeNutritionalInfoResponseSchema(
         ingredients=mock_ingredient_nutritional_info_dict,
@@ -279,11 +279,11 @@ def mock_recipe_nutritional_info_response(
 
 
 @pytest.fixture
-def mock_recipe_nutritional_info_response_with_missing_ingredients(
-    mock_recipe_nutritional_info_response: RecipeNutritionalInfoResponseSchema,
+def mock_recipe_nutritional_info_response_schema_with_missing_ingredients(
+    mock_recipe_nutritional_info_response_schema: RecipeNutritionalInfoResponseSchema,
 ) -> RecipeNutritionalInfoResponseSchema:
     """Fixture for a mocked RecipeNutritionalInfoResponse with missing ingredients."""
-    ingredients = mock_recipe_nutritional_info_response.ingredients
+    ingredients = mock_recipe_nutritional_info_response_schema.ingredients
     ingredients_len = 0 if ingredients is None else len(ingredients)
     return RecipeNutritionalInfoResponseSchema(
         missing_ingredients=[
@@ -300,8 +300,8 @@ def mock_recipe_nutritional_info_response_with_missing_ingredients(
 
 
 @pytest.fixture
-def mock_recipe(
-    mock_create_recipe_request: CreateRecipeRequestSchema,
+def mock_recipe_schema(
+    mock_create_recipe_request_schema: CreateRecipeRequestSchema,
     mock_datetime: datetime,
 ) -> RecipeSchema:
     """Fixture for a mocked Recipe object."""
@@ -309,7 +309,7 @@ def mock_recipe(
         recipe_id=1,
         title="Mock Recipe",
         description="This is a mock recipe for testing purposes.",
-        origin_url=mock_create_recipe_request.recipe_url,
+        origin_url=mock_create_recipe_request_schema.recipe_url,
         servings=4,
         preparation_time=15,
         cooking_time=30,
@@ -367,21 +367,21 @@ def mock_recipe(
 
 
 @pytest.fixture
-def mock_create_recipe_request() -> CreateRecipeRequestSchema:
+def mock_create_recipe_request_schema() -> CreateRecipeRequestSchema:
     """Fixture for a mocked CreateRecipeRequest object."""
     return CreateRecipeRequestSchema(recipe_url="http://example.com/mock-recipe")
 
 
 @pytest.fixture
-def mock_create_recipe_response(
-    mock_recipe: RecipeSchema,
+def mock_create_recipe_response_schema(
+    mock_recipe_schema: RecipeSchema,
 ) -> CreateRecipeResponseSchema:
     """Fixture for a mocked CreateRecipeResponse object."""
-    return CreateRecipeResponseSchema(recipe=mock_recipe)
+    return CreateRecipeResponseSchema(recipe=mock_recipe_schema)
 
 
 @pytest.fixture
-def mock_web_recipe_list() -> list[WebRecipeSchema]:
+def mock_web_recipe_schema_list() -> list[WebRecipeSchema]:
     """Fixture for a list of mocked WebRecipe objects."""
     return [
         WebRecipeSchema(
@@ -408,15 +408,15 @@ def mock_web_recipe_list() -> list[WebRecipeSchema]:
 
 
 @pytest.fixture
-def mock_popular_recipes_response(
-    mock_web_recipe_list: list[WebRecipeSchema],
+def mock_popular_recipes_response_schema(
+    mock_web_recipe_schema_list: list[WebRecipeSchema],
 ) -> PopularRecipesResponseSchema:
     """Fixture for a mocked PopularRecipesResponse object."""
     return PopularRecipesResponseSchema(
-        recipes=mock_web_recipe_list,
+        recipes=mock_web_recipe_schema_list,
         limit=50,
         offset=0,
-        count=len(mock_web_recipe_list),
+        count=len(mock_web_recipe_schema_list),
     )
 
 
@@ -426,7 +426,7 @@ def mock_popular_recipes_response(
 
 
 @pytest.fixture
-def mock_ingredient_substitution_list() -> list[IngredientSubstitutionSchema]:
+def mock_ingredient_substitution_schema_list() -> list[IngredientSubstitutionSchema]:
     """Fixture for a list of mocked IngredientSchemaSubstitution objects."""
     return [
         IngredientSubstitutionSchema(
@@ -466,8 +466,8 @@ def mock_ingredient_substitution_list() -> list[IngredientSubstitutionSchema]:
 
 
 @pytest.fixture
-def mock_recommended_substitutions_response(
-    mock_ingredient_substitution_list: list[IngredientSubstitutionSchema],
+def mock_recommended_substitutions_response_schema(
+    mock_ingredient_substitution_schema_list: list[IngredientSubstitutionSchema],
 ) -> RecommendedSubstitutionsResponseSchema:
     """Fixture for a mocked RecommendedSubstitutionsResponse object."""
     return RecommendedSubstitutionsResponseSchema(
@@ -479,24 +479,24 @@ def mock_recommended_substitutions_response(
                 measurement=IngredientUnitEnum.G,
             ),
         ),
-        recommended_substitutions=mock_ingredient_substitution_list,
+        recommended_substitutions=mock_ingredient_substitution_schema_list,
         limit=50,
         offset=0,
-        count=len(mock_ingredient_substitution_list),
+        count=len(mock_ingredient_substitution_schema_list),
     )
 
 
 @pytest.fixture
-def mock_pairing_suggestions_response(
-    mock_web_recipe_list: list[WebRecipeSchema],
+def mock_pairing_suggestions_response_schema(
+    mock_web_recipe_schema_list: list[WebRecipeSchema],
 ) -> PairingSuggestionsResponseSchema:
     """Fixture for a mocked PairingSuggestionsResponse object."""
     return PairingSuggestionsResponseSchema(
         recipe_id=1,
-        pairing_suggestions=mock_web_recipe_list,
+        pairing_suggestions=mock_web_recipe_schema_list,
         limit=50,
         offset=0,
-        count=len(mock_web_recipe_list),
+        count=len(mock_web_recipe_schema_list),
     )
 
 
@@ -504,41 +504,36 @@ def mock_pairing_suggestions_response(
 # Mocked Common Schemas #
 #########################
 @pytest.fixture
-def mock_quantity() -> QuantitySchema:
+def mock_quantity_schema() -> QuantitySchema:
     """Fixture for a mocked QuantitySchema object."""
     return QuantitySchema(amount=Decimal(100), measurement=IngredientUnitEnum.G)
 
 
 @pytest.fixture
-def mock_pagination_params() -> PaginationParamsSchema:
+def mock_pagination_params_schema() -> PaginationParamsSchema:
     """Fixture for a mocked PaginationParams object."""
     return PaginationParamsSchema(limit=2, offset=2, count_only=False)
 
 
 @pytest.fixture
-def mock_pagination_params_count_only(
-    default_pagination_params: PaginationParamsSchema,
+def mock_pagination_params_schema_count_only(
+    default_pagination_params_schema: PaginationParamsSchema,
 ) -> PaginationParamsSchema:
     """Fixture for a mocked PaginationParams object configured for count only."""
-    default_pagination_params.count_only = True
-    return default_pagination_params
+    default_pagination_params_schema.count_only = True
+    return default_pagination_params_schema
 
 
 @pytest.fixture
-def mock_pagination_params_invalid_range() -> PaginationParamsSchema:
+def mock_pagination_params_schema_invalid_range() -> PaginationParamsSchema:
     """Fixture for a mocked PaginationParams object with invalid limit & offset vals."""
     return PaginationParamsSchema(limit=5, offset=10)
 
 
 @pytest.fixture
-def default_pagination_params() -> PaginationParamsSchema:
+def default_pagination_params_schema() -> PaginationParamsSchema:
     """Fixture for a PaginationParams object with the default runtime values."""
     return PaginationParamsSchema(limit=50, offset=0, count_only=False)
-
-
-#########################
-# Mocked Recipes Models #
-#########################
 
 
 #####################
@@ -589,43 +584,47 @@ def mock_cache_manager() -> Mock:
 
 @pytest.fixture
 def mock_nutritional_info_service(
-    mock_recipe_nutritional_info_response: RecipeNutritionalInfoResponseSchema,
-    mock_ingredient_nutritional_info_response: IngredientNutritionalInfoResponseSchema,
+    mock_recipe_nutritional_info_response_schema: RecipeNutritionalInfoResponseSchema,
+    mock_ingredient_nutritional_info_response_schema: (
+        IngredientNutritionalInfoResponseSchema
+    ),
 ) -> Mock:
     """Fixture for a mocked NutritionalInfoService with a preset return value."""
     mock = Mock(spec=NutritionalInfoService)
     mock.get_recipe_nutritional_info.return_value = (
-        mock_recipe_nutritional_info_response
+        mock_recipe_nutritional_info_response_schema
     )
     mock.get_ingredient_nutritional_info.return_value = (
-        mock_ingredient_nutritional_info_response
+        mock_ingredient_nutritional_info_response_schema
     )
     return mock
 
 
 @pytest.fixture
 def mock_recipe_scraper_service(
-    mock_create_recipe_response: CreateRecipeResponseSchema,
-    mock_popular_recipes_response: PopularRecipesResponseSchema,
+    mock_create_recipe_response_schema: CreateRecipeResponseSchema,
+    mock_popular_recipes_response_schema: PopularRecipesResponseSchema,
 ) -> Mock:
     """Fixture for a mocked RecipeScraperService with preset return values."""
     mock = Mock(spec=RecipeScraperService)
-    mock.create_recipe.return_value = mock_create_recipe_response
-    mock.get_popular_recipes.return_value = mock_popular_recipes_response
+    mock.create_recipe.return_value = mock_create_recipe_response_schema
+    mock.get_popular_recipes.return_value = mock_popular_recipes_response_schema
     return mock
 
 
 @pytest.fixture
 def mock_recommendations_service(
-    mock_recommended_substitutions_response: RecommendedSubstitutionsResponseSchema,
-    mock_pairing_suggestions_response: PairingSuggestionsResponseSchema,
+    mock_recommended_substitutions_response_schema: (
+        RecommendedSubstitutionsResponseSchema
+    ),
+    mock_pairing_suggestions_response_schema: PairingSuggestionsResponseSchema,
 ) -> Mock:
     """Fixture for a mocked RecommendationsService with preset return values."""
     mock = Mock(spec=RecommendationsService)
     mock.get_recommended_substitutions.return_value = (
-        mock_recommended_substitutions_response
+        mock_recommended_substitutions_response_schema
     )
-    mock.get_pairing_suggestions.return_value = mock_pairing_suggestions_response
+    mock.get_pairing_suggestions.return_value = mock_pairing_suggestions_response_schema
     return mock
 
 

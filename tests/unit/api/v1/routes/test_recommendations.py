@@ -31,7 +31,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions(
         self,
         mock_recommendations_service: Mock,
-        default_pagination_params: PaginationParams,
+        default_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions."""
         # Arrange
@@ -52,7 +52,7 @@ class TestRecommendationsRoutes:
         mock_recommendations_service.get_recommended_substitutions.assert_called_once_with(
             ingredient_id,
             None,
-            default_pagination_params,
+            default_pagination_params_schema,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -61,7 +61,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_quantity_parameters(
         self,
         mock_recommendations_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of recommended substitutions with Quantity parameters."""
         # Arrange
@@ -77,8 +77,8 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
-                "amount": mock_quantity.amount,
-                "measurement": mock_quantity.measurement,
+                "amount": mock_quantity_schema.amount,
+                "measurement": mock_quantity_schema.measurement,
             },
         )
 
@@ -90,7 +90,7 @@ class TestRecommendationsRoutes:
         )
         mock_recommendations_service.get_recommended_substitutions.assert_called_once_with(
             ingredient_id,
-            mock_quantity,
+            mock_quantity_schema,
             default_pagination_params,
             IsType(Session),
         )
@@ -100,7 +100,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_missing_amount_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of recommended substitutions with no amount param."""
         # Arrange
@@ -115,7 +115,7 @@ class TestRecommendationsRoutes:
         ingredient_id = 3
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
-            params={"measurement": mock_quantity.measurement},
+            params={"measurement": mock_quantity_schema.measurement},
         )
 
         # Assert
@@ -126,7 +126,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_invalid_amount_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of recommended substitutions with an invalid amount param."""
         # Arrange
@@ -143,7 +143,7 @@ class TestRecommendationsRoutes:
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
                 "amount": 0,
-                "measurement": mock_quantity.measurement,
+                "measurement": mock_quantity_schema.measurement,
             },
         )
 
@@ -155,7 +155,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_missing_measurement_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of recommended substitutions with no measurement param."""
         # Arrange
@@ -170,7 +170,7 @@ class TestRecommendationsRoutes:
         ingredient_id = 5
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
-            params={"amount": mock_quantity.amount},
+            params={"amount": mock_quantity_schema.amount},
         )
 
         # Assert
@@ -181,7 +181,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_invalid_measurement_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of recommended substitutions with an invalid measurement."""
         # Arrange
@@ -196,7 +196,7 @@ class TestRecommendationsRoutes:
         ingredient_id = 6
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
-            params={"amount": mock_quantity.amount, "measurement": "invalid"},
+            params={"amount": mock_quantity_schema.amount, "measurement": "invalid"},
         )
 
         # Assert
@@ -207,7 +207,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_pagination_parameters(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions with pagination."""
         # Arrange
@@ -223,9 +223,9 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
-                "limit": mock_pagination_params.limit,
-                "offset": mock_pagination_params.offset,
-                "count_only": mock_pagination_params.count_only,
+                "limit": mock_pagination_params_schema.limit,
+                "offset": mock_pagination_params_schema.offset,
+                "count_only": mock_pagination_params_schema.count_only,
             },
         )
 
@@ -233,7 +233,7 @@ class TestRecommendationsRoutes:
         mock_recommendations_service.get_recommended_substitutions.assert_called_once_with(
             ingredient_id,
             None,
-            mock_pagination_params,
+            mock_pagination_params_schema,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -242,7 +242,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_count_only_pagination_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params_count_only: PaginationParams,
+        mock_pagination_params_schema_count_only: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions with count only pagination."""
         # Arrange
@@ -258,7 +258,7 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
-                "count_only": mock_pagination_params_count_only.count_only,
+                "count_only": mock_pagination_params_schema_count_only.count_only,
             },
         )
 
@@ -266,7 +266,7 @@ class TestRecommendationsRoutes:
         mock_recommendations_service.get_recommended_substitutions.assert_called_once_with(
             ingredient_id,
             None,
-            mock_pagination_params_count_only,
+            mock_pagination_params_schema_count_only,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -275,7 +275,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_invalid_pagination_parameters(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params_invalid_range: PaginationParams,
+        mock_pagination_params_schema_invalid_range: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions with invalid pagination param."""
         # Arrange
@@ -291,8 +291,8 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
-                "limit": mock_pagination_params_invalid_range.limit,
-                "offset": mock_pagination_params_invalid_range.offset,
+                "limit": mock_pagination_params_schema_invalid_range.limit,
+                "offset": mock_pagination_params_schema_invalid_range.offset,
             },
         )
 
@@ -304,7 +304,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_invalid_limit_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions with invalid limit parameter."""
         # Arrange
@@ -321,8 +321,8 @@ class TestRecommendationsRoutes:
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
                 "limit": -1,
-                "offset": mock_pagination_params.offset,
-                "count_only": mock_pagination_params.count_only,
+                "offset": mock_pagination_params_schema.offset,
+                "count_only": mock_pagination_params_schema.count_only,
             },
         )
 
@@ -334,7 +334,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_invalid_offset_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions with invalid offset parameter."""
         # Arrange
@@ -350,9 +350,9 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
-                "limit": mock_pagination_params.limit,
+                "limit": mock_pagination_params_schema.limit,
                 "offset": -1,
-                "count_only": mock_pagination_params.count_only,
+                "count_only": mock_pagination_params_schema.count_only,
             },
         )
 
@@ -364,7 +364,7 @@ class TestRecommendationsRoutes:
     def test_get_recommended_substitutions_with_invalid_count_only_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of recommended substitutions with invalid count_only."""
         # Arrange
@@ -380,8 +380,8 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/recommended-substitutions",
             params={
-                "limit": mock_pagination_params.limit,
-                "offset": mock_pagination_params.offset,
+                "limit": mock_pagination_params_schema.limit,
+                "offset": mock_pagination_params_schema.offset,
                 "count_only": "invalid",
             },
         )
@@ -394,7 +394,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions(
         self,
         mock_recommendations_service: Mock,
-        default_pagination_params: PaginationParams,
+        default_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions."""
         # Arrange
@@ -414,7 +414,7 @@ class TestRecommendationsRoutes:
         # Assert
         mock_recommendations_service.get_pairing_suggestions.assert_called_once_with(
             recipe_id,
-            default_pagination_params,
+            default_pagination_params_schema,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -423,7 +423,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions_with_pagination_parameters(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions with pagination parameters."""
         # Arrange
@@ -439,16 +439,16 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/recipes/{recipe_id}/pairing-suggestions",
             params={
-                "limit": mock_pagination_params.limit,
-                "offset": mock_pagination_params.offset,
-                "count_only": mock_pagination_params.count_only,
+                "limit": mock_pagination_params_schema.limit,
+                "offset": mock_pagination_params_schema.offset,
+                "count_only": mock_pagination_params_schema.count_only,
             },
         )
 
         # Assert
         mock_recommendations_service.get_pairing_suggestions.assert_called_once_with(
             recipe_id,
-            mock_pagination_params,
+            mock_pagination_params_schema,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -457,7 +457,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions_with_count_only_pagination_parameters(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params_count_only: PaginationParams,
+        mock_pagination_params_schema_count_only: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions with count only pagination."""
         # Arrange
@@ -473,14 +473,14 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/recipes/{recipe_id}/pairing-suggestions",
             params={
-                "count_only": mock_pagination_params_count_only.count_only,
+                "count_only": mock_pagination_params_schema_count_only.count_only,
             },
         )
 
         # Assert
         mock_recommendations_service.get_pairing_suggestions.assert_called_once_with(
             recipe_id,
-            mock_pagination_params_count_only,
+            mock_pagination_params_schema_count_only,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -489,7 +489,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions_with_invalid_pagination_parameters(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params_invalid_range: PaginationParams,
+        mock_pagination_params_schema_invalid_range: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions with invalid pagination parameters."""
         # Arrange
@@ -505,8 +505,8 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/recipes/{recipe_id}/pairing-suggestions",
             params={
-                "limit": mock_pagination_params_invalid_range.limit,
-                "offset": mock_pagination_params_invalid_range.offset,
+                "limit": mock_pagination_params_schema_invalid_range.limit,
+                "offset": mock_pagination_params_schema_invalid_range.offset,
             },
         )
 
@@ -518,7 +518,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions_with_invalid_limit_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions with an invalid limit parameter."""
         # Arrange
@@ -535,8 +535,8 @@ class TestRecommendationsRoutes:
             f"/recipe-scraper/recipes/{recipe_id}/pairing-suggestions",
             params={
                 "limit": 0,
-                "offset": mock_pagination_params.offset,
-                "count_only": mock_pagination_params.count_only,
+                "offset": mock_pagination_params_schema.offset,
+                "count_only": mock_pagination_params_schema.count_only,
             },
         )
 
@@ -548,7 +548,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions_with_invalid_offset_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions with an invalid offset parameter."""
         # Arrange
@@ -564,9 +564,9 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/recipes/{recipe_id}/pairing-suggestions",
             params={
-                "limit": mock_pagination_params.limit,
+                "limit": mock_pagination_params_schema.limit,
                 "offset": -1,
-                "count_only": mock_pagination_params.count_only,
+                "count_only": mock_pagination_params_schema.count_only,
             },
         )
 
@@ -578,7 +578,7 @@ class TestRecommendationsRoutes:
     def test_get_pairing_suggestions_with_invalid_count_only_parameter(
         self,
         mock_recommendations_service: Mock,
-        mock_pagination_params: PaginationParams,
+        mock_pagination_params_schema: PaginationParams,
     ) -> None:
         """Test retrieval of pairing suggestions with an invalid count only param."""
         # Arrange
@@ -594,8 +594,8 @@ class TestRecommendationsRoutes:
         response = client.get(
             f"/recipe-scraper/recipes/{recipe_id}/pairing-suggestions",
             params={
-                "limit": mock_pagination_params.limit,
-                "offset": mock_pagination_params.offset,
+                "limit": mock_pagination_params_schema.limit,
+                "offset": mock_pagination_params_schema.offset,
                 "count_only": "invalid",
             },
         )
