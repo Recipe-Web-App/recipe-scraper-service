@@ -7,16 +7,7 @@ from pydantic import ValidationError
 
 from app.api.v1.schemas.common.nutritional_info.fats import Fats
 
-_field_list = [
-    "fat_g",
-    "saturated_fat_g",
-    "monounsaturated_fat_g",
-    "polyunsaturated_fat_g",
-    "omega_3_fat_g",
-    "omega_6_fat_g",
-    "omega_9_fat_g",
-    "trans_fat_g",
-]
+_field_list = list(Fats.model_fields.keys())
 
 
 @pytest.mark.unit
@@ -84,7 +75,7 @@ def test_fats_model_copy() -> None:
 def test_fats_equality() -> None:
     """Test that two Fats objects with the same data for all fields are equal."""
     # Arrange
-    kwargs = {
+    kwargs1 = {
         "fat_g": Decimal("1.1"),
         "saturated_fat_g": Decimal("2.2"),
         "monounsaturated_fat_g": Decimal("3.3"),
@@ -94,13 +85,25 @@ def test_fats_equality() -> None:
         "omega_9_fat_g": Decimal("7.7"),
         "trans_fat_g": Decimal("8.8"),
     }
+    kwargs2 = {
+        "fat_g": Decimal("8.8"),
+        "saturated_fat_g": Decimal("7.7"),
+        "monounsaturated_fat_g": Decimal("6.6"),
+        "polyunsaturated_fat_g": Decimal("5.5"),
+        "omega_3_fat_g": Decimal("4.4"),
+        "omega_6_fat_g": Decimal("3.3"),
+        "omega_9_fat_g": Decimal("2.2"),
+        "trans_fat_g": Decimal("1.1"),
+    }
 
     # Act
-    fats1 = Fats(**kwargs)
-    fats2 = Fats(**kwargs)
+    fats1 = Fats(**kwargs1)
+    fats2 = Fats(**kwargs1)
+    fats3 = Fats(**kwargs2)
 
     # Assert
     assert fats1 == fats2
+    assert fats1 != fats3
 
 
 @pytest.mark.unit

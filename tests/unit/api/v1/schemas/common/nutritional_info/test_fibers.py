@@ -7,11 +7,7 @@ from pydantic import ValidationError
 
 from app.api.v1.schemas.common.nutritional_info.fibers import Fibers
 
-_field_list = [
-    "fiber_g",
-    "soluble_fiber_g",
-    "insoluble_fiber_g",
-]
+_field_list = list(Fibers.model_fields.keys())
 
 
 @pytest.mark.unit
@@ -59,18 +55,25 @@ def test_fibers_model_copy() -> None:
 def test_fibers_equality() -> None:
     """Test that two Fibers objects with the same data for all fields are equal."""
     # Arrange
-    kwargs = {
+    kwargs1 = {
         "fiber_g": Decimal("1.1"),
         "soluble_fiber_g": Decimal("2.2"),
         "insoluble_fiber_g": Decimal("3.3"),
     }
+    kwargs2 = {
+        "fiber_g": Decimal("4.4"),
+        "soluble_fiber_g": Decimal("5.5"),
+        "insoluble_fiber_g": Decimal("6.6"),
+    }
 
     # Act
-    fibers1 = Fibers(**kwargs)
-    fibers2 = Fibers(**kwargs)
+    fibers1 = Fibers(**kwargs1)
+    fibers2 = Fibers(**kwargs1)
+    fibers3 = Fibers(**kwargs2)
 
     # Assert
     assert fibers1 == fibers2
+    assert fibers1 != fibers3
 
 
 @pytest.mark.unit
