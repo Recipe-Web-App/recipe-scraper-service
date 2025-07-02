@@ -58,6 +58,12 @@ from app.api.v1.schemas.response.recommended_substitutions_response import (
 from app.api.v1.schemas.response.recommended_substitutions_response import (
     RecommendedSubstitutionsResponse as RecommendedSubstitutionsResponseSchema,
 )
+from app.db.models.ingredient_models import Ingredient as IngredientModel
+from app.db.models.recipe_models import Recipe as RecipeModel
+from app.db.models.recipe_models import RecipeIngredient as RecipeIngredientModel
+from app.db.models.recipe_models import RecipeReview as RecipeReviewModel
+from app.db.models.recipe_models import RecipeStep as RecipeStepModel
+from app.db.models.recipe_models import RecipeTagJunction as RecipeTagJunctionModel
 from app.enums.allergen_enum import AllergenEnum
 from app.enums.difficulty_level_enum import DifficultyLevelEnum
 from app.enums.food_group_enum import FoodGroupEnum
@@ -87,7 +93,7 @@ def mock_ingredient_nutritional_info_schema_list() -> (
                 food_groups=[FoodGroupEnum.VEGETABLES, FoodGroupEnum.FRUITS],
                 nutriscore_score=85,
                 nutriscore_grade="A",
-                product_name="Mock IngredientSchema 1",
+                product_name="Mock Ingredient Product Name 1",
                 brands="Mock Brand",
                 categories="Mock Category 1",
             ),
@@ -144,7 +150,7 @@ def mock_ingredient_nutritional_info_schema_list() -> (
                 food_groups=[FoodGroupEnum.SEAFOOD],
                 nutriscore_score=-1,
                 nutriscore_grade="B",
-                product_name="Mock IngredientSchema 2",
+                product_name="Mock Ingredient Product Name 2",
                 brands="Mock Brand 2",
                 categories="Mock Category 2",
             ),
@@ -201,7 +207,7 @@ def mock_ingredient_nutritional_info_schema_list() -> (
                 food_groups=[FoodGroupEnum.POULTRY],
                 nutriscore_score=2,
                 nutriscore_grade="A",
-                product_name="Mock IngredientSchema 3",
+                product_name="Mock Ingredient Product Name 3",
                 brands="Mock Brand 3",
                 categories="Mock Category 3",
             ),
@@ -317,7 +323,7 @@ def mock_recipe_schema(
         ingredients=[
             IngredientSchema(
                 ingredient_id=1,
-                name="Mock IngredientSchema 1",
+                name="Mock Ingredient Name 1",
                 quantity=QuantitySchema(
                     amount=Decimal(100),
                     measurement=IngredientUnitEnum.G,
@@ -325,7 +331,7 @@ def mock_recipe_schema(
             ),
             IngredientSchema(
                 ingredient_id=2,
-                name="Mock IngredientSchema 2",
+                name="Mock Ingredient Name 2",
                 quantity=QuantitySchema(
                     amount=Decimal(30),
                     measurement=IngredientUnitEnum.LB,
@@ -333,7 +339,7 @@ def mock_recipe_schema(
             ),
             IngredientSchema(
                 ingredient_id=3,
-                name="Mock IngredientSchema 3",
+                name="Mock Ingredient Name 3",
                 quantity=QuantitySchema(
                     amount=Decimal(5),
                     measurement=IngredientUnitEnum.TBSP,
@@ -343,21 +349,21 @@ def mock_recipe_schema(
         steps=[
             RecipeSchema.RecipeStep(
                 step_number=1,
-                instruction="This is the first step of the mock recipe.",
+                instruction="Mock ingredient instruction 1.",
                 optional=False,
                 timer_seconds=60,
                 created_at=mock_datetime,
             ),
             RecipeSchema.RecipeStep(
                 step_number=2,
-                instruction="This is the second step of the mock recipe.",
+                instruction="Mock ingredient instruction 2.",
                 optional=True,
                 timer_seconds=None,
                 created_at=mock_datetime,
             ),
             RecipeSchema.RecipeStep(
                 step_number=3,
-                instruction="This is the third step of the mock recipe.",
+                instruction="Mock ingredient instruction 3.",
                 optional=False,
                 timer_seconds=120,
                 created_at=mock_datetime,
@@ -386,23 +392,23 @@ def mock_web_recipe_schema_list() -> list[WebRecipeSchema]:
     return [
         WebRecipeSchema(
             recipe_name="Popular Recipe 1",
-            url="http://example.com/popular-recipe-1",
+            url="http://mock-url.com/popular-recipe-1",
         ),
         WebRecipeSchema(
             recipe_name="Popular Recipe 2",
-            url="http://example.com/popular-recipe-2",
+            url="http://mock-url.com/popular-recipe-2",
         ),
         WebRecipeSchema(
             recipe_name="Popular Recipe 3",
-            url="http://example.com/popular-recipe-3",
+            url="http://mock-url.com/popular-recipe-3",
         ),
         WebRecipeSchema(
             recipe_name="Popular Recipe 4",
-            url="http://example.com/popular-recipe-4",
+            url="http://mock-url.com/popular-recipe-4",
         ),
         WebRecipeSchema(
             recipe_name="Popular Recipe 5",
-            url="http://example.com/popular-recipe-5",
+            url="http://mock-url.com/popular-recipe-5",
         ),
     ]
 
@@ -473,7 +479,7 @@ def mock_recommended_substitutions_response_schema(
     return RecommendedSubstitutionsResponseSchema(
         ingredient=IngredientSchema(
             ingredient_id=1,
-            name="Mock IngredientSchema",
+            name="Mock Ingredient Name",
             quantity=QuantitySchema(
                 amount=Decimal(100),
                 measurement=IngredientUnitEnum.G,
@@ -534,6 +540,180 @@ def mock_pagination_params_schema_invalid_range() -> PaginationParamsSchema:
 def default_pagination_params_schema() -> PaginationParamsSchema:
     """Fixture for a PaginationParams object with the default runtime values."""
     return PaginationParamsSchema(limit=50, offset=0, count_only=False)
+
+
+#########################
+# Mocked Recipes Models #
+#########################
+
+
+@pytest.fixture
+def mock_ingredient_list(mock_datetime: datetime) -> list[IngredientModel]:
+    """Fixture for a list of mocked Ingredient objects."""
+    return [
+        IngredientModel(
+            ingredient_id=1,
+            name="Mock Ingredient 1",
+            description="Description for Mock Ingredient 1",
+            is_optional=False,
+            created_at=mock_datetime,
+            updated_at=mock_datetime,
+        ),
+        IngredientModel(
+            ingredient_id=2,
+            name="Mock Ingredient 2",
+            description="Description for Mock Ingredient 2",
+            is_optional=True,
+            created_at=mock_datetime,
+            updated_at=mock_datetime,
+        ),
+        IngredientModel(
+            ingredient_id=3,
+            name="Mock Ingredient 3",
+            description="Description for Mock Ingredient 3",
+            is_optional=False,
+            created_at=mock_datetime,
+            updated_at=mock_datetime,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_recipe_ingredient_list(
+    mock_ingredient_list: list[IngredientModel],
+) -> list[RecipeIngredientModel]:
+    """Fixture for a list of mocked RecipeIngredient objects."""
+    return [
+        RecipeIngredientModel(
+            recipe_id=1,
+            ingredient_id=mock_ingredient_list[0].ingredient_id,
+            quantity=Decimal(100),
+            unit=IngredientUnitEnum.G,
+            is_optional=False,
+        ),
+        RecipeIngredientModel(
+            recipe_id=1,
+            ingredient_id=mock_ingredient_list[1].ingredient_id,
+            quantity=Decimal(30),
+            unit=IngredientUnitEnum.LB,
+            is_optional=True,
+        ),
+        RecipeIngredientModel(
+            recipe_id=1,
+            ingredient_id=mock_ingredient_list[2].ingredient_id,
+            quantity=Decimal(5),
+            unit=IngredientUnitEnum.TBSP,
+            is_optional=False,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_recipe_step_list(mock_datetime: datetime) -> list[RecipeStepModel]:
+    """Fixture for a list of mocked RecipeStep objects."""
+    return [
+        RecipeStepModel(
+            step_id=1,
+            recipe_id=1,
+            step_number=1,
+            instruction="This is the first step of the mock recipe.",
+            optional=False,
+            timer_seconds=60,
+            created_at=mock_datetime,
+        ),
+        RecipeStepModel(
+            step_id=2,
+            recipe_id=1,
+            step_number=2,
+            instruction="This is the second step of the mock recipe.",
+            optional=True,
+            timer_seconds=None,
+            created_at=mock_datetime,
+        ),
+        RecipeStepModel(
+            step_id=3,
+            recipe_id=1,
+            step_number=3,
+            instruction="This is the third step of the mock recipe.",
+            optional=False,
+            timer_seconds=120,
+            created_at=mock_datetime,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_recipe_tag_list() -> list[RecipeTagJunctionModel]:
+    """Fixture for a list of mocked RecipeTagJunction objects."""
+    return [
+        RecipeTagJunctionModel(
+            recipe_id=1,
+            tag_id=1,
+        ),
+        RecipeTagJunctionModel(
+            recipe_id=1,
+            tag_id=2,
+        ),
+        RecipeTagJunctionModel(
+            recipe_id=1,
+            tag_id=3,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_recipe_review_list(
+    mock_user_id: UUID,
+    mock_datetime: datetime,
+) -> list[RecipeReviewModel]:
+    """Fixture for a list of mocked RecipeReview objects."""
+    return [
+        RecipeReviewModel(
+            review_id=1,
+            recipe_id=1,
+            user_id=mock_user_id,
+            rating=4.5,
+            comment="Mock recipe review comment 1.",
+            created_at=mock_datetime,
+        ),
+        RecipeReviewModel(
+            review_id=2,
+            recipe_id=1,
+            user_id=mock_user_id,
+            rating=3.0,
+            comment="Mock recipe review comment 2.",
+            created_at=mock_datetime,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_recipe_model(  # noqa: PLR0913
+    mock_user_id: UUID,
+    mock_recipe_ingredient_list: list[RecipeIngredientModel],
+    mock_recipe_step_list: list[RecipeStepModel],
+    mock_recipe_tag_list: list[RecipeTagJunctionModel],
+    mock_recipe_review_list: list[RecipeReviewModel],
+    mock_datetime: datetime,
+) -> RecipeModel:
+    """Fixture for a mocked Recipe object."""
+    return RecipeModel(
+        recipe_id=1,
+        user_id=mock_user_id,
+        title="Mock Recipe Title",
+        description="Mock recipe description.",
+        origin_url="https://mock-url.com/mock-recipe",
+        servings=4.0,
+        preparation_time=15,
+        cooking_time=30,
+        difficulty=DifficultyLevelEnum.EASY,
+        created_at=mock_datetime,
+        updated_at=mock_datetime,
+        ingredients=mock_recipe_ingredient_list,
+        steps=mock_recipe_step_list,
+        tags=mock_recipe_tag_list,
+        reviews=mock_recipe_review_list,
+    )
 
 
 #####################
