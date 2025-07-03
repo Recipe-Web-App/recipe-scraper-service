@@ -83,6 +83,7 @@
     "pydantic",
     "pydoc",
     "pydoclint",
+    "pylogging",
     "pyproject",
     "pytest",
     "pyyaml",
@@ -95,6 +96,7 @@
     "testpaths",
     "typehints",
     "uvicorn",
-    "venv"
+    "venv",
+    "webscraper"
   ]
 }
