@@ -95,6 +95,7 @@
     "testpaths",
     "typehints",
     "uvicorn",
-    "venv"
+    "venv",
+    "webscraper"
   ]
 }
