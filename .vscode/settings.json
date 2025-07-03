@@ -83,6 +83,7 @@
     "pydantic",
     "pydoc",
     "pydoclint",
+    "pylogging",
     "pyproject",
     "pytest",
     "pyyaml",
