@@ -9,40 +9,12 @@ from typing import Any
 from pydantic import ConfigDict, Field, field_validator
 
 from app.api.v1.schemas.base_schema import BaseSchema
+from app.api.v1.schemas.downstream.spoonacular.substitute_item import (
+    SpoonacularSubstituteItem,
+)
 from app.core.logging import get_logger
 
 _log = get_logger(__name__)
-
-
-class SpoonacularSubstituteItem(BaseSchema):
-    """Represents a single substitute item from Spoonacular API.
-
-    This can be either a simple string or a more detailed object with name and
-    description fields.
-    """
-
-    name: str | None = Field(
-        default=None,
-        description="Name of the substitute ingredient",
-    )
-    substitute: str | None = Field(
-        default=None,
-        description="Alternative field name for substitute ingredient",
-    )
-    description: str | None = Field(
-        default=None,
-        description="Description of the substitute with usage instructions",
-    )
-
-    @field_validator("name", "substitute", mode="before")
-    @classmethod
-    def validate_strings(cls, v: str | None) -> str | None:
-        """Validate and clean string fields."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return v.strip() if v.strip() else None
-        return str(v).strip() if str(v).strip() else None
 
 
 class SpoonacularSubstitutesResponse(BaseSchema):
