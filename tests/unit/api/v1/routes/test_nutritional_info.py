@@ -122,7 +122,7 @@ class TestNutritionalInfoRoutes:
     def test_get_recipe_nutritional_info_with_missing_ingredients(
         self,
         mock_nutritional_info_service: Mock,
-        mock_recipe_nutritional_info_response_with_missing_ingredients: (
+        mock_recipe_nutritional_info_response_schema_with_missing_ingredients: (
             RecipeNutritionalInfoResponse
         ),
     ) -> None:
@@ -136,7 +136,7 @@ class TestNutritionalInfoRoutes:
         client = TestClient(test_app)
 
         mock_nutritional_info_service.get_recipe_nutritional_info.return_value = (
-            mock_recipe_nutritional_info_response_with_missing_ingredients
+            mock_recipe_nutritional_info_response_schema_with_missing_ingredients
         )
 
         # Act
@@ -152,7 +152,7 @@ class TestNutritionalInfoRoutes:
         )
         assert response.status_code == HTTPStatus.PARTIAL_CONTENT
         expected = jsonable_encoder(
-            mock_recipe_nutritional_info_response_with_missing_ingredients,
+            mock_recipe_nutritional_info_response_schema_with_missing_ingredients,
             by_alias=False,
         )
         assert response.json() == expected
@@ -189,7 +189,7 @@ class TestNutritionalInfoRoutes:
     def test_get_ingredient_nutritional_info_with_quantity_query_params(
         self,
         mock_nutritional_info_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of nutritional info for an ingredient with quantity."""
         # Arrange
@@ -205,15 +205,15 @@ class TestNutritionalInfoRoutes:
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
             params={
-                "amount": mock_quantity.amount,
-                "measurement": mock_quantity.measurement,
+                "amount": mock_quantity_schema.amount,
+                "measurement": mock_quantity_schema.measurement,
             },
         )
 
         # Assert
         mock_nutritional_info_service.get_ingredient_nutritional_info.assert_called_once_with(
             ingredient_id,
-            mock_quantity,
+            mock_quantity_schema,
             IsType(Session),
         )
         assert response.status_code == HTTPStatus.OK
@@ -222,7 +222,7 @@ class TestNutritionalInfoRoutes:
     def test_get_ingredient_nutritional_info_with_missing_measurement_parameter(
         self,
         mock_nutritional_info_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of nutritional info with missing measurement parameter."""
         # Arrange
@@ -237,7 +237,7 @@ class TestNutritionalInfoRoutes:
         ingredient_id = 3
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
-            params={"amount": mock_quantity.amount},
+            params={"amount": mock_quantity_schema.amount},
         )
 
         # Assert
@@ -248,7 +248,7 @@ class TestNutritionalInfoRoutes:
     def test_get_ingredient_nutritional_info_with_missing_amount_parameter(
         self,
         mock_nutritional_info_service: Mock,
-        mock_quantity: Quantity,
+        mock_quantity_schema: Quantity,
     ) -> None:
         """Test retrieval of nutritional info with missing amount parameter."""
         # Arrange
@@ -263,7 +263,7 @@ class TestNutritionalInfoRoutes:
         ingredient_id = 4
         response = client.get(
             f"/recipe-scraper/ingredients/{ingredient_id}/nutritional-info",
-            params={"measurement": mock_quantity.measurement},
+            params={"measurement": mock_quantity_schema.measurement},
         )
 
         # Assert
