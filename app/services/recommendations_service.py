@@ -21,7 +21,7 @@ from app.db.models.recipe_models.recipe import Recipe as RecipeModel
 from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.db.models.recipe_models.recipe_tag_junction import RecipeTagJunction
 from app.deps.downstream_service_manager import get_downstream_service_manager
-from app.utils.cache_manager import CacheManager
+from app.utils.cache_manager import get_cache_manager
 
 _log = get_logger(__name__)
 
@@ -29,22 +29,19 @@ _log = get_logger(__name__)
 class RecommendationsService:
     """Service for generating recipe recommendations and ingredient substitutions.
 
-    This service provides functionality for:
-    - Finding ingredient substitutions using Spoonacular API
-    - Generating recipe pairing suggestions
-    - Caching recommendations for performance
-    - Converting between different quantity units and ratios
+    This service provides functionality for: - Finding ingredient substitutions using
+    Spoonacular API - Generating recipe pairing suggestions - Caching recommendations
+    for performance - Converting between different quantity units and ratios
 
-    Attributes:
-        cache_manager: Manager for caching recommendation results
-        spoonacular_service: Service for Spoonacular API interactions
+    Attributes:     cache_manager: Manager for caching recommendation results
+    spoonacular_service: Service for Spoonacular API interactions
     """
 
     _MIN_SHARED_INGREDIENTS = 2
 
     def __init__(self) -> None:
         """Initialize the RecommendationsService with dependencies."""
-        self._cache_manager = CacheManager()
+        self._cache_manager = get_cache_manager()
 
         service_manager = get_downstream_service_manager()
         self._spoonacular_service = service_manager.get_spoonacular_service()
@@ -58,17 +55,16 @@ class RecommendationsService:
     ) -> RecommendedSubstitutionsResponse:
         """Generate a list of recommended substitutions using Spoonacular API.
 
-        Args:
-            ingredient_id (int): The ID of the ingredient to process.
-            quantity (Quantity): The quantity of the ingredient to process.
-            pagination (PaginationParams): Pagination params for response control.
-            db (Session): Database session for ingredient lookup.
+        Args:     ingredient_id (int): The ID of the ingredient to process.     quantity
+        (Quantity): The quantity of the ingredient to process.     pagination
+        (PaginationParams): Pagination params for response control.     db (Session):
+        Database session for ingredient lookup.
 
-        Returns:
-            RecommendedSubstitutionsResponse: Spoonacular API powered substitutions.
+        Returns:     RecommendedSubstitutionsResponse: Spoonacular API powered
+        substitutions.
 
-        Raises:
-            HTTPException: If ingredient not found or Spoonacular API unavailable.
+        Raises:     HTTPException: If ingredient not found or Spoonacular API
+        unavailable.
         """
         quantity_str = (
             "Quantity = " + f"{quantity.amount} {quantity.measurement}"
@@ -125,7 +121,7 @@ class RecommendationsService:
 
         return response
 
-    def get_pairing_suggestions(
+    async def get_pairing_suggestions(
         self,
         recipe_id: int,
         pagination: PaginationParams,
@@ -133,13 +129,12 @@ class RecommendationsService:
     ) -> PairingSuggestionsResponse:
         """Identify suggested pairings using database and Spoonacular analysis.
 
-        Args:
-            recipe_id (int): The ID of the recipe.
-            pagination (PaginationParams): Pagination params for response control.
-            db (Session): Database session for recipe lookup.
+        Args:     recipe_id (int): The ID of the recipe.     pagination
+        (PaginationParams): Pagination params for response control.     db (Session):
+        Database session for recipe lookup.
 
-        Returns:
-            PairingSuggestionsResponse: The generated list of suggested pairings.
+        Returns:     PairingSuggestionsResponse: The generated list of suggested
+        pairings.
         """
         _log.info("Getting pairing suggestions for recipe ID {}", recipe_id)
 
@@ -149,7 +144,7 @@ class RecommendationsService:
 
             # Get suggestions from both database and Spoonacular
             db_suggestions = self._get_database_pairing_suggestions(target_recipe, db)
-            spoonacular_suggestions = self._get_spoonacular_pairing_suggestions(
+            spoonacular_suggestions = await self._get_spoonacular_pairing_suggestions(
                 target_recipe,
                 db,
             )
@@ -201,12 +196,10 @@ class RecommendationsService:
     ) -> list[WebRecipe]:
         """Get pairing suggestions using database analysis.
 
-        Args:
-            target_recipe: The target recipe to find similar recipes for
-            db: Database session
+        Args:     target_recipe: The target recipe to find similar recipes for     db:
+        Database session
 
-        Returns:
-            List of WebRecipe objects from database analysis
+        Returns:     List of WebRecipe objects from database analysis
         """
         suggestions = []
 
@@ -239,19 +232,17 @@ class RecommendationsService:
 
         return suggestions
 
-    def _get_spoonacular_pairing_suggestions(
+    async def _get_spoonacular_pairing_suggestions(
         self,
         target_recipe: RecipeModel,
         db: Session,
     ) -> list[WebRecipe]:
         """Get pairing suggestions using Spoonacular API.
 
-        Args:
-            target_recipe: The target recipe to find similar recipes for
-            db: Database session for ingredient lookup
+        Args:     target_recipe: The target recipe to find similar recipes for     db:
+        Database session for ingredient lookup
 
-        Returns:
-            List of WebRecipe objects from Spoonacular API
+        Returns:     List of WebRecipe objects from Spoonacular API
         """
         suggestions = []
 
@@ -267,7 +258,7 @@ class RecommendationsService:
                 )
 
                 # Try to get from cache first
-                cached_suggestions = self._cache_manager.get(cache_key)
+                cached_suggestions = await self._cache_manager.get(cache_key)
                 if cached_suggestions is not None:
                     _log.debug(
                         "Cache hit for Spoonacular pairing suggestions for recipe {}",
@@ -309,7 +300,7 @@ class RecommendationsService:
                             for recipe in suggestions
                         ]
                         try:
-                            self._cache_manager.set(
+                            await self._cache_manager.set(
                                 cache_key,
                                 cache_data,
                                 expiry_hours=24,
@@ -346,12 +337,9 @@ class RecommendationsService:
     ) -> list[str]:
         """Get ingredient names for a recipe.
 
-        Args:
-            recipe: Recipe model
-            db: Database session
+        Args:     recipe: Recipe model     db: Database session
 
-        Returns:
-            List of ingredient names
+        Returns:     List of ingredient names
         """
         try:
             # Get ingredients for the recipe
@@ -381,15 +369,11 @@ class RecommendationsService:
     def _get_recipe_by_id(self, recipe_id: int, db: Session) -> RecipeModel:
         """Get recipe from database by ID.
 
-        Args:
-            recipe_id: The ID of the recipe to retrieve
-            db: Database session
+        Args:     recipe_id: The ID of the recipe to retrieve     db: Database session
 
-        Returns:
-            RecipeModel: The recipe model
+        Returns:     RecipeModel: The recipe model
 
-        Raises:
-            HTTPException: If recipe not found
+        Raises:     HTTPException: If recipe not found
         """
         recipe = (
             db.query(RecipeModel).filter(RecipeModel.recipe_id == recipe_id).first()
@@ -406,13 +390,10 @@ class RecommendationsService:
     ) -> list[WebRecipe]:
         """Find recipes that share ingredients with the target recipe.
 
-        Args:
-            target_recipe: The target recipe to find similar recipes for
-            db: Database session
-            limit: Maximum number of recipes to return
+        Args:     target_recipe: The target recipe to find similar recipes for     db:
+        Database session     limit: Maximum number of recipes to return
 
-        Returns:
-            List of WebRecipe objects with similar ingredients
+        Returns:     List of WebRecipe objects with similar ingredients
         """
         # Get ingredients for the target recipe
         target_ingredients_query = db.query(RecipeIngredient.ingredient_id).filter(
@@ -458,13 +439,10 @@ class RecommendationsService:
     ) -> list[WebRecipe]:
         """Find recipes that share tags with the target recipe.
 
-        Args:
-            target_recipe: The target recipe to find similar recipes for
-            db: Database session
-            limit: Maximum number of recipes to return
+        Args:     target_recipe: The target recipe to find similar recipes for     db:
+        Database session     limit: Maximum number of recipes to return
 
-        Returns:
-            List of WebRecipe objects with similar tags
+        Returns:     List of WebRecipe objects with similar tags
         """
         # Get tags for the target recipe
         target_tags_query = db.query(RecipeTagJunction.tag_id).filter(
@@ -502,11 +480,9 @@ class RecommendationsService:
     def _deduplicate_suggestions(self, suggestions: list[WebRecipe]) -> list[WebRecipe]:
         """Remove duplicate recipe suggestions based on name similarity.
 
-        Args:
-            suggestions: List of WebRecipe suggestions
+        Args:     suggestions: List of WebRecipe suggestions
 
-        Returns:
-            List of unique WebRecipe suggestions
+        Returns:     List of unique WebRecipe suggestions
         """
         seen_names = set()
         unique_suggestions = []

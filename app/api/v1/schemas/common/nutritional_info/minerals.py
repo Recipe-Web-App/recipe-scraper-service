@@ -11,13 +11,12 @@ from app.utils.aggregation_helpers import sum_decimal_optional
 class Minerals(BaseSchema):
     """Contains mineral information for an ingredient.
 
-    Attributes:
-        calcium_mg (Decimal | None): Calcium in milligrams, if available.
-        iron_mg (Decimal | None): Iron in milligrams, if available.
-        magnesium_mg (Decimal | None): Magnesium in milligrams, if available.
-        potassium_mg (Decimal | None): Potassium in milligrams, if available.
-        sodium_mg (Decimal | None): Sodium in milligrams, if available.
-        zinc_mg (Decimal | None): Zinc in milligrams, if available.
+    Attributes:     calcium_mg (Decimal | None): Calcium in milligrams, if available.
+    iron_mg (Decimal | None): Iron in milligrams, if available.     magnesium_mg
+    (Decimal | None): Magnesium in milligrams, if available.     potassium_mg (Decimal |
+    None): Potassium in milligrams, if available.     sodium_mg (Decimal | None): Sodium
+    in milligrams, if available.     zinc_mg (Decimal | None): Zinc in milligrams, if
+    available.
     """
 
     calcium_mg: Decimal | None = Field(
@@ -54,11 +53,9 @@ class Minerals(BaseSchema):
     def __add__(self, other: "Minerals") -> "Minerals":
         """Combine all mineral values from to entities.
 
-        Args:
-            other (Minerals): The other entity to add.
+        Args:     other (Minerals): The other entity to add.
 
-        Returns:
-            Minerals: A sum of all mineral data.
+        Returns:     Minerals: A sum of all mineral data.
         """
         return Minerals(
             calcium_mg=sum_decimal_optional(

@@ -32,8 +32,7 @@ def get_recommendations_service() -> RecommendationsService:
 
     Uses @lru_cache to ensure only one instance is created and reused.
 
-    Returns:
-        RecommendationsService: The service instance.
+    Returns:     RecommendationsService: The service instance.
     """
     return RecommendationsService()
 
@@ -80,19 +79,16 @@ def get_recommended_substitutions(  # noqa: PLR0913
 ) -> RecommendedSubstitutionsResponse:
     """Endpoint to return recommended substitutes for an ingredient using AI.
 
-    Args:
-        service (RecommendationsService): Service used to process the request.
-        db (Session): Database session dependency for ingredient lookup.
-        ingredient_id (int): The ID of the ingredient (must be > 0).
-        limit (int): Number of items per page (minimum 1).
-        offset (int): Number of items to skip (minimum 0).
-        count_only (bool): Whether to return only count instead of substitutions.
-        amount (float): Quantity value for the ingredient.
-        measurement (str): Measurement unit for the quantity.
+    Args:     service (RecommendationsService): Service used to process the request. db
+    (Session): Database session dependency for ingredient lookup.     ingredient_id
+    (int): The ID of the ingredient (must be > 0).     limit (int): Number of items per
+    page (minimum 1).     offset (int): Number of items to skip (minimum 0). count_only
+    (bool): Whether to return only count instead of substitutions.     amount (float):
+    Quantity value for the ingredient.     measurement (str): Measurement unit for the
+    quantity.
 
-    Returns:
-        RecommendedSubstitutionsResponse: A list of AI-powered recommended
-            substitutions for the ingredient.
+    Returns:     RecommendedSubstitutionsResponse: A list of AI-powered recommended
+    substitutions for the ingredient.
     """
     # Create pagination params from individual parameters
     pagination = PaginationParams(
@@ -127,7 +123,7 @@ def get_recommended_substitutions(  # noqa: PLR0913
     description="Recommends various recipes to pair with the given recipe.",
     response_class=JSONResponse,
 )
-def get_pairing_suggestions(  # noqa: PLR0913
+async def get_pairing_suggestions(  # noqa: PLR0913
     service: Annotated[RecommendationsService, Depends(get_recommendations_service)],
     db: Annotated[Session, Depends(get_db)],
     recipe_id: Annotated[
@@ -140,16 +136,13 @@ def get_pairing_suggestions(  # noqa: PLR0913
 ) -> PairingSuggestionsResponse:
     """Endpoint to take a recipe and return a list of suggested pairings.
 
-    Args:
-        service (RecommendationsService): Service to use to process the request.
-        db (Session): Database session for recipe lookup.
-        recipe_id (int): The ID of the recipe.
-        limit (int): Number of items per page (minimum 1).
-        offset (int): Number of items to skip (minimum 0).
-        count_only (bool): Whether to return only count instead of pairing suggestions.
+    Args:     service (RecommendationsService): Service to use to process the request.
+    db (Session): Database session for recipe lookup.     recipe_id (int): The ID of the
+    recipe.     limit (int): Number of items per page (minimum 1).     offset (int):
+    Number of items to skip (minimum 0).     count_only (bool): Whether to return only
+    count instead of pairing suggestions.
 
-    Returns:
-        PairingSuggestionsResponse: The list of generated pairing suggestions.
+    Returns:     PairingSuggestionsResponse: The list of generated pairing suggestions.
     """
     # Create pagination params from individual parameters
     pagination = PaginationParams(
@@ -159,7 +152,7 @@ def get_pairing_suggestions(  # noqa: PLR0913
     )
     validate_pagination_params(pagination)
 
-    return service.get_pairing_suggestions(
+    return await service.get_pairing_suggestions(
         recipe_id,
         pagination,
         db,

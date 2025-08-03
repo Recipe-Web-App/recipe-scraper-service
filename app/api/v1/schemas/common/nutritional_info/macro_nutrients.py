@@ -14,15 +14,11 @@ from app.utils.aggregation_helpers import sum_decimal_optional, sum_int_optional
 class MacroNutrients(BaseSchema):
     """Contains macro-nutrient information for an ingredient.
 
-    Attributes:
-        calories (int | None): Total calories per serving.
-        carbs_g (Decimal | None): Carbohydrate content in grams.
-        cholesterol_mg (Decimal | None): Cholesterol content in milligrams, if
-            available.
-        protein_g (Decimal | None): Protein content in grams.
-        sugars (Sugars): Sugar information.
-        fats (Fats): Fat information.
-        fibers (Fibers): Fiber information.
+    Attributes:     calories (int | None): Total calories per serving.     carbs_g
+    (Decimal | None): Carbohydrate content in grams.     cholesterol_mg (Decimal |
+    None): Cholesterol content in milligrams, if         available.     protein_g
+    (Decimal | None): Protein content in grams.     sugars (Sugars): Sugar information.
+    fats (Fats): Fat information.     fibers (Fibers): Fiber information.
     """
 
     calories: int | None = Field(
@@ -61,11 +57,9 @@ class MacroNutrients(BaseSchema):
     def __add__(self, other: "MacroNutrients") -> "MacroNutrients":
         """Combine all macro-nutrient values from two entities.
 
-        Args:
-            other (MacroNutrients): The other entity to add.
+        Args:     other (MacroNutrients): The other entity to add.
 
-        Returns:
-            MacroNutrients: A sum of all macro-nutrient data.
+        Returns:     MacroNutrients: A sum of all macro-nutrient data.
         """
         return MacroNutrients(
             calories=sum_int_optional(

@@ -20,8 +20,8 @@ T = TypeVar("T")
 class _DownstreamServiceManager:
     """Manager for downstream service instances.
 
-    Provides access to downstream services to ensure proper
-    resource management and avoid creating multiple HTTP client instances.
+    Provides access to downstream services to ensure proper resource management and
+    avoid creating multiple HTTP client instances.
 
     Note: This is a private class. Use get_downstream_service_manager() instead.
     """
@@ -34,11 +34,9 @@ class _DownstreamServiceManager:
     def get_service(self, service_class: type[T]) -> T:
         """Get or create a service instance.
 
-        Args:
-            service_class: The service class to get an instance of
+        Args:     service_class: The service class to get an instance of
 
-        Returns:
-            Service instance of the requested type
+        Returns:     Service instance of the requested type
         """
         if service_class not in self._services:
             _log.debug("Creating new instance of {}", service_class.__name__)
@@ -49,8 +47,7 @@ class _DownstreamServiceManager:
     def get_spoonacular_service(self) -> SpoonacularService:
         """Get the Spoonacular service instance.
 
-        Returns:
-            SpoonacularService instance
+        Returns:     SpoonacularService instance
         """
         return self.get_service(SpoonacularService)
 
@@ -86,7 +83,6 @@ def get_downstream_service_manager() -> _DownstreamServiceManager:
 
     Uses @lru_cache to ensure only one instance is created and reused.
 
-    Returns:
-        _DownstreamServiceManager: The service manager instance
+    Returns:     _DownstreamServiceManager: The service manager instance
     """
     return _DownstreamServiceManager()

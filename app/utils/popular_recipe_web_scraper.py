@@ -1,5 +1,6 @@
 """Utility to scrape popular recipes from a given URL."""
 
+import json
 import re
 
 import httpx
@@ -16,15 +17,13 @@ _log = get_logger(__name__)
 def scrape_popular_recipes(url: str, max_recipes: int = 10) -> list[WebRecipe]:
     """Scrape popular recipes from the given URL.
 
-    Args:
-        url (str): The URL to scrape for popular recipes from.
-        max_recipes (int): Maximum number of recipes to return.
+    Args:     url (str): The URL to scrape for popular recipes from.     max_recipes
+    (int): Maximum number of recipes to return.
 
-    Returns:
-        list[WebRecipe]: A list of WebRecipe objects containing the scraped recipes.
+    Returns:     list[WebRecipe]: A list of WebRecipe objects containing the scraped
+    recipes.
 
-    Raises:
-        RecipeScrapingError: If the URL cannot be scraped or parsed.
+    Raises:     RecipeScrapingError: If the URL cannot be scraped or parsed.
     """
     _log.info("Scraping popular recipes from: {}", url)
     _log.trace("Configuration: max_recipes={}", max_recipes)
@@ -115,16 +114,13 @@ def _extract_recipe_links(
 ) -> list[tuple[str, str]]:
     """Extract recipe links and names from parsed HTML.
 
-    This function tries multiple strategies to find recipe links based on
-    common patterns used by recipe websites.
+    This function tries multiple strategies to find recipe links based on common
+    patterns used by recipe websites.
 
-    Args:
-        soup: BeautifulSoup object of the parsed HTML.
-        base_url: The base URL for resolving relative links.
-        max_recipes: Maximum number of recipes to extract.
+    Args:     soup: BeautifulSoup object of the parsed HTML.     base_url: The base URL
+    for resolving relative links.     max_recipes: Maximum number of recipes to extract.
 
-    Returns:
-        list[tuple[str, str]]: List of (recipe_url, recipe_name) tuples.
+    Returns:     list[tuple[str, str]]: List of (recipe_url, recipe_name) tuples.
     """
     _log.trace("Starting _extract_recipe_links with max_recipes={}", max_recipes)
     recipe_links: list[tuple[str, str]] = []
@@ -356,8 +352,6 @@ def _extract_json_ld_recipes(
     max_recipes: int,
 ) -> list[tuple[str, str]]:
     """Extract recipe links from JSON-LD structured data."""
-    import json
-
     _log.trace("Starting _extract_json_ld_recipes with max_recipes={}", max_recipes)
     recipe_links: list[tuple[str, str]] = []
 
@@ -631,8 +625,6 @@ def _is_valid_recipe_name(name: str) -> bool:
 
 def _is_category_name(name_lower: str) -> bool:
     """Check if a name matches patterns typical of category pages."""
-    import re
-
     # Check against patterns
     for pattern in settings.web_scraper_category_patterns:
         if re.match(pattern, name_lower, re.IGNORECASE):

@@ -13,12 +13,10 @@ from app.enums.ingredient_unit_enum import IngredientUnitEnum
 class Quantity(BaseSchema):
     """Sub-schema for ingredient quantity.
 
-    Inherits from:
-        BaseModel: Pydantic base class for data validation.
+    Inherits from:     BaseModel: Pydantic base class for data validation.
 
-    Attributes:
-        amount (float): The numeric value of the ingredient quantity.
-        measurement (Measurement): The measurement unit for the quantity.
+    Attributes:     amount (float): The numeric value of the ingredient quantity.
+    measurement (Measurement): The measurement unit for the quantity.
     """
 
     amount: float = Field(
@@ -34,13 +32,11 @@ class Quantity(BaseSchema):
 class Ingredient(BaseSchema):
     """Common schema for ingredient data.
 
-    Inherits from:
-        BaseModel: Pydantic base class for data validation.
+    Inherits from:     BaseModel: Pydantic base class for data validation.
 
-    Attributes:
-        ingredient_id (int): The ID of the ingredient.
-        name (str | None): Name of the ingredient.
-        quantity (Quantity): The quantity details of the ingredient.
+    Attributes:     ingredient_id (int): The ID of the ingredient.     name (str |
+    None): Name of the ingredient.     quantity (Quantity): The quantity details of the
+    ingredient.
     """
 
     ingredient_id: int = Field(..., description="The ID of the ingredient")

@@ -98,5 +98,9 @@
     "uvicorn",
     "venv",
     "webscraper"
+  ],
+  "cursorpyright.analysis.autoImportCompletions": true,
+  "cursorpyright.analysis.extraPaths": [
+    "./.venv/lib/python3.11/site-packages"
   ]
 }

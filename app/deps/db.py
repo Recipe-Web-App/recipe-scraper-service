@@ -18,8 +18,7 @@ def get_db() -> Generator[Session, None, None]:
     dependency injection. The session is automatically closed after the request is
     handled.
 
-    Yields:
-        Session: An active SQLAlchemy database session.
+    Yields:     Session: An active SQLAlchemy database session.
     """
     db = SessionLocal()
     try:

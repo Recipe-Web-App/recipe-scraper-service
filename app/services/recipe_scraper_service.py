@@ -31,7 +31,7 @@ from app.db.models.recipe_models.recipe_step import RecipeStep
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import RecipeScrapingError
 from app.services.downstream.spoonacular_service import SpoonacularService
-from app.utils.cache_manager import CacheManager
+from app.utils.cache_manager import get_cache_manager
 from app.utils.popular_recipe_web_scraper import scrape_popular_recipes
 
 _log = get_logger(__name__)
@@ -42,11 +42,10 @@ def _parse_ingredient_string(
 ) -> tuple[Decimal | None, IngredientUnitEnum | None, str]:
     """Parse an ingredient string into quantity, unit, and name.
 
-    Args:
-        ingredient_str (str): The raw ingredient string.
+    Args:     ingredient_str (str): The raw ingredient string.
 
-    Returns:
-        tuple[Decimal|None, IngredientUnitEnum|None, str]: (quantity, unit, name)
+    Returns:     tuple[Decimal|None, IngredientUnitEnum|None, str]: (quantity, unit,
+    name)
     """
     # Regex to match quantity (including fractions), unit, and name
     pattern = (
@@ -106,7 +105,7 @@ class RecipeScraperService:
 
     def __init__(self) -> None:
         """Initialize the service with cache manager and Spoonacular service."""
-        self.cache_manager = CacheManager()
+        self.cache_manager = get_cache_manager()
         self.spoonacular_service = SpoonacularService()
 
     def create_recipe(
@@ -117,13 +116,11 @@ class RecipeScraperService:
     ) -> CreateRecipeResponse:
         """Create a recipe from the given URL using recipe_scraper and persist it.
 
-        Args:
-            url (str): The URL of the recipe to scrape.
-            db (Session): The database session to add the recipe to.
-            user_id (UUID): The unique identifier of the user creating the recipe.
+        Args:     url (str): The URL of the recipe to scrape.     db (Session): The
+        database session to add the recipe to.     user_id (UUID): The unique identifier
+        of the user creating the recipe.
 
-        Returns:
-            CreateRecipeResponse: The response containing the recipe data.
+        Returns:     CreateRecipeResponse: The response containing the recipe data.
         """
         _log.info("Creating recipe from URL: {}", url)
 
@@ -247,7 +244,7 @@ class RecipeScraperService:
                 detail="Failed to convert recipe to response schema.",
             ) from e
 
-    def get_popular_recipes(
+    async def get_popular_recipes(
         self,
         pagination: PaginationParams,
     ) -> PopularRecipesResponse:
@@ -255,11 +252,9 @@ class RecipeScraperService:
 
         Uses 24-hour caching to avoid repeated scraping.
 
-        Args:
-            pagination (PaginationParams): Pagination params for response control.
+        Args:     pagination (PaginationParams): Pagination params for response control.
 
-        Returns:
-            PopularRecipesResponse: The created popular recipe data.
+        Returns:     PopularRecipesResponse: The created popular recipe data.
         """
         _log.info(
             "Generating popular recipes (limit={} | offset={} | count_only={})",
@@ -270,7 +265,7 @@ class RecipeScraperService:
 
         # Try to get from cache first
         cache_key = "popular_recipes"
-        cached_recipes_data = self.cache_manager.get(cache_key)
+        cached_recipes_data = await self.cache_manager.get(cache_key)
 
         if cached_recipes_data is not None:
             _log.info("Using cached popular recipes (24h cache)")
@@ -289,7 +284,7 @@ class RecipeScraperService:
             # Cache the results for 24 hours
             # Convert WebRecipe objects to dict for JSON serialization
             recipes_data = [recipe.model_dump() for recipe in popular_recipes]
-            self.cache_manager.set(cache_key, recipes_data, expiry_hours=24)
+            await self.cache_manager.set(cache_key, recipes_data, expiry_hours=24)
 
         response = PopularRecipesResponse.from_all(
             popular_recipes,
@@ -304,8 +299,7 @@ class RecipeScraperService:
     def _scrape_all_popular_recipes(self) -> list[WebRecipe]:
         """Scrape popular recipes from all configured URLs.
 
-        Returns:
-            List of scraped WebRecipe objects
+        Returns:     List of scraped WebRecipe objects
         """
         popular_recipes: list[WebRecipe] = []
         recipe_blog_urls = settings.popular_recipe_urls

@@ -34,8 +34,7 @@ class TestAdminRoutes:
     ) -> None:
         """Test successful cache clearing endpoint.
 
-        Args:
-            mock_admin_service: Mocked admin service
+        Args:     mock_admin_service: Mocked admin service
         """
         # Arrange
         test_app = FastAPI()

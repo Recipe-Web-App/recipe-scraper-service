@@ -13,8 +13,8 @@ from sqlalchemy.orm import DeclarativeBase
 class BaseDatabaseModel(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models.
 
-    Inherits from:
-        DeclarativeBase: SQLAlchemy's declarative base class for ORM models.
+    Inherits from:     DeclarativeBase: SQLAlchemy's declarative base class for ORM
+    models.
 
     This class should be inherited by all ORM models in the application to ensure
     consistent metadata and base functionality.
@@ -23,24 +23,21 @@ class BaseDatabaseModel(DeclarativeBase):
     def __repr__(self) -> str:
         """Return a string representation of the Recipe instance.
 
-        Returns:
-            str: A string representation of the Recipe instance.
+        Returns:     str: A string representation of the Recipe instance.
         """
         return self._to_json()
 
     def __str__(self) -> str:
         """Return a string representation of the Recipe instance.
 
-        Returns:
-            str: A string representation of the Recipe instance.
+        Returns:     str: A string representation of the Recipe instance.
         """
         return self._to_json()
 
     def _to_json(self) -> str:
         """Return a JSON representation of the Recipe instance.
 
-        Returns:
-            str: A JSON representation of the Recipe instance.
+        Returns:     str: A JSON representation of the Recipe instance.
         """
         data = self._serialize(self)
         return json.dumps(data, default=str, ensure_ascii=False)

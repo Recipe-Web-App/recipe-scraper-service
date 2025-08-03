@@ -28,8 +28,7 @@ router = APIRouter()
 def get_nutritional_info_service() -> NutritionalInfoService:
     """Dependency provider function to instantiate NutritionalInfoService.
 
-    Returns:
-        NutritionalInfoService: A new instance of NutritionalInfoService.
+    Returns:     NutritionalInfoService: A new instance of NutritionalInfoService.
     """
     return NutritionalInfoService()
 
@@ -68,17 +67,14 @@ def get_nutritional_info_for_recipe(
 ) -> RecipeNutritionalInfoResponse | Response:
     """Endpoint to get nutritional information for a recipe.
 
-    Args:
-        service (NutritionalInfoService): Injected service for retrieving nutritional
-            info.
-        db (Session): Injected database session for ORM operations.
-        recipe_id (int): The ID of the recipe (must be greater than 0).
-        include_total (bool): Whether to include the total nutritional values.
-        include_ingredients (bool): Whether to include per-ingredient nutritional info.
+    Args:     service (NutritionalInfoService): Injected service for retrieving
+    nutritional         info.     db (Session): Injected database session for ORM
+    operations.     recipe_id (int): The ID of the recipe (must be greater than 0).
+    include_total (bool): Whether to include the total nutritional values.
+    include_ingredients (bool): Whether to include per-ingredient nutritional info.
 
-    Returns:
-        RecipeNutritionalInfoResponse: The aggregated nutritional information for the
-            recipe.
+    Returns:     RecipeNutritionalInfoResponse: The aggregated nutritional information
+    for the         recipe.
     """
     if not (include_total or include_ingredients):
         raise HTTPException(
@@ -138,25 +134,22 @@ def get_nutritional_info_for_ingredient(
 ) -> IngredientNutritionalInfoResponse:
     """Endpoint to get the nutritional information for a given ingredient ID.
 
-    Uses dependency injection to provide the NutritionalInfoService instance,
-    creating a stateless and testable route handler.
+    Uses dependency injection to provide the NutritionalInfoService instance, creating a
+    stateless and testable route handler.
 
-    Args:
-        service (NutritionalInfoService): The service instance (injected).
-        db (Session): Injected database session for ORM operations.
-        ingredient_id (int): The ID of the ingredient.
-        amount (float): The quantity value for the ingredient.
-        measurement (str): The measurement unit for the quantity.
+    Args:     service (NutritionalInfoService): The service instance (injected).     db
+    (Session): Injected database session for ORM operations.     ingredient_id (int):
+    The ID of the ingredient.     amount (float): The quantity value for the ingredient.
+    measurement (str): The measurement unit for the quantity.
 
-    Returns:
-        IngredientNutritionalInfoResponse: Nutritional information for the ingredient.
+    Returns:     IngredientNutritionalInfoResponse: Nutritional information for the
+    ingredient.
     """
     if (amount is None) != (measurement is None):
         raise HTTPException(
             status_code=400,
             detail=(
-                "Both 'amount' and 'measurement' must be provided "
-                "together when used."
+                "Both 'amount' and 'measurement' must be provided together when used."
             ),
         )
 

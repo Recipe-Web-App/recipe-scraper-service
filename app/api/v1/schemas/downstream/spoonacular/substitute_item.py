@@ -31,6 +31,4 @@ class SpoonacularSubstituteItem(BaseSchema):
         """Validate and clean string fields."""
         if v is None:
             return None
-        if isinstance(v, str):
-            return v.strip() if v.strip() else None
-        return str(v).strip() if str(v).strip() else None
+        return v.strip() if v.strip() else None

@@ -13,19 +13,15 @@ from typing import Any
 class LoggingSink:
     """Represents a single logging sink configuration.
 
-    Attributes:
-        sink (Any): The sink target (e.g., file path or sys.stdout).
-        level (str | None): The log level for this sink.
-        serialize (bool | None): Whether to serialize logs as JSON.
-        rotation (str | None): Log rotation policy.
-        retention (str | None): Log retention policy.
-        compression (str | None): Compression for rotated logs.
-        backtrace (bool | None): Enable better tracebacks.
-        diagnose (bool | None): Enable better exception diagnosis.
-        enqueue (bool | None): Use multiprocessing-safe queue.
-        filter (Callable | dict | str | None): Filter for log records.
-        colorize (bool | None): Enable colored output.
-        catch (bool | None): Catch sink exceptions.
+    Attributes:     sink (Any): The sink target (e.g., file path or sys.stdout). level
+    (str | None): The log level for this sink.     serialize (bool | None): Whether to
+    serialize logs as JSON.     rotation (str | None): Log rotation policy. retention
+    (str | None): Log retention policy.     compression (str | None): Compression for
+    rotated logs.     backtrace (bool | None): Enable better tracebacks. diagnose (bool
+    | None): Enable better exception diagnosis.     enqueue (bool | None): Use
+    multiprocessing-safe queue.     filter (Callable | dict | str | None): Filter for
+    log records.     colorize (bool | None): Enable colored output.     catch (bool |
+    None): Catch sink exceptions.
     """
 
     sink: Any
@@ -45,11 +41,9 @@ class LoggingSink:
     def from_dict(data: dict[str, Any]) -> "LoggingSink":
         """Create a LoggingSink instance from a dictionary.
 
-        Args:
-            data (dict[str, Any]): Dictionary containing sink configuration.
+        Args:     data (dict[str, Any]): Dictionary containing sink configuration.
 
-        Returns:
-            LoggingSink: The constructed LoggingSink instance.
+        Returns:     LoggingSink: The constructed LoggingSink instance.
         """
         return LoggingSink(
             sink=data.get("sink"),

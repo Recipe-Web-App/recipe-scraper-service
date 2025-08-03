@@ -1,0 +1,154 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.coverage
+.pytest_cache/
+cover/
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+test-results.xml
+integration-test-results.xml
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Node.js (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Security
+.secrets.baseline
+.env.example
+
+# Cache
+.cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local development
+.local/
+.vscode-server/
+
+# Kubernetes
+k8s/
+
+# Scripts (development only)
+scripts/
+
+# Performance
+.benchmarks/
+
+# Backup files
+*.bak
+*.backup
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Rope
+.ropeproject/
+
+# Sphinx
+docs/_build/
+docs/build/
+.readthedocs.yml
+
+# pytest-cov
+.coverage
+htmlcov/
+
+# Environments
+.env.local
+.env.development
+.env.test
+.env.production

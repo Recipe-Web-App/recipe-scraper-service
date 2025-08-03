@@ -64,12 +64,10 @@ class Recipe(BaseSchema):
     def from_db_model(cls, recipe: RecipeModel) -> "Recipe":
         """Convert ORM model to Pydantic model, handling nested ingredients.
 
-        Args:
-            recipe (RecipeModel): The ORM model instance representing the recipe.
+        Args:     recipe (RecipeModel): The ORM model instance representing the recipe.
 
-        Returns:
-            CreateRecipeResponse: An instance of CreateRecipeResponse with the given
-                recipe data.
+        Returns:     CreateRecipeResponse: An instance of CreateRecipeResponse with the
+        given         recipe data.
         """
         # If already a mapped dict, return as is
         if isinstance(recipe, dict):

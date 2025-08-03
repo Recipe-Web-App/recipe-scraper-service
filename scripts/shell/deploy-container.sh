@@ -5,8 +5,8 @@ set -euo pipefail
 
 NAMESPACE="recipe-scraper"
 CONFIG_DIR="k8s"
-SECRET_NAME="recipe-scraper-db-password"
-PASSWORD_ENV_VAR="RECIPE_SCRAPER_DB_PASSWORD"
+SECRET_NAME="recipe-scraper-db-password"    # pragma: allowlist secret
+PASSWORD_ENV_VAR="RECIPE_SCRAPER_DB_PASSWORD"   # pragma: allowlist secret
 IMAGE_NAME="recipe-scraper-service"
 IMAGE_TAG="latest"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"

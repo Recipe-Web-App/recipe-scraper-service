@@ -29,8 +29,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp) -> None:
         """Initialize the RequestIDMiddleware.
 
-        Args:
-            app (ASGIApp): The ASGI application instance.
+        Args:     app (ASGIApp): The ASGI application instance.
         """
         super().__init__(app)
 
@@ -42,15 +41,13 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         """Assign or propagate a request ID for the incoming HTTP request.
 
         Checks for an existing request ID in the request headers. If not found,
-        generates a new UUID. Stores the request ID in `request.state.request_id`
-        and adds it to the response headers.
+        generates a new UUID. Stores the request ID in `request.state.request_id` and
+        adds it to the response headers.
 
-        Args:
-            request (Request): The incoming HTTP request.
-            call_next (Callable): The next middleware or route handler.
+        Args:     request (Request): The incoming HTTP request.     call_next
+        (Callable): The next middleware or route handler.
 
-        Returns:
-            Response: The HTTP response with the request ID header included.
+        Returns:     Response: The HTTP response with the request ID header included.
         """
         request_id = request.headers.get(REQUEST_ID_HEADER, str(uuid.uuid4()))
         request.state.request_id = request_id

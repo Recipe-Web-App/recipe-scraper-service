@@ -15,15 +15,12 @@ _log = get_logger(__name__)
 async def unhandled_exception_handler(_request: Request, exc: Exception) -> Response:
     """Handle unhandled exceptions in the FastAPI application.
 
-    Args:
-        request (Request): The incoming request that caused the exception.
-        exc (Exception): The exception that was raised.
+    Args:     request (Request): The incoming request that caused the exception.     exc
+    (Exception): The exception that was raised.
 
-    Raises:
-        exc: _description_
+    Raises:     exc: _description_
 
-    Returns:
-        _type_: _description_
+    Returns:     _type_: _description_
     """
     if isinstance(exc, HTTPException):
         raise exc

@@ -11,10 +11,10 @@ from app.utils.aggregation_helpers import sum_decimal_optional
 class Fibers(BaseSchema):
     """Contains fiber information for an ingredient.
 
-    Attributes:
-        fiber_g (Decimal | None): Total fiber content in grams, if available.
-        soluble_fiber_g (Decimal | None): Soluble fiber in grams, if available.
-        insoluble_fiber_g (Decimal | None): Insoluble fiber in grams, if available.
+    Attributes:     fiber_g (Decimal | None): Total fiber content in grams, if
+    available.     soluble_fiber_g (Decimal | None): Soluble fiber in grams, if
+    available.     insoluble_fiber_g (Decimal | None): Insoluble fiber in grams, if
+    available.
     """
 
     fiber_g: Decimal | None = Field(
@@ -36,11 +36,9 @@ class Fibers(BaseSchema):
     def __add__(self, other: "Fibers") -> "Fibers":
         """Combine fiber values from two entities.
 
-        Args:
-            other (Fibers): The other entity to add.
+        Args:     other (Fibers): The other entity to add.
 
-        Returns:
-            Fibers: A sum of all fiber data.
+        Returns:     Fibers: A sum of all fiber data.
         """
         return Fibers(
             fiber_g=sum_decimal_optional(

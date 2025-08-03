@@ -11,14 +11,13 @@ from app.utils.aggregation_helpers import sum_decimal_optional
 class Vitamins(BaseSchema):
     """Contains vitamin information for an ingredient.
 
-    Attributes:
-        vitamin_a_mg (Decimal | None): Vitamin A in milligrams, if available.
-        vitamin_b6_mg (Decimal | None): Vitamin B6 in milligrams, if available.
-        vitamin_b12_mg (Decimal | None): Vitamin B12 in milligrams, if available.
-        vitamin_c_mg (Decimal | None): Vitamin C in milligrams, if available.
-        vitamin_d_mg (Decimal | None): Vitamin D in milligrams, if available.
-        vitamin_e_mg (Decimal | None): Vitamin E in milligrams, if available.
-        vitamin_k_mg (Decimal | None): Vitamin K in milligrams, if available.
+    Attributes:     vitamin_a_mg (Decimal | None): Vitamin A in milligrams, if
+    available.     vitamin_b6_mg (Decimal | None): Vitamin B6 in milligrams, if
+    available.     vitamin_b12_mg (Decimal | None): Vitamin B12 in milligrams, if
+    available.     vitamin_c_mg (Decimal | None): Vitamin C in milligrams, if available.
+    vitamin_d_mg (Decimal | None): Vitamin D in milligrams, if available. vitamin_e_mg
+    (Decimal | None): Vitamin E in milligrams, if available. vitamin_k_mg (Decimal |
+    None): Vitamin K in milligrams, if available.
     """
 
     vitamin_a_mg: Decimal | None = Field(
@@ -60,11 +59,9 @@ class Vitamins(BaseSchema):
     def __add__(self, other: "Vitamins") -> "Vitamins":
         """Combine all vitamin values from to entities.
 
-        Args:
-            other (Vitamins): The other entity to add.
+        Args:     other (Vitamins): The other entity to add.
 
-        Returns:
-            Vitamins: A sum of all vitamin data.
+        Returns:     Vitamins: A sum of all vitamin data.
         """
         return Vitamins(
             vitamin_a_mg=sum_decimal_optional(
