@@ -16,16 +16,14 @@ from app.utils.aggregation_helpers import (
 class IngredientClassification(BaseSchema):
     """Contains meta and classification information for an ingredient.
 
-    Attributes:
-        allergies (list[Allergy]): Key allergy indicators for the ingredient.
-        food_groups (list[FoodGroupEnum] | None): Food groups this ingredient belongs
-            to.
-        nutriscore_score (int | None): Nutri-Score value for the ingredient
-            (-15 to +40 range).
-        nutriscore_grade (str | None): Nutri-Score letter grade for the ingredient.
-        product_name (str | None): Product name from nutritional database.
-        brands (str | None): Brand information from nutritional database.
-        categories (str | None): Product categories from nutritional database.
+    Attributes:     allergies (list[Allergy]): Key allergy indicators for the
+    ingredient.     food_groups (list[FoodGroupEnum] | None): Food groups this
+    ingredient belongs         to.     nutriscore_score (int | None): Nutri-Score value
+    for the ingredient         (-15 to +40 range).     nutriscore_grade (str | None):
+    Nutri-Score letter grade for the ingredient.     product_name (str | None): Product
+    name from nutritional database.     brands (str | None): Brand information from
+    nutritional database.     categories (str | None): Product categories from
+    nutritional database.
     """
 
     allergies: list[AllergenEnum] | None = Field(
@@ -62,11 +60,9 @@ class IngredientClassification(BaseSchema):
     def __add__(self, other: "IngredientClassification") -> "IngredientClassification":
         """Combine classification values from two entities.
 
-        Args:
-            other (IngredientClassification): The other entity to add.
+        Args:     other (IngredientClassification): The other entity to add.
 
-        Returns:
-            IngredientClassification: A merged classification.
+        Returns:     IngredientClassification: A merged classification.
         """
         return IngredientClassification(
             allergies=sum_list_optional(

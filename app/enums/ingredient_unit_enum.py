@@ -90,15 +90,13 @@ class IngredientUnitEnum(str, Enum):
     ) -> CoreSchema:
         """Get custom Pydantic v2 core schema for the enum.
 
-        This enables automatic conversion from strings to enum values in FastAPI
-        query parameters and other Pydantic validation contexts.
+        This enables automatic conversion from strings to enum values in FastAPI query
+        parameters and other Pydantic validation contexts.
 
-        Args:
-            source_type: The source type being validated
-            handler: The core schema handler
+        Args:     source_type: The source type being validated     handler: The core
+        schema handler
 
-        Returns:
-            CoreSchema: The core schema for validation
+        Returns:     CoreSchema: The core schema for validation
         """
         # Use the default enum schema as base and add our custom validation
         return core_schema.no_info_before_validator_function(
@@ -113,14 +111,11 @@ class IngredientUnitEnum(str, Enum):
     ) -> "IngredientUnitEnum":
         """Validate a string value and convert to enum.
 
-        Args:
-            value: The input value to validate
+        Args:     value: The input value to validate
 
-        Returns:
-            IngredientUnitEnum: The validated enum instance
+        Returns:     IngredientUnitEnum: The validated enum instance
 
-        Raises:
-            ValueError: If the value cannot be converted to a valid unit
+        Raises:     ValueError: If the value cannot be converted to a valid unit
         """
         if isinstance(value, cls):
             return value
@@ -146,14 +141,12 @@ class IngredientUnitEnum(str, Enum):
     def find_unit_in_text(cls, text: str) -> "IngredientUnitEnum":
         """Find the most appropriate unit from text description.
 
-        This method searches for unit patterns in the provided text and returns
-        the first matching unit found, or UNIT as default.
+        This method searches for unit patterns in the provided text and returns the
+        first matching unit found, or UNIT as default.
 
-        Args:
-            text: Text that may contain unit information
+        Args:     text: Text that may contain unit information
 
-        Returns:
-            IngredientUnitEnum: The most appropriate unit (defaults to UNIT)
+        Returns:     IngredientUnitEnum: The most appropriate unit (defaults to UNIT)
         """
         if not text:
             return cls.UNIT

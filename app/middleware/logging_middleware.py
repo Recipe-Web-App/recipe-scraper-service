@@ -18,8 +18,7 @@ class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         """Emit a log record to Loguru.
 
-        Args:
-            record (logging.LogRecord): The log record to emit.
+        Args:     record (logging.LogRecord): The log record to emit.
         """
         try:
             level = uvicorn_logger.level(record.levelname).name

@@ -53,9 +53,6 @@ class SpoonacularSubstitutesResponse(BaseSchema):
         if not v:
             return []
 
-        if not isinstance(v, list):
-            return []
-
         validated_substitutes: list[SpoonacularSubstituteItem | str] = []
         for item in v:
             if isinstance(item, str):
@@ -78,11 +75,9 @@ class SpoonacularSubstitutesResponse(BaseSchema):
     def get_ingredient_name(self, item: SpoonacularSubstituteItem | str) -> str:
         """Extract the ingredient name from a substitute item.
 
-        Args:
-            item: Either a string or SpoonacularSubstituteItem
+        Args:     item: Either a string or SpoonacularSubstituteItem
 
-        Returns:
-            The ingredient name, cleaned and extracted
+        Returns:     The ingredient name, cleaned and extracted
         """
         if isinstance(item, str):
             # For string items, extract name before parentheses or dashes
@@ -95,11 +90,9 @@ class SpoonacularSubstitutesResponse(BaseSchema):
     def get_description(self, item: SpoonacularSubstituteItem | str) -> str:
         """Extract description/notes from a substitute item.
 
-        Args:
-            item: Either a string or SpoonacularSubstituteItem
+        Args:     item: Either a string or SpoonacularSubstituteItem
 
-        Returns:
-            The description or original string
+        Returns:     The description or original string
         """
         if isinstance(item, str):
             return item

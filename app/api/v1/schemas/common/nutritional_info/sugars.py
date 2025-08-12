@@ -11,9 +11,8 @@ from app.utils.aggregation_helpers import sum_decimal_optional
 class Sugars(BaseSchema):
     """Contains sugar information for an ingredient.
 
-    Attributes:
-        sugar_g (Decimal | None): Sugar content in grams, if available.
-        added_sugars_g (Decimal | None): Added sugars content in grams, if available.
+    Attributes:     sugar_g (Decimal | None): Sugar content in grams, if available.
+    added_sugars_g (Decimal | None): Added sugars content in grams, if available.
     """
 
     sugar_g: Decimal | None = Field(
@@ -30,11 +29,9 @@ class Sugars(BaseSchema):
     def __add__(self, other: "Sugars") -> "Sugars":
         """Combine sugar values from two entities.
 
-        Args:
-            other (Sugars): The other entity to add.
+        Args:     other (Sugars): The other entity to add.
 
-        Returns:
-            Sugars: A sum of all sugar data.
+        Returns:     Sugars: A sum of all sugar data.
         """
         return Sugars(
             sugar_g=sum_decimal_optional(

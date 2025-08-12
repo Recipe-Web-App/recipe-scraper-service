@@ -19,9 +19,9 @@ from app.utils.unit_converter import UnitConverter
 class ConversionRatio(BaseSchema):
     """Represents the conversion ratio between original and substitute ingredients.
 
-    Attributes:
-        ratio (float): The numeric conversion ratio (e.g., 1.0 for 1:1, 2.0 for 2:1).
-        measurement (IngredientUnitEnum): The unit of measurement for the conversion.
+    Attributes:     ratio (float): The numeric conversion ratio (e.g., 1.0 for 1:1, 2.0
+    for 2:1).     measurement (IngredientUnitEnum): The unit of measurement for the
+    conversion.
     """
 
     ratio: float = Field(
@@ -38,11 +38,9 @@ class ConversionRatio(BaseSchema):
 class IngredientSubstitution(BaseSchema):
     """Represents a single substitution recommendation for an ingredient.
 
-    Attributes:
-        ingredient (str): The name of the suggested substitute ingredient.
-        quantity (Quantity): The amount of the substitute to use.
-        conversion_ratio (ConversionRatio): The conversion ratio between original
-            and substitute.
+    Attributes:     ingredient (str): The name of the suggested substitute ingredient.
+    quantity (Quantity): The amount of the substitute to use.     conversion_ratio
+    (ConversionRatio): The conversion ratio between original         and substitute.
     """
 
     ingredient: str = Field(
@@ -62,14 +60,12 @@ class IngredientSubstitution(BaseSchema):
 class RecommendedSubstitutionsResponse(BaseSchema):
     """Response schema representing a list of substitutions for an ingredient.
 
-    Attributes:
-        ingredient (Ingredient): The original ingredient for which substitutions are
-            recommended.
-        recommended_substitutions (list[IngredientSubstitution]): A list of recommended
-            substitutions.
-        limit (int): The maximum number of recommendations returned.
-        offset (int): The number of skipped recommendations from the beginning.
-        count (int): The total number of recommendations available.
+    Attributes:     ingredient (Ingredient): The original ingredient for which
+    substitutions are         recommended.     recommended_substitutions
+    (list[IngredientSubstitution]): A list of recommended         substitutions. limit
+    (int): The maximum number of recommendations returned.     offset (int): The number
+    of skipped recommendations from the beginning.     count (int): The total number of
+    recommendations available.
     """
 
     ingredient: Ingredient = Field(
@@ -96,14 +92,12 @@ class RecommendedSubstitutionsResponse(BaseSchema):
     ) -> "RecommendedSubstitutionsResponse":
         """Create a response with pagination applied to the list of all substitutions.
 
-        Args:
-            ingredient: The ingredient to be substituted.
-            recommended_substitutions (list[IngredientSubstitution]): The complete list
-                of substitutions.
-            pagination (PaginationParams): Pagination params for response control.
+        Args:     ingredient: The ingredient to be substituted.
+        recommended_substitutions (list[IngredientSubstitution]): The complete list of
+        substitutions.     pagination (PaginationParams): Pagination params for response
+        control.
 
-        Returns:
-            RecommendedSubstitutionsResponse: Paginated response with metadata.
+        Returns:     RecommendedSubstitutionsResponse: Paginated response with metadata.
         """
         total = len(recommended_substitutions)
         if pagination.count_only:
@@ -132,18 +126,16 @@ class RecommendedSubstitutionsResponse(BaseSchema):
     def adjust_substitute_quantities(self, adjustment_quantity: Quantity) -> None:
         """Calculate and set substitute quantities based on conversion ratios.
 
-        Takes an original ingredient quantity and applies the conversion ratio
-        for each substitute to calculate the required substitute amounts.
-        The result quantities will be in the same unit as the original ingredient.
+        Takes an original ingredient quantity and applies the conversion ratio for each
+        substitute to calculate the required substitute amounts. The result quantities
+        will be in the same unit as the original ingredient.
 
-        Args:
-            adjustment_quantity (Quantity): The quantity of the original
-                ingredient that needs to be substituted.
+        Args:     adjustment_quantity (Quantity): The quantity of the original
+        ingredient that needs to be substituted.
 
-        Note:
-            This method modifies the recommended_substitutions in place by setting
-            their quantity fields based on the conversion ratios, keeping the
-            original unit of measurement.
+        Note:     This method modifies the recommended_substitutions in place by setting
+        their quantity fields based on the conversion ratios, keeping the     original
+        unit of measurement.
         """
         for substitution in self.recommended_substitutions:
             try:

@@ -1,40 +1,102 @@
-# Use official Python 3.11 slim image
-FROM python:3.11-slim
+# Multi-stage Docker build for Recipe Scraper Service
+# Stage 1: Build dependencies and compile Python packages
+FROM python:3.11-slim AS builder
 
-# Set environment variables
+# Set build environment variables
 ENV PYTHONUNBUFFERED=1 \
-  PYTHONDONTWRITEBYTECODE=1 \
-  POETRY_VERSION=1.8.2 \
-  POETRY_VIRTUALENVS_CREATE=false
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    POETRY_VERSION=2.1.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_NO_INTERACTION=1
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    libpq-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Add Poetry to PATH
+ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Configure Poetry and install dependencies
+RUN poetry config virtualenvs.create true \
+    && poetry config virtualenvs.in-project true \
+    && poetry install --only=main --no-root
+
+# Stage 2: Runtime image
+FROM python:3.11-slim AS runtime
+
+# Create non-root user for security
+RUN groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+
+# Set runtime environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/home/appuser/.venv/bin:$PATH" \
+    PYTHONPATH="/app"
+
+# Install runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  build-essential \
-  gcc \
-  libpq-dev \
-  curl \
-  && rm -rf /var/lib/apt/lists/*
+    libpq5 \
+    curl \
+    dumb-init \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get purge -y --auto-remove \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION
+# Set working directory
+WORKDIR /app
 
-# Add Poetry to PATH
-ENV PATH="/root/.local/bin:$PATH"
+# Copy virtual environment from builder stage
+COPY --from=builder --chown=appuser:appuser /app/.venv /home/appuser/.venv
 
-# Copy only the dependency files first for better caching
-COPY pyproject.toml poetry.lock* ./
+# Copy application code
+COPY --chown=appuser:appuser ./app ./app
+COPY --chown=appuser:appuser ./config ./config
+COPY --chown=appuser:appuser ./pyproject.toml .
 
-# Install Python dependencies via Poetry (no virtualenv)
-RUN poetry install --no-root
+# Create necessary directories and set permissions
+RUN mkdir -p /app/logs /app/tmp \
+    && chown -R appuser:appuser /app
 
-# Copy the rest of the application
-COPY . .
+# Security: Remove sensitive package managers and tools
+RUN apt-get remove -y curl \
+    && apt-get autoremove -y \
+    && apt-get clean
 
-# Expose the app port
+# Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/liveness', timeout=5)"
+
+# Expose port
 EXPOSE 8000
 
-# Default command (adjust if needed)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Default command with security hardening
+CMD ["python", "-m", "uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--access-log", \
+     "--log-level", "info"]

@@ -26,12 +26,11 @@ if TYPE_CHECKING:
 class IngredientNutritionalInfoResponse(BaseSchema):
     """Contains overall nutritional information.
 
-    Attributes:
-        quantity (Quantity): Quantity of the ingredient associated with the info.
-        classification (IngredientClassification): Meta and classification details.
-        macro_nutrients (MacroNutrients): Macro-nutrient details.
-        vitamins (Vitamins): Vitamin content details.
-        minerals (Minerals): Mineral content details.
+    Attributes:     quantity (Quantity): Quantity of the ingredient associated with the
+    info.     classification (IngredientClassification): Meta and classification
+    details.     macro_nutrients (MacroNutrients): Macro-nutrient details.     vitamins
+    (Vitamins): Vitamin content details.     minerals (Minerals): Mineral content
+    details.
     """
 
     quantity: Quantity = Field(
@@ -61,11 +60,10 @@ class IngredientNutritionalInfoResponse(BaseSchema):
     ) -> None:
         """Adjust all nutritional values based on the new quantity.
 
-        Scales all nutritional values proportionally based on the ratio between
-        the new quantity and the current quantity, properly handling unit conversions.
+        Scales all nutritional values proportionally based on the ratio between the new
+        quantity and the current quantity, properly handling unit conversions.
 
-        Args:
-            new_quantity (Quantity): The new quantity to scale to.
+        Args:     new_quantity (Quantity): The new quantity to scale to.
         """
         if not self.quantity or not self.quantity.amount or not new_quantity.amount:
             self.quantity = new_quantity
@@ -194,11 +192,9 @@ class IngredientNutritionalInfoResponse(BaseSchema):
     ) -> "IngredientNutritionalInfoResponse":
         """Combine all nutritional values from two entities.
 
-        Args:
-            other (IngredientNutritionalInfoResponse): The other entity to add.
+        Args:     other (IngredientNutritionalInfoResponse): The other entity to add.
 
-        Returns:
-            IngredientNutritionalInfoResponse: A sum of all nutritional data.
+        Returns:     IngredientNutritionalInfoResponse: A sum of all nutritional data.
         """
         return IngredientNutritionalInfoResponse(
             quantity=self.quantity,  # Keep the first entity's quantity
@@ -215,24 +211,22 @@ class IngredientNutritionalInfoResponse(BaseSchema):
     ) -> "IngredientNutritionalInfoResponse":
         """Calculate total nutritional information from a list of ingredients.
 
-        Args:
-            ingredients (list[IngredientNutritionalInfoResponse]): List of ingredient
-                nutritional info responses.
+        Args:     ingredients (list[IngredientNutritionalInfoResponse]): List of
+        ingredient         nutritional info responses.
 
-        Returns:
-            IngredientNutritionalInfoResponse: Total nutritional info response.
+        Returns:     IngredientNutritionalInfoResponse: Total nutritional info response.
         """
         if not ingredients:
             return IngredientNutritionalInfoResponse(
                 quantity=Quantity(
-                    amount=Decimal("0"),
+                    amount=Decimal(0),
                     measurement=IngredientUnitEnum.UNIT,
                 ),
             )
 
         total = IngredientNutritionalInfoResponse(
             quantity=Quantity(
-                amount=Decimal("0"),
+                amount=Decimal(0),
                 measurement=IngredientUnitEnum.UNIT,
             ),
         )
@@ -260,11 +254,9 @@ class IngredientNutritionalInfoResponse(BaseSchema):
     ) -> "IngredientNutritionalInfoResponse":
         """Create an instance from a NutritionalInfo database model.
 
-        Args:
-            nutritional_info (NutritionalInfo): The database model to convert.
+        Args:     nutritional_info (NutritionalInfo): The database model to convert.
 
-        Returns:
-            IngredientNutritionalInfoResponse: The converted response schema.
+        Returns:     IngredientNutritionalInfoResponse: The converted response schema.
         """
         return cls(
             quantity=Quantity(

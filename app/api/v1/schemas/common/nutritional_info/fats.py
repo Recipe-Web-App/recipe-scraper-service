@@ -11,17 +11,15 @@ from app.utils.aggregation_helpers import sum_decimal_optional
 class Fats(BaseSchema):
     """Contains fat information for an ingredient.
 
-    Attributes:
-        fat_g (Decimal | None): Total fat content in grams, if available.
-        saturated_fat_g (Decimal | None): Saturated fat content in grams, if available.
-        monounsaturated_fat_g (Decimal | None): Monounsaturated fat content in grams, if
-            available.
-        polyunsaturated_fat_g (Decimal | None): Polyunsaturated fat content in grams, if
-            available.
-        omega_3_fat_g (Decimal | None): Omega-3 fat content in grams, if available.
-        omega_6_fat_g (Decimal | None): Omega-6 fat content in grams, if available.
-        omega_9_fat_g (Decimal | None): Omega-9 fat content in grams, if available.
-        trans_fat_g (Decimal | None): Trans fat content in grams, if available.
+    Attributes:     fat_g (Decimal | None): Total fat content in grams, if available.
+    saturated_fat_g (Decimal | None): Saturated fat content in grams, if available.
+    monounsaturated_fat_g (Decimal | None): Monounsaturated fat content in grams, if
+    available.     polyunsaturated_fat_g (Decimal | None): Polyunsaturated fat content
+    in grams, if         available.     omega_3_fat_g (Decimal | None): Omega-3 fat
+    content in grams, if available.     omega_6_fat_g (Decimal | None): Omega-6 fat
+    content in grams, if available.     omega_9_fat_g (Decimal | None): Omega-9 fat
+    content in grams, if available.     trans_fat_g (Decimal | None): Trans fat content
+    in grams, if available.
     """
 
     fat_g: Decimal | None = Field(
@@ -68,11 +66,9 @@ class Fats(BaseSchema):
     def __add__(self, other: "Fats") -> "Fats":
         """Combine fat values from two entities.
 
-        Args:
-            other (Fats): The other entity to add.
+        Args:     other (Fats): The other entity to add.
 
-        Returns:
-            Fats: A sum of all fat data.
+        Returns:     Fats: A sum of all fat data.
         """
         return Fats(
             fat_g=sum_decimal_optional(self.fat_g, other.fat_g, "0.001"),

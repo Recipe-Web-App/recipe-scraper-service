@@ -1,0 +1,27 @@
+# <type>[optional scope]: <description>
+#
+# [optional body]
+#
+# [optional footer(s)]
+
+# Types:
+# feat     ✨ A new feature (minor version bump)
+# fix      🐛 A bug fix (patch version bump)
+# security 🔒 Security improvement/fix (patch version bump)
+# perf     🚀 Performance improvement (patch version bump)
+# refactor 📦 Code refactoring (patch version bump)
+# revert   🗑 Revert previous commit (patch version bump)
+# docs     📚 Documentation changes (no version bump)
+# style    💎 Code style changes (no version bump)
+# test     🧪 Test changes (no version bump)
+# build    🛠 Build system changes (no version bump)
+# ci       ⚙️ CI configuration changes (no version bump)
+# chore    ♻️ Other maintenance tasks (no version bump)
+
+# Scopes (optional): api, scraper, cache, db, auth, config, docker, k8s, deps, release
+
+# Examples:
+# feat(api): add ingredient substitution endpoint
+# fix(cache): resolve Redis connection timeout issue
+# security(auth): implement rate limiting for login endpoint
+# docs: update API documentation

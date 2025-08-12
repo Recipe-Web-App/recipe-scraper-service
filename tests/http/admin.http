@@ -1,4 +1,0 @@
-### Clear Cache Request
-POST http://recipe.local/api/recipe-scraper/admin/clear-cache
-
-###

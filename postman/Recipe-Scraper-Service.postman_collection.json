@@ -1,0 +1,555 @@
+{
+  "info": {
+    "name": "Recipe Scraper Service",
+    "description": "API collection for Recipe Scraper Service - scraping recipes from URLs, nutritional information, and recommendations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Health check successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains status', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('status');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/health",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "Create Recipe from URL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Recipe creation successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains recipe data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('recipe');",
+                  "    pm.expect(response.recipe).to.have.property('title');",
+                  "});",
+                  "",
+                  "// Store recipe ID for future requests",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.recipe && response.recipe.id) {",
+                  "        pm.environment.set('recipeScraperServiceCreatedRecipeId', response.recipe.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{recipeScraperServiceTestUserId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipeUrl\": \"https://spoonacular.com/recipes/Maple-Ginger-Bacon-650899\"\n}"
+            },
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/create-recipe",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["create-recipe"]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Recipes - Default",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Popular recipes request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains recipes', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('recipes');",
+                  "    pm.expect(response.recipes).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Response contains pagination info', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('total');",
+                  "    pm.expect(response).to.have.property('offset');",
+                  "    pm.expect(response).to.have.property('limit');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/popular-recipes?limit=200",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["popular-recipes"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "200"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Recipes - With Pagination",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Popular recipes with pagination successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response respects pagination limits', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.recipes.length).to.be.at.most(10);",
+                  "    pm.expect(response.offset).to.equal(15);",
+                  "    pm.expect(response.limit).to.equal(10);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/popular-recipes?limit=10&offset=15&count_only=false",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["popular-recipes"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "offset",
+                  "value": "15"
+                },
+                {
+                  "key": "count_only",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Recipes - Count Only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Count only request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains only count information', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('total');",
+                  "    pm.expect(response.recipes).to.be.an('array').that.is.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/popular-recipes?count_only=true",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["popular-recipes"],
+              "query": [
+                {
+                  "key": "count_only",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nutritional Information",
+      "item": [
+        {
+          "name": "Get Recipe Nutritional Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Recipe nutritional info request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains nutritional data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('nutritional_info');",
+                  "});",
+                  "",
+                  "pm.test('Response includes totals and ingredients', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('total_nutritional_info');",
+                  "    pm.expect(response).to.have.property('ingredient_nutritional_info');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/recipes/{{recipeScraperServiceTestRecipeId}}/nutritional-info?include_total=true&include_ingredients=true",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["recipes", "{{recipeScraperServiceTestRecipeId}}", "nutritional-info"],
+              "query": [
+                {
+                  "key": "include_total",
+                  "value": "true"
+                },
+                {
+                  "key": "include_ingredients",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ingredient Nutritional Info - With Amount",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Ingredient nutritional info request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains ingredient nutritional data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('nutritional_info');",
+                  "    pm.expect(response).to.have.property('ingredient');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/ingredients/{{recipeScraperServiceTestIngredientId}}/nutritional-info?amount=50&measurement=G",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["ingredients", "{{recipeScraperServiceTestIngredientId}}", "nutritional-info"],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "50"
+                },
+                {
+                  "key": "measurement",
+                  "value": "G"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ingredient Nutritional Info - Default",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Default ingredient nutritional info request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains nutritional data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('nutritional_info');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/ingredients/{{recipeScraperServiceTestIngredientId}}/nutritional-info",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["ingredients", "{{recipeScraperServiceTestIngredientId}}", "nutritional-info"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recommendations",
+      "item": [
+        {
+          "name": "Get Ingredient Substitutions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Ingredient substitutions request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains substitutions', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('substitutions');",
+                  "    pm.expect(response.substitutions).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/ingredients/{{recipeScraperServiceTestIngredientId}}/recommended-substitutions",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["ingredients", "{{recipeScraperServiceTestIngredientId}}", "recommended-substitutions"]
+            }
+          }
+        },
+        {
+          "name": "Get Ingredient Substitutions - With Quantity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Quantity-adjusted substitutions request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains quantity-adjusted substitutions', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('substitutions');",
+                  "    pm.expect(response).to.have.property('original_amount');",
+                  "    pm.expect(response).to.have.property('original_measurement');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/ingredients/{{recipeScraperServiceTestIngredientId}}/recommended-substitutions?amount=2&measurement=LB",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["ingredients", "{{recipeScraperServiceTestIngredientId}}", "recommended-substitutions"],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "2"
+                },
+                {
+                  "key": "measurement",
+                  "value": "LB"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recipe Pairing Suggestions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Recipe pairing suggestions request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains pairing suggestions', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('pairings');",
+                  "    pm.expect(response.pairings).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/recipes/{{recipeScraperServiceTestRecipeId}}/pairing-suggestions",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["recipes", "{{recipeScraperServiceTestRecipeId}}", "pairing-suggestions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Clear Cache",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cache clear request successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response confirms cache cleared', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('message');",
+                  "    pm.expect(response.message).to.include('cache');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/admin/clear-cache",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["admin", "clear-cache"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

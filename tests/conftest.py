@@ -6,7 +6,7 @@ including database setup, mock services, and test client configuration.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import pytest
@@ -742,23 +742,25 @@ def mock_datetime() -> datetime:
 def mock_admin_service() -> Mock:
     """Create a mock AdminService for testing.
 
-    Returns:
-        Mock: Mocked AdminService instance
+    Returns:     Mock: Mocked AdminService instance
     """
     mock_service = Mock(spec=AdminService)
-    mock_service.clear_cache.return_value = None
+    mock_service.clear_cache = AsyncMock(return_value=None)
     return mock_service
 
 
 @pytest.fixture
 def mock_cache_manager() -> Mock:
-    """Create a mock CacheManager for testing.
+    """Create a mock EnhancedCacheManager for testing.
 
-    Returns:
-        Mock: Mocked CacheManager instance
+    Returns:     Mock: Mocked EnhancedCacheManager instance
     """
     mock_cache = Mock()
-    mock_cache.clear_all.return_value = None
+    mock_cache.clear_all = AsyncMock(return_value=None)
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock(return_value=None)
+    mock_cache.delete = AsyncMock(return_value=None)
+    mock_cache.is_valid = AsyncMock(return_value=False)
     return mock_cache
 
 
@@ -788,7 +790,9 @@ def mock_recipe_scraper_service(
     """Fixture for a mocked RecipeScraperService with preset return values."""
     mock = Mock(spec=RecipeScraperService)
     mock.create_recipe.return_value = mock_create_recipe_response_schema
-    mock.get_popular_recipes.return_value = mock_popular_recipes_response_schema
+    mock.get_popular_recipes = AsyncMock(
+        return_value=mock_popular_recipes_response_schema
+    )
     return mock
 
 
@@ -804,7 +808,9 @@ def mock_recommendations_service(
     mock.get_recommended_substitutions.return_value = (
         mock_recommended_substitutions_response_schema
     )
-    mock.get_pairing_suggestions.return_value = mock_pairing_suggestions_response_schema
+    mock.get_pairing_suggestions = AsyncMock(
+        return_value=mock_pairing_suggestions_response_schema
+    )
     return mock
 
 

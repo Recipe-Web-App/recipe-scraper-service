@@ -25,16 +25,15 @@ def get_admin_service() -> AdminService:
     description="Clears the cache for the Recipe Scraper service.",
     status_code=200,
 )
-def clear_cache(
+async def clear_cache(
     admin_service: Annotated[AdminService, Depends(get_admin_service)],
 ) -> dict[str, str]:
     """Clear Cache Handler.
 
-    This endpoint clears the cache for the Recipe Scraper service.
-    It is intended for administrative use only.
+    This endpoint clears the cache for the Recipe Scraper service. It is intended for
+    administrative use only.
 
-    Returns:
-        dict: Success message confirming cache was cleared
+    Returns:     dict: Success message confirming cache was cleared
     """
-    admin_service.clear_cache()
+    await admin_service.clear_cache()
     return {"message": "Cache cleared successfully"}

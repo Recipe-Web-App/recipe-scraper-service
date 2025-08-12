@@ -1,0 +1,76 @@
+{
+  "types": {
+    "feat": {
+      "description": "A new feature",
+      "emoji": "✨",
+      "changelog": true
+    },
+    "fix": {
+      "description": "A bug fix",
+      "emoji": "🐛",
+      "changelog": true
+    },
+    "docs": {
+      "description": "Documentation only changes",
+      "emoji": "📚",
+      "changelog": false
+    },
+    "style": {
+      "description": "Changes that do not affect the meaning of the code",
+      "emoji": "💎",
+      "changelog": false
+    },
+    "refactor": {
+      "description": "A code change that neither fixes a bug nor adds a feature",
+      "emoji": "📦",
+      "changelog": true
+    },
+    "perf": {
+      "description": "A code change that improves performance",
+      "emoji": "🚀",
+      "changelog": true
+    },
+    "test": {
+      "description": "Adding missing tests or correcting existing tests",
+      "emoji": "🧪",
+      "changelog": false
+    },
+    "build": {
+      "description": "Changes that affect the build system or external dependencies",
+      "emoji": "🛠",
+      "changelog": false
+    },
+    "ci": {
+      "description": "Changes to our CI configuration files and scripts",
+      "emoji": "⚙️",
+      "changelog": false
+    },
+    "chore": {
+      "description": "Other changes that don't modify src or test files",
+      "emoji": "♻️",
+      "changelog": false
+    },
+    "revert": {
+      "description": "Reverts a previous commit",
+      "emoji": "🗑",
+      "changelog": true
+    },
+    "security": {
+      "description": "A security improvement or vulnerability fix",
+      "emoji": "🔒",
+      "changelog": true
+    }
+  },
+  "scopes": [
+    "api",
+    "scraper",
+    "cache",
+    "db",
+    "auth",
+    "config",
+    "docker",
+    "k8s",
+    "deps",
+    "release"
+  ]
+}

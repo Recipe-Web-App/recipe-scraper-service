@@ -1,0 +1,7 @@
+[bandit]
+# Bandit configuration file
+# Exclude test directories and files since security scanning isn't needed for tests
+
+# Exclude directories and files that don't need security scanning
+exclude_dirs = tests,htmlcov,logs,docs/build,tmp
+exclude = tests/*,*_test.py,test_*.py,conftest.py

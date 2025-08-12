@@ -52,14 +52,11 @@ class SpoonacularService:
     ) -> list[dict[str, Any]]:
         """Get ingredient substitutes from Spoonacular API.
 
-        Args:
-            ingredient_name: Name of the ingredient to find substitutes for
+        Args:     ingredient_name: Name of the ingredient to find substitutes for
 
-        Returns:
-            List of ingredient substitutes with conversion information
+        Returns:     List of ingredient substitutes with conversion information
 
-        Raises:
-            Exception: If API call fails
+        Raises:     Exception: If API call fails
         """
         try:
             _log.debug("Getting substitutes for ingredient: {}", ingredient_name)
@@ -67,7 +64,7 @@ class SpoonacularService:
             # Spoonacular's ingredient substitutes endpoint
             url = f"{self.base_url}/food/ingredients/substitutes"
 
-            params = {
+            params: dict[str, str] = {
                 "ingredientName": ingredient_name,
                 "apiKey": self.api_key,
             }
@@ -127,12 +124,10 @@ class SpoonacularService:
     ) -> list[dict[str, Any]]:
         """Parse Spoonacular API response into standardized format.
 
-        Args:
-            data: Raw response from Spoonacular API
-            original_ingredient: Original ingredient name for logging
+        Args:     data: Raw response from Spoonacular API     original_ingredient:
+        Original ingredient name for logging
 
-        Returns:
-            List of standardized substitute information
+        Returns:     List of standardized substitute information
         """
         # Parse the raw response using the Pydantic model
         try:
@@ -218,11 +213,9 @@ class SpoonacularService:
     def _extract_ratio_from_description(self, description: str) -> float:
         """Extract conversion ratio from description text.
 
-        Args:
-            description: Description text that may contain ratio information
+        Args:     description: Description text that may contain ratio information
 
-        Returns:
-            Conversion ratio (defaults to 1.0 if not found)
+        Returns:     Conversion ratio (defaults to 1.0 if not found)
         """
         # Common ratio patterns in descriptions
         ratio_patterns = [
@@ -286,15 +279,12 @@ class SpoonacularService:
     ) -> list[dict[str, Any]]:
         """Get similar recipes from Spoonacular API.
 
-        Args:
-            recipe_id: Spoonacular recipe ID to find similar recipes for
-            limit: limit of similar recipes to return
+        Args:     recipe_id: Spoonacular recipe ID to find similar recipes for limit:
+        limit of similar recipes to return
 
-        Returns:
-            List of similar recipes with standardized format
+        Returns:     List of similar recipes with standardized format
 
-        Raises:
-            HTTPException: If API call fails or no similar recipes found
+        Raises:     HTTPException: If API call fails or no similar recipes found
         """
         try:
             _log.debug(
@@ -305,7 +295,7 @@ class SpoonacularService:
             # Spoonacular's similar recipes endpoint
             url = f"{self.base_url}/recipes/{recipe_id}/similar"
 
-            params = {
+            params: dict[str, str | int] = {
                 "limit": min(limit, 100),  # Spoonacular limit
                 "apiKey": self.api_key,
             }
@@ -364,11 +354,9 @@ class SpoonacularService:
     ) -> list[dict[str, Any]]:
         """Convert Spoonacular recipe objects to standardized format.
 
-        Args:
-            recipes: List of SpoonacularRecipeInfo objects
+        Args:     recipes: List of SpoonacularRecipeInfo objects
 
-        Returns:
-            List of standardized recipe dictionaries
+        Returns:     List of standardized recipe dictionaries
         """
         standardized_recipes = []
 
@@ -405,11 +393,9 @@ class SpoonacularService:
     ) -> list[dict[str, Any]]:
         """Convert ingredient search results to standardized format.
 
-        Args:
-            recipes: Raw recipe list from findByIngredients endpoint
+        Args:     recipes: Raw recipe list from findByIngredients endpoint
 
-        Returns:
-            List of standardized recipe dictionaries
+        Returns:     List of standardized recipe dictionaries
         """
         standardized_recipes = []
 
@@ -419,8 +405,7 @@ class SpoonacularService:
 
             # Generate Spoonacular URL
             recipe_url = (
-                f"https://spoonacular.com/recipes/"
-                f"{title.replace(' ', '-')}-{recipe_id}"
+                f"https://spoonacular.com/recipes/{title.replace(' ', '-')}-{recipe_id}"
             )
 
             standardized_recipes.append(
@@ -445,11 +430,9 @@ class SpoonacularService:
     ) -> list[IngredientSubstitution]:
         """Get ingredient substitutions as domain objects.
 
-        Args:
-            ingredient_name: Name of the ingredient to substitute
+        Args:     ingredient_name: Name of the ingredient to substitute
 
-        Returns:
-            List of IngredientSubstitution domain objects
+        Returns:     List of IngredientSubstitution domain objects
         """
         # Get raw data from existing method
         raw_substitutes = self.get_ingredient_substitutes(ingredient_name)
@@ -489,16 +472,13 @@ class SpoonacularService:
     ) -> list[WebRecipe]:
         """Search for recipes based on ingredients and return as WebRecipe objects.
 
-        Args:
-            ingredients: List of ingredient names to search for
-            limit: Number of recipes to return (max 100)
-            ranking: How to rank the results (1=minimize missing, 2=maximize used)
+        Args:     ingredients: List of ingredient names to search for     limit: Number
+        of recipes to return (max 100)     ranking: How to rank the results (1=minimize
+        missing, 2=maximize used)
 
-        Returns:
-            List of WebRecipe objects
+        Returns:     List of WebRecipe objects
 
-        Raises:
-            HTTPException: If API call fails
+        Raises:     HTTPException: If API call fails
         """
         try:
             _log.debug(
@@ -513,7 +493,7 @@ class SpoonacularService:
             # Join ingredients with comma
             ingredients_str = ",".join(ingredients)
 
-            params = {
+            params: dict[str, str | int | bool] = {
                 "ingredients": ingredients_str,
                 "limit": min(limit, 100),
                 "ignorePantry": True,

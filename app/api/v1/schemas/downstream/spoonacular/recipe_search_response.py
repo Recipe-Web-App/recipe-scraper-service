@@ -42,9 +42,6 @@ class SpoonacularRecipeSearchResponse(BaseSchema):
         if not v:
             return []
 
-        if not isinstance(v, list):
-            return []
-
         validated_results: list[SpoonacularRecipeInfo] = []
         for item in v:
             if isinstance(item, dict):

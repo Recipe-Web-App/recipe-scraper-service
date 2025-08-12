@@ -15,11 +15,9 @@ from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
 class RecipeNutritionalInfoResponse(BaseSchema):
     """Response schema representing nutritional information for a recipe.
 
-    Attributes:
-        ingredients (dict[int, IngredientNutritionalInfoResponse]): A list of
-            nutritional information responses for each ingredient included in the
-            recipe.
-        total (NutritionalInfo | None): The total sum of all nutritional info.
+    Attributes:     ingredients (dict[int, IngredientNutritionalInfoResponse]): A list
+    of         nutritional information responses for each ingredient included in the
+    recipe.     total (NutritionalInfo | None): The total sum of all nutritional info.
     """
 
     ingredients: dict[int, IngredientNutritionalInfoResponse] | None = Field(

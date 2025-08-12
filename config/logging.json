@@ -2,7 +2,7 @@
   "sinks": [
     {
       "sink": "sys.stdout",
-      "level": "INFO",
+      "level": "TRACE",
       "serialize": false,
       "backtrace": true,
       "diagnose": true,

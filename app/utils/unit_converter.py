@@ -16,15 +16,15 @@ class UnitConverter:
 
     # Base conversion factors to grams (for weight) and milliliters (for volume)
     _WEIGHT_CONVERSIONS: ClassVar[dict[IngredientUnitEnum, Decimal]] = {
-        IngredientUnitEnum.G: Decimal("1"),
-        IngredientUnitEnum.KG: Decimal("1000"),
+        IngredientUnitEnum.G: Decimal(1),
+        IngredientUnitEnum.KG: Decimal(1000),
         IngredientUnitEnum.OZ: Decimal("28.3495"),
         IngredientUnitEnum.LB: Decimal("453.592"),
     }
 
     _VOLUME_CONVERSIONS: ClassVar[dict[IngredientUnitEnum, Decimal]] = {
-        IngredientUnitEnum.ML: Decimal("1"),
-        IngredientUnitEnum.L: Decimal("1000"),
+        IngredientUnitEnum.ML: Decimal(1),
+        IngredientUnitEnum.L: Decimal(1000),
         IngredientUnitEnum.CUP: Decimal("236.588"),  # US cup
         IngredientUnitEnum.TBSP: Decimal("14.7868"),  # US tablespoon
         IngredientUnitEnum.TSP: Decimal("4.92892"),  # US teaspoon
@@ -50,12 +50,9 @@ class UnitConverter:
     ) -> bool:
         """Check if conversion is possible between two units.
 
-        Args:
-            from_unit: Source unit
-            to_unit: Target unit
+        Args:     from_unit: Source unit     to_unit: Target unit
 
-        Returns:
-            bool: True if conversion is possible, False otherwise
+        Returns:     bool: True if conversion is possible, False otherwise
         """
         # Same unit is always convertible
         if from_unit == to_unit:
@@ -84,16 +81,13 @@ class UnitConverter:
     ) -> Decimal:
         """Convert a quantity from one unit to another.
 
-        Args:
-            quantity: The quantity to convert
-            from_unit: Source unit
-            to_unit: Target unit
+        Args:     quantity: The quantity to convert     from_unit: Source unit to_unit:
+        Target unit
 
-        Returns:
-            Decimal: The converted quantity
+        Returns:     Decimal: The converted quantity
 
-        Raises:
-            IncompatibleUnitsError: If conversion is not possible between the units
+        Raises:     IncompatibleUnitsError: If conversion is not possible between the
+        units
         """
         if from_unit == to_unit:
             return quantity
@@ -128,17 +122,13 @@ class UnitConverter:
         This method properly handles unit conversions when calculating the scaling
         factor for nutritional adjustments.
 
-        Args:
-            old_quantity: Original quantity value
-            old_unit: Original unit
-            new_quantity: New quantity value
-            new_unit: New unit
+        Args:     old_quantity: Original quantity value     old_unit: Original unit
+        new_quantity: New quantity value     new_unit: New unit
 
-        Returns:
-            Decimal: Scale factor to apply to nutritional values
+        Returns:     Decimal: Scale factor to apply to nutritional values
 
-        Raises:
-            IncompatibleUnitsError: If conversion is not possible between the units
+        Raises:     IncompatibleUnitsError: If conversion is not possible between the
+        units
         """
         if not cls.can_convert_between(old_unit, new_unit):
             # Raise exception for incompatible units

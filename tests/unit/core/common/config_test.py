@@ -12,7 +12,7 @@ MOCK_LOGGING_PATH = "/mock/logging.json"
 MOCK_RECIPES_PATH = "/mock/recipes.json"
 MOCK_WEBSCRAPER_PATH = "/mock/webscraper.yaml"
 MOCK_POSTGRES_PORT = 1234
-MOCK_DB_PASSWORD = "mock-password"  # noqa: S105
+MOCK_DB_PASSWORD = "mock-password"  # noqa: S105 # pragma: allowlist secret
 
 
 @pytest.mark.unit
@@ -26,7 +26,7 @@ def test_settings_env_and_properties(monkeypatch: pytest.MonkeyPatch) -> None:
         "POSTGRES_SCHEMA": "mock-schema",
         "RECIPE_SCRAPER_DB_USER": "mock-user",
         "RECIPE_SCRAPER_DB_PASSWORD": MOCK_DB_PASSWORD,
-        "SPOONACULAR_API_KEY": "mock-apikey",
+        "SPOONACULAR_API_KEY": "mock-apikey",  # pragma: allowlist secret
         "LOGGING_CONFIG_PATH": MOCK_LOGGING_PATH,
         "POPULAR_RECIPES_CONFIG_PATH": MOCK_RECIPES_PATH,
         "WEB_SCRAPER_CONFIG_PATH": MOCK_WEBSCRAPER_PATH,
@@ -100,7 +100,7 @@ category_indicators: ["main", "side"]
     assert s.POSTGRES_SCHEMA == "mock-schema"
     assert s.RECIPE_SCRAPER_DB_USER == "mock-user"
     assert s.RECIPE_SCRAPER_DB_PASSWORD == MOCK_DB_PASSWORD
-    assert s.SPOONACULAR_API_KEY == "mock-apikey"
+    assert s.SPOONACULAR_API_KEY == "mock-apikey"  # pragma: allowlist secret
     assert s.LOGGING_CONFIG_PATH == MOCK_LOGGING_PATH
     assert s.POPULAR_RECIPES_CONFIG_PATH == MOCK_RECIPES_PATH
     assert s.WEB_SCRAPER_CONFIG_PATH == MOCK_WEBSCRAPER_PATH

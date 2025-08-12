@@ -10,11 +10,9 @@ class BaseSchema(BaseModel):
     This class provides a common configuration for all Pydantic models used in the
     application, ensuring consistent behavior across all schemas.
 
-    Configured to:
-    - Convert snake_case Python fields to camelCase in JSON serialization
-    - Accept both camelCase and snake_case during deserialization
-    - Use enum values instead of enum names
-    - Forbid extra fields for strict validation
+    Configured to: - Convert snake_case Python fields to camelCase in JSON serialization
+    - Accept both camelCase and snake_case during deserialization - Use enum values
+    instead of enum names - Forbid extra fields for strict validation
     """
 
     model_config = ConfigDict(

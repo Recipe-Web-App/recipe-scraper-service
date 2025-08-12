@@ -29,6 +29,9 @@ secure = ">=1.0.1,<2.0.0"
 pydantic-settings = "^2.9.1"
 sqlalchemy = "^2.0.41"
 psycopg2 = "^2.9.10"
+asyncpg = "^0.29.0"
+redis = "^6.2.0"
+uvicorn = { extras = ["standard"], version = "^0.32.0" }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -41,7 +44,7 @@ test-unit = "tests.run_unit_tests:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
-pytest-asyncio = "^1.0.0"
+pytest-asyncio = "^0.25.0"
 pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.0"
 pytest-benchmark = "^5.1.0"
@@ -54,9 +57,6 @@ types-python-dateutil = "^2.9.0.20240316"
 types-beautifulsoup4 = "^4.12.0.20240229"
 hypothesis = "^6.131.18"
 pre-commit = "^4.2.0"
-ruff = "^0.12.0"
-uvicorn = { extras = ["standard"], version = ">=0.34.2,<0.36.0" }
-pydoclint = "^0.6.6"
 docformatter = "^1.7.7"
 sphinx = "^8.2.3"
 sphinx-autodoc-typehints = "^3.2.0"
@@ -68,11 +68,21 @@ factory-boy = "^3.3.3"
 pytest-postgresql = "^7.0.2"
 pytest-xdist = "^3.7.0"
 pytest-random-order = "^1.2.0"
+bandit = "^1.8.0"
+semgrep = "^1.97.0"
+mutmut = "^3.2.0"
+detect-secrets = "^1.5.0"
+codespell = "^2.4.0"
+radon = "^6.0.1"
+locust = "^2.32.4"
+pylint = "^3.3.2"
+testcontainers = "^4.0.0"
 
 [tool.black]
 line-length = 88
 target-version = ["py311"]
 include = '\.pyi?$'
+skip-string-normalization = true
 exclude = '''
 /(
     \.git
@@ -82,7 +92,6 @@ exclude = '''
   | dist
 )/
 '''
-
 
 [tool.isort]
 profile = "black"
@@ -96,19 +105,27 @@ known_first_party = ["app", "tests"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-fix = true
+show-fixes = true
+output-format = "grouped"
 
 [tool.ruff.lint]
-select = ["ALL"]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "N",      # pep8-naming
+    "FBT",    # flake8-boolean-trap
+    "TD",     # flake8-todos
+    "FIX",    # flake8-fixme
+    "G",      # flake8-logging-format
+]
 ignore = [
-    "D203",   # one-blank-line-before-class
-    "D213",   # multi-line-summary-second-line
     "FBT001", # boolean positional arguments
     "FBT002", # boolean positional arguments
     "TD003",  # Issue link with TODO statements
     "FIX002", # Allow TODO statements
-    "D413",   # Blank line after last pydoc section
-    "I001",   # Ignore import order as it is handled by isort & conflicts
     "G004",   # Allow f-strings for logging
 ]
 per-file-ignores = { "tests/*.py" = ["FBT003", "S101"] }
@@ -123,6 +140,37 @@ show_error_codes = true
 warn_unused_configs = true
 check_untyped_defs = true
 disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_optional = true
+strict_equality = true
+extra_checks = true
+warn_unreachable = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_incomplete_defs = true
+allow_redefinition = false
+
+# External library overrides - ignore missing type stubs
+[[tool.mypy.overrides]]
+module = ["redis.*", "recipe_scrapers.*"]
+ignore_missing_imports = true
+
+# Ignore untyped external library method calls and Redis typing limitations
+[[tool.mypy.overrides]]
+module = ["app.utils.cache_manager"]
+disable_error_code = ["no-untyped-call", "type-arg", "no-any-return", "index"]
+
+[[tool.mypy.overrides]]
+module = ["app.services.recipe_scraper_service"]
+disable_error_code = ["no-untyped-call"]
+
+[[tool.mypy.overrides]]
+module = ["app.api.v1.routes.health"]
+disable_error_code = ["no-untyped-call"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

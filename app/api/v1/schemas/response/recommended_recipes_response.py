@@ -13,12 +13,10 @@ from app.api.v1.schemas.common.web_recipe import WebRecipe
 class PopularRecipesResponse(BaseSchema):
     """Response schema representing a list of popular recipes from the internet.
 
-    Attributes:
-        recipes (list[PopularRecipe]): The list of popular recipes, sliced based
-            on the given offset and limit.
-        limit (int): The maximum number of recipes to return.
-        offset (int): The starting index from which to return recipes.
-      count (int): The total number of recipes before applying pagination.
+    Attributes:     recipes (list[PopularRecipe]): The list of popular recipes, sliced
+    based         on the given offset and limit.     limit (int): The maximum number of
+    recipes to return.     offset (int): The starting index from which to return
+    recipes.   count (int): The total number of recipes before applying pagination.
     """
 
     recipes: list[WebRecipe] = Field(
@@ -37,12 +35,10 @@ class PopularRecipesResponse(BaseSchema):
     ) -> "PopularRecipesResponse":
         """Create a response with pagination applied to the list of all recipes.
 
-        Args:
-            recipes (list[PopularRecipe]): The complete list of recipes.
-            pagination (PaginationParams): Pagination params for response control.
+        Args:     recipes (list[PopularRecipe]): The complete list of recipes.
+        pagination (PaginationParams): Pagination params for response control.
 
-        Returns:
-            PopularRecipesResponse: Paginated response with metadata.
+        Returns:     PopularRecipesResponse: Paginated response with metadata.
         """
         total = len(recipes)
         if pagination.count_only:

@@ -1,5 +1,0 @@
-### Health Check Request
-GET http://recipe.local/api/recipe-scraper/health
-Accept: application/json
-
-###

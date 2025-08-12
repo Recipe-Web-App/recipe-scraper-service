@@ -28,11 +28,10 @@ _log = get_logger(__name__)
 class NutritionalInfoService:
     """Service to retrieve nutritional information for ingredients.
 
-    This service provides methods to obtain detailed nutritional data
-    based on given database identifiers.
+    This service provides methods to obtain detailed nutritional data based on given
+    database identifiers.
 
-    Attributes:
-        log (logging.Logger): Logger instance for this service.
+    Attributes:     log (logging.Logger): Logger instance for this service.
     """
 
     def get_recipe_nutritional_info(
@@ -45,19 +44,16 @@ class NutritionalInfoService:
         """Fetch nutritional information for a given ingredient and allergies.
 
         Logs the retrieval request and returns a response with nutritional info for all
-            ingredients in the recipe.
+        ingredients in the recipe.
 
-        Args:
-            recipe_id (int): The unique identifier of the recipe.
-            include_total (bool): Indicates that a total of all nutritional info should
-                be included in the response.
-            include_ingredients (bool): Indicates that nutritional info for all
-                ingredients should be included in the response.
-            db (Session): Database session for ORM operations.
+        Args:     recipe_id (int): The unique identifier of the recipe. include_total
+        (bool): Indicates that a total of all nutritional info should be included in the
+        response.     include_ingredients (bool): Indicates that nutritional info for
+        all         ingredients should be included in the response. db (Session):
+        Database session for ORM operations.
 
-        Returns:
-            RecipeNutritionalInfoResponse: Nutritional info response schema containing
-                individual ingredients and/or an overall total.
+        Returns:     RecipeNutritionalInfoResponse: Nutritional info response schema
+        containing         individual ingredients and/or an overall total.
         """
         _log.info(
             "Getting nutritional info for recipe ID {} (includeTotal={} | "
@@ -155,17 +151,15 @@ class NutritionalInfoService:
     ) -> IngredientNutritionalInfoResponse:
         """Fetch nutritional information for a given ingredient and quantity.
 
-        Logs the retrieval request and returns a response with
-        ingredient details, macro-nutrients, vitamins, minerals, and allergies.
+        Logs the retrieval request and returns a response with ingredient details,
+        macro-nutrients, vitamins, minerals, and allergies.
 
-        Args:
-            ingredient_id (int): The unique identifier of the ingredient.
-            quantity (Quantity | None): The amount and unit of the ingredient.
-            db (Session): Database session for ORM operations.
+        Args:     ingredient_id (int): The unique identifier of the ingredient. quantity
+        (Quantity | None): The amount and unit of the ingredient.     db (Session):
+        Database session for ORM operations.
 
-        Returns:
-            IngredientNutritionalInfoResponse: Nutritional info response schema
-                containing ingredient details and nutritional values.
+        Returns:     IngredientNutritionalInfoResponse: Nutritional info response schema
+        containing ingredient details and nutritional values.
         """
         if quantity is not None:
             _log.info(

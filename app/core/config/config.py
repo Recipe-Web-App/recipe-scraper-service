@@ -33,6 +33,22 @@ class _Settings(BaseSettings):
     WEB_SCRAPER_CATEGORY_INDICATORS: list[str] = Field(default_factory=list)
     SPOONACULAR_API_KEY: str = Field(..., alias="SPOONACULAR_API_KEY")
 
+    # Security and middleware settings
+    ALLOWED_ORIGINS: list[str] = Field(
+        default=[
+            "http://localhost:3000",
+            "http://localhost:8080",
+            "https://localhost:3000",
+        ],
+        alias="ALLOWED_ORIGINS",
+    )
+    REDIS_HOST: str = Field(default="localhost", alias="REDIS_HOST")
+    REDIS_PORT: int = Field(default=6379, alias="REDIS_PORT")
+    REDIS_PASSWORD: str = Field(default="", alias="REDIS_PASSWORD")
+    REDIS_DB: int = Field(default=1, alias="REDIS_DB")  # Use db=1 for cache data
+    ENABLE_RATE_LIMITING: bool = Field(default=True, alias="ENABLE_RATE_LIMITING")
+    RATE_LIMIT_PER_MINUTE: int = Field(default=100, alias="RATE_LIMIT_PER_MINUTE")
+
     LOGGING_CONFIG_PATH: str = Field(
         str(
             (
@@ -227,5 +243,63 @@ class _Settings(BaseSettings):
         """Get Spoonacular API key for ingredient substitution features."""
         return self.SPOONACULAR_API_KEY
 
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Get allowed origins for CORS."""
+        return self.ALLOWED_ORIGINS
 
-settings = _Settings()
+    @property
+    def redis_host(self) -> str:
+        """Get Redis host."""
+        return self.REDIS_HOST
+
+    @property
+    def redis_port(self) -> int:
+        """Get Redis port."""
+        return self.REDIS_PORT
+
+    @property
+    def redis_password(self) -> str:
+        """Get Redis password."""
+        return self.REDIS_PASSWORD
+
+    @property
+    def redis_db(self) -> int:
+        """Get Redis database number."""
+        return self.REDIS_DB
+
+    @property
+    def redis_url(self) -> str:
+        """Get Redis URL for caching and rate limiting."""
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        else:
+            return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    @property
+    def enable_rate_limiting(self) -> bool:
+        """Get rate limiting enablement flag."""
+        return self.ENABLE_RATE_LIMITING
+
+    @property
+    def rate_limit_per_minute(self) -> int:
+        """Get rate limit per minute."""
+        return self.RATE_LIMIT_PER_MINUTE
+
+
+_settings: _Settings | None = None
+
+
+def get_settings() -> _Settings:
+    """Get application settings singleton.
+
+    Returns:     Application settings instance
+    """
+    global _settings  # noqa: PLW0603
+    if _settings is None:
+        _settings = _Settings()
+    return _settings
+
+
+# For backwards compatibility
+settings = get_settings()

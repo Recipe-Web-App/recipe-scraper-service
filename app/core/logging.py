@@ -3,12 +3,15 @@
 This module configures structured JSON logging for the entire application.
 """
 
+import logging
 import sys
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
-from loguru import _Logger
 from loguru import logger as loguru_logger
+
+if TYPE_CHECKING:
+    from loguru import Logger
 
 from app.core.config.config import settings
 from app.core.config.logging_sink import LoggingSink
@@ -22,14 +25,12 @@ def _build_sink_kwargs(
 ) -> dict[str, Any]:
     """Build keyword arguments for configuring a Loguru sink.
 
-    Args:
-        sink (LoggingSinkConfig): The sink configuration object.
-        sink_target (str | TextIO): The sink target (e.g., file path or sys.stdout).
-        json_format (str): The log format string for JSON/file sinks.
-        pretty_format (str): The log format string for pretty/color console sinks.
+    Args:     sink (LoggingSinkConfig): The sink configuration object.     sink_target
+    (str | TextIO): The sink target (e.g., file path or sys.stdout).     json_format
+    (str): The log format string for JSON/file sinks.     pretty_format (str): The log
+    format string for pretty/color console sinks.
 
-    Returns:
-        dict[str, Any]: Keyword arguments for loguru_logger.add().
+    Returns:     dict[str, Any]: Keyword arguments for loguru_logger.add().
     """
     if sink_target == sys.stdout:
         log_format = pretty_format
@@ -77,8 +78,6 @@ def _build_sink_kwargs(
 def configure_logging() -> None:
     """Configure global application logging using Loguru and settings-based config."""
     # Disable noisy HTTP logging from httpx and HTTP core
-    import logging
-
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
@@ -124,13 +123,13 @@ def configure_logging() -> None:
         loguru_logger.add(sink_target, **kwargs)
 
 
-def get_logger(name: str | None = None) -> _Logger:
+def get_logger(name: str | None = None) -> "Logger":
     """Retrieve a configured Loguru logger instance.
 
     Args:
         name (str | None): Optional logical name to bind to the logger.
 
     Returns:
-        _Logger: A Loguru logger, optionally bound with a custom name.
+        A Loguru logger, optionally bound with a custom name.
     """
     return loguru_logger.bind(name=name) if name else loguru_logger

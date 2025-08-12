@@ -5,8 +5,8 @@ set -euo pipefail
 
 NAMESPACE="recipe-scraper"
 CONFIG_DIR="k8s"
-SECRET_NAME="recipe-scraper-db-password"
-PASSWORD_ENV_VAR="RECIPE_SCRAPER_DB_PASSWORD"
+SECRET_NAME="recipe-scraper-db-password"    # pragma: allowlist secret
+PASSWORD_ENV_VAR="RECIPE_SCRAPER_DB_PASSWORD"   # pragma: allowlist secret
 IMAGE_NAME="recipe-scraper-service"
 IMAGE_TAG="latest"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
@@ -134,6 +134,18 @@ echo "📦 Deploying Recipe-Scraper container..."
 print_separator "-"
 
 kubectl apply -f "${CONFIG_DIR}/deployment.yaml"
+
+print_separator "="
+echo "🛡️ Applying PodDisruptionBudget..."
+print_separator "-"
+
+kubectl apply -f "${CONFIG_DIR}/pod-disruption-budget.yaml"
+
+print_separator "="
+echo "🔒 Applying NetworkPolicy..."
+print_separator "-"
+
+kubectl apply -f "${CONFIG_DIR}/network-policy.yaml"
 
 print_separator "="
 echo "🌐 Exposing Recipe-Scraper via ClusterIP Service..."

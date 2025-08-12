@@ -16,11 +16,9 @@ def validate_pagination_params(params: PaginationParams) -> None:
 
     Ensures that the offset is not greater than the limit.
 
-    Args:
-        params (PaginationParams): The pagination parameters to validate.
+    Args:     params (PaginationParams): The pagination parameters to validate.
 
-    Raises:
-        HTTPException: If offset is greater than limit.
+    Raises:     HTTPException: If offset is greater than limit.
     """
     if params.offset > params.limit:
         raise HTTPException(
