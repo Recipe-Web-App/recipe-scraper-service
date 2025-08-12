@@ -45,7 +45,7 @@ test-unit = "tests.run_unit_tests:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
-pytest-asyncio = "^0.25.0"
+pytest-asyncio = "^1.1.0"
 pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.0"
 pytest-benchmark = "^5.1.0"
