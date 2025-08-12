@@ -31,7 +31,7 @@ sqlalchemy = "^2.0.41"
 psycopg2 = "^2.9.10"
 asyncpg = "^0.29.0"
 redis = "^6.2.0"
-uvicorn = { extras = ["standard"], version = "^0.32.0" }
+uvicorn = { extras = ["standard"], version = "^0.35.0" }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
