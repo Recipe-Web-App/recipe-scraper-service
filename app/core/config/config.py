@@ -42,7 +42,10 @@ class _Settings(BaseSettings):
         ],
         alias="ALLOWED_ORIGINS",
     )
-    REDIS_URL: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    REDIS_HOST: str = Field(default="localhost", alias="REDIS_HOST")
+    REDIS_PORT: int = Field(default=6379, alias="REDIS_PORT")
+    REDIS_PASSWORD: str = Field(default="", alias="REDIS_PASSWORD")
+    REDIS_DB: int = Field(default=1, alias="REDIS_DB")  # Use db=1 for cache data
     ENABLE_RATE_LIMITING: bool = Field(default=True, alias="ENABLE_RATE_LIMITING")
     RATE_LIMIT_PER_MINUTE: int = Field(default=100, alias="RATE_LIMIT_PER_MINUTE")
 
@@ -246,9 +249,32 @@ class _Settings(BaseSettings):
         return self.ALLOWED_ORIGINS
 
     @property
+    def redis_host(self) -> str:
+        """Get Redis host."""
+        return self.REDIS_HOST
+
+    @property
+    def redis_port(self) -> int:
+        """Get Redis port."""
+        return self.REDIS_PORT
+
+    @property
+    def redis_password(self) -> str:
+        """Get Redis password."""
+        return self.REDIS_PASSWORD
+
+    @property
+    def redis_db(self) -> int:
+        """Get Redis database number."""
+        return self.REDIS_DB
+
+    @property
     def redis_url(self) -> str:
         """Get Redis URL for caching and rate limiting."""
-        return self.REDIS_URL
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        else:
+            return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     @property
     def enable_rate_limiting(self) -> bool:

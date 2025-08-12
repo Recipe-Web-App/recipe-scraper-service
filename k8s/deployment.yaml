@@ -59,6 +59,26 @@ spec:
                 secretKeyRef:
                   name: recipe-scraper-secrets
                   key: SPOONACULAR_API_KEY
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: REDIS_PORT
+            - name: REDIS_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: REDIS_DB
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: recipe-scraper-secrets
+                  key: REDIS_PASSWORD
           livenessProbe:
             httpGet:
               path: /api/recipe-scraper/health

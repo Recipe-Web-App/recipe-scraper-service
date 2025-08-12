@@ -14,6 +14,8 @@ from typing import Any, TypeVar
 
 import redis.asyncio as aioredis
 from prometheus_client import Counter, Gauge, Histogram
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.core.config.config import get_settings
 from app.core.logging import get_logger
@@ -84,10 +86,15 @@ class EnhancedCacheManager:
         self.redis_enabled = enable_redis
         self._redis_client: aioredis.Redis | None = None
 
+        # Cache type for session-database compatibility
+        self.cache_type = "resource"  # Using 'resource' type for recipe data
+
         _log.info(
-            "Initialized Enhanced CacheManager - File: {}, Redis: {}, Memory: enabled",
+            "Initialized Enhanced CacheManager - File: {}, Redis: {}, "
+            "Memory: enabled, Type: {}",
             self.cache_dir,
             "enabled" if self.redis_enabled else "disabled",
+            self.cache_type,
         )
 
     async def _get_redis_client(self) -> aioredis.Redis | None:
@@ -99,14 +106,32 @@ class EnhancedCacheManager:
             return None
 
         if self._redis_client is None:
-            self._redis_client = aioredis.from_url(
-                settings.redis_url, encoding="utf-8", decode_responses=True
-            )
-            # Test connection
-            await self._redis_client.ping()
-            _log.info("Redis connection established")
+            try:
+                self._redis_client = aioredis.from_url(
+                    settings.redis_url, encoding="utf-8", decode_responses=True
+                )
+                # Test connection
+                await self._redis_client.ping()
+                _log.info("Redis connection established")
+            except (RedisConnectionError, RedisTimeoutError, OSError) as e:
+                _log.warning(
+                    "Redis connection failed, falling back to file/memory cache: {}", e
+                )
+                self.redis_enabled = False
+                return None
 
         return self._redis_client
+
+    def _get_session_db_cache_key(self, cache_key: str) -> str:
+        """Get session-database compatible cache key.
+
+        Args:
+            cache_key: Original cache key
+
+        Returns:
+            Session-database formatted key: cache:{type}:{key}
+        """
+        return f"cache:{self.cache_type}:{cache_key}"
 
     def _get_key_prefix(self, cache_key: str) -> str:
         """Extract key prefix for metrics.
@@ -175,10 +200,15 @@ class EnhancedCacheManager:
                     cache_data, default=str, ensure_ascii=False
                 )
                 expiry_seconds = int(expiry_hours * 3600)
+                session_db_key = self._get_session_db_cache_key(cache_key)
                 await redis_client.setex(
-                    f"cache:{cache_key}", expiry_seconds, serialized_data
+                    session_db_key, expiry_seconds, serialized_data
                 )
-                _log.debug("Stored in Redis cache: {}", cache_key)
+                _log.debug(
+                    "Stored in Redis cache: {} (session-db key: {})",
+                    cache_key,
+                    session_db_key,
+                )
 
             # Store in file cache (L3)
             await asyncio.get_event_loop().run_in_executor(
@@ -242,18 +272,31 @@ class EnhancedCacheManager:
         # Check Redis cache (L2)
         redis_client = await self._get_redis_client()
         if redis_client:
-            redis_data = await redis_client.get(f"cache:{cache_key}")
-            if redis_data:
-                cache_data = json.loads(redis_data)
-                if self._is_cache_valid(cache_data):
-                    # Store back in memory cache
-                    self._memory_cache[cache_key] = cache_data
-                    cache_hits.labels(cache_type="redis", key_prefix=key_prefix).inc()
-                    cache_operations.labels(
-                        operation="get", cache_type="redis"
-                    ).observe(time.time() - start_time)
-                    _log.debug("Redis cache hit for key '{}'", cache_key)
-                    return cache_data["data"]
+            try:
+                session_db_key = self._get_session_db_cache_key(cache_key)
+                redis_data = await redis_client.get(session_db_key)
+                if redis_data:
+                    cache_data = json.loads(redis_data)
+                    if self._is_cache_valid(cache_data):
+                        # Store back in memory cache
+                        self._memory_cache[cache_key] = cache_data
+                        cache_hits.labels(
+                            cache_type="redis", key_prefix=key_prefix
+                        ).inc()
+                        cache_operations.labels(
+                            operation="get", cache_type="redis"
+                        ).observe(time.time() - start_time)
+                        _log.debug(
+                            "Redis cache hit for key '{}' (session-db key: '{}')",
+                            cache_key,
+                            session_db_key,
+                        )
+                        return cache_data["data"]
+            except (RedisConnectionError, RedisTimeoutError, OSError) as e:
+                _log.warning("Redis get operation failed, disabling Redis: {}", e)
+                # Disable Redis for future operations in this instance
+                self.redis_enabled = False
+                self._redis_client = None
 
         # Check file cache (L3)
         file_data = await asyncio.get_event_loop().run_in_executor(
@@ -268,8 +311,9 @@ class EnhancedCacheManager:
                 expiry_seconds = self._get_remaining_ttl(file_data)
                 if expiry_seconds > 0:
                     serialized_data = json.dumps(file_data, default=str)
+                    session_db_key = self._get_session_db_cache_key(cache_key)
                     await redis_client.setex(
-                        f"cache:{cache_key}", expiry_seconds, serialized_data
+                        session_db_key, expiry_seconds, serialized_data
                     )
 
             cache_hits.labels(cache_type="file", key_prefix=key_prefix).inc()
@@ -360,8 +404,13 @@ class EnhancedCacheManager:
         # Delete from Redis cache
         redis_client = await self._get_redis_client()
         if redis_client:
-            await redis_client.delete(f"cache:{cache_key}")
-            _log.debug("Deleted from Redis cache: {}", cache_key)
+            session_db_key = self._get_session_db_cache_key(cache_key)
+            await redis_client.delete(session_db_key)
+            _log.debug(
+                "Deleted from Redis cache: {} (session-db key: {})",
+                cache_key,
+                session_db_key,
+            )
 
         # Delete from file cache
         await asyncio.get_event_loop().run_in_executor(
