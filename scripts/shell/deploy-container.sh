@@ -136,6 +136,18 @@ print_separator "-"
 kubectl apply -f "${CONFIG_DIR}/deployment.yaml"
 
 print_separator "="
+echo "🛡️ Applying PodDisruptionBudget..."
+print_separator "-"
+
+kubectl apply -f "${CONFIG_DIR}/pod-disruption-budget.yaml"
+
+print_separator "="
+echo "🔒 Applying NetworkPolicy..."
+print_separator "-"
+
+kubectl apply -f "${CONFIG_DIR}/network-policy.yaml"
+
+print_separator "="
 echo "🌐 Exposing Recipe-Scraper via ClusterIP Service..."
 print_separator "-"
 

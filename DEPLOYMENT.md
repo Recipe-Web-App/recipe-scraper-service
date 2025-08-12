@@ -433,6 +433,10 @@ spec:
                                 number: 8000
 ```
 
+### High Availability
+
+The deployment includes a PodDisruptionBudget to ensure service availability during cluster maintenance operations. This guarantees that at least one pod remains available during voluntary disruptions like node drains or cluster upgrades.
+
 ### Horizontal Pod Autoscaler
 
 ```yaml
@@ -462,6 +466,26 @@ spec:
                   type: Utilization
                   averageUtilization: 80
 ```
+
+### Security Best Practices
+
+The deployment follows Kubernetes security best practices and passes kube-score validation:
+
+#### Container Security
+- Runs as non-privileged user with high UID/GID to avoid host conflicts
+- Uses read-only root filesystem for enhanced security
+- Drops all Linux capabilities by default
+- Enforces resource limits to prevent resource exhaustion
+
+#### Network Security
+- Network policies restrict ingress and egress traffic to essential services only
+- Pod anti-affinity rules distribute pods across nodes for resilience
+- Separate health check endpoints for liveness and readiness probes
+
+#### Availability
+- Multiple replicas with pod disruption budgets ensure service continuity
+- Health checks enable automatic recovery from failures
+- Resource requests guarantee minimum compute allocation
 
 ## Production Considerations
 

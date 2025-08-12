@@ -101,13 +101,14 @@ repos:
       - id: codespell
         args: [--write-changes]
         exclude: ^(.*\.lock|.*\.log|htmlcov/.*)$
+
   # Conventional commit validation
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-        args: [--strict]
+        args: [--strict, --verbose]
 
   # Local hooks
   - repo: local
@@ -118,18 +119,30 @@ repos:
         entry: poetry run radon cc --min B
         language: system
         types: [python]
+
       - id: radon-mi
         name: radon maintainability check
         entry: poetry run radon mi --min B
         language: system
         types: [python]
+
       # Python testing
-      # - id: pytest-check
-      #   name: pytest-check
-      #   entry: poetry run pytest --co -q
-      #   language: system
-      #   pass_filenames: false
-      #   always_run: true
+      - id: pytest-check
+        name: pytest-check
+        entry: poetry run pytest --co -q
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Kubernetes YAML scoring
+      - id: kube-score
+        name: kube-score
+        entry: sh -c 'find k8s -name "*.yaml" -type f -not -path "*/templates/*" | xargs kube-score score'
+        language: system
+        files: k8s/.*\.yaml$
+        pass_filenames: false
+        args: []
+
       # Python documentation generation
       - id: sphinx-docs-build
         name: sphinx-docs-build
