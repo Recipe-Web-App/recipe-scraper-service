@@ -98,10 +98,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     _log.info("Starting Recipe Scraper Service")
 
-    # Startup
-    instrumentator = Instrumentator()
-    instrumentator.instrument(app).expose(app)
-
     yield
 
     # Shutdown
@@ -131,6 +127,10 @@ app = FastAPI(
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
+
+# Prometheus instrumentation (must be done before middleware setup)
+instrumentator = Instrumentator()
+instrumentator.instrument(app).expose(app)
 
 # Exception handlers
 app.add_exception_handler(Exception, unhandled_exception_handler)

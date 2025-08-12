@@ -6,10 +6,12 @@ This module configures structured JSON logging for the entire application.
 import logging
 import sys
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
-from loguru import Logger
 from loguru import logger as loguru_logger
+
+if TYPE_CHECKING:
+    from loguru import Logger
 
 from app.core.config.config import settings
 from app.core.config.logging_sink import LoggingSink
@@ -121,11 +123,13 @@ def configure_logging() -> None:
         loguru_logger.add(sink_target, **kwargs)
 
 
-def get_logger(name: str | None = None) -> Logger:
+def get_logger(name: str | None = None) -> "Logger":
     """Retrieve a configured Loguru logger instance.
 
-    Args:     name (str | None): Optional logical name to bind to the logger.
+    Args:
+        name (str | None): Optional logical name to bind to the logger.
 
-    Returns:     _Logger: A Loguru logger, optionally bound with a custom name.
+    Returns:
+        A Loguru logger, optionally bound with a custom name.
     """
     return loguru_logger.bind(name=name) if name else loguru_logger

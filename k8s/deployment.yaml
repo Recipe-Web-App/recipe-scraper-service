@@ -39,6 +39,11 @@ spec:
                 configMapKeyRef:
                   name: recipe-scraper-config
                   key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: POSTGRES_PORT
             - name: POSTGRES_SCHEMA
               valueFrom:
                 configMapKeyRef:
@@ -47,8 +52,13 @@ spec:
             - name: RECIPE_SCRAPER_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: recipe-scraper-db-password
+                  name: recipe-scraper-secrets
                   key: RECIPE_SCRAPER_DB_PASSWORD
+            - name: SPOONACULAR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: recipe-scraper-secrets
+                  key: SPOONACULAR_API_KEY
           livenessProbe:
             httpGet:
               path: /api/recipe-scraper/health
