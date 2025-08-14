@@ -1,6 +1,6 @@
 # Multi-stage Docker build for Recipe Scraper Service
 # Stage 1: Build dependencies and compile Python packages
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
 # Set build environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -39,7 +39,7 @@ RUN poetry config virtualenvs.create true \
     && poetry install --only=main --no-root
 
 # Stage 2: Runtime image
-FROM python:3.11-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 # Create non-root user for security (matching K8s securityContext)
 RUN groupadd --gid 10001 appuser \
