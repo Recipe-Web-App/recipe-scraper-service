@@ -41,9 +41,9 @@ RUN poetry config virtualenvs.create true \
 # Stage 2: Runtime image
 FROM python:3.11-slim AS runtime
 
-# Create non-root user for security
-RUN groupadd --gid 1000 appuser \
-    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+# Create non-root user for security (matching K8s securityContext)
+RUN groupadd --gid 10001 appuser \
+    && useradd --uid 10001 --gid appuser --shell /bin/bash --create-home appuser
 
 # Set runtime environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -65,6 +65,9 @@ WORKDIR /app
 
 # Copy virtual environment from builder stage
 COPY --from=builder --chown=appuser:appuser /app/.venv /home/appuser/.venv
+
+# Fix permissions for virtual environment executables
+RUN chmod +x /home/appuser/.venv/bin/*
 
 # Copy application code
 COPY --chown=appuser:appuser ./app ./app
@@ -94,7 +97,7 @@ EXPOSE 8000
 ENTRYPOINT ["dumb-init", "--"]
 
 # Default command with security hardening
-CMD ["python", "-m", "uvicorn", "app.main:app", \
+CMD ["/home/appuser/.venv/bin/python", "-m", "uvicorn", "app.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
      "--workers", "1", \

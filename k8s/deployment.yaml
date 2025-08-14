@@ -9,7 +9,7 @@ metadata:
     # Ignoring image tag and pull policy checks since we build images locally
     kube-score/ignore: container-image-tag,container-image-pull-policy
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: recipe-scraper
