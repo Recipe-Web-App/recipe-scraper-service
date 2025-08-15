@@ -38,7 +38,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-recipe-scraper-service = "app.main:main"  # Adjust as needed
+recipe-scraper-service = "app.main:main"
 dev = "scripts.python.run_local:main"
 test-unit = "tests.run_unit_tests:main"
 

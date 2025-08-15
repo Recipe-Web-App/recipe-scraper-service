@@ -40,11 +40,17 @@ from app.api.v1.schemas.response.create_recipe_response import (
 from app.api.v1.schemas.response.ingredient_nutritional_info_response import (
     IngredientNutritionalInfoResponse as IngredientNutritionalInfoResponseSchema,
 )
+from app.api.v1.schemas.response.ingredient_shopping_info_response import (
+    IngredientShoppingInfoResponse,
+)
 from app.api.v1.schemas.response.pairing_suggestions_response import (
     PairingSuggestionsResponse as PairingSuggestionsResponseSchema,
 )
 from app.api.v1.schemas.response.recipe_nutritional_info_response import (
     RecipeNutritionalInfoResponse as RecipeNutritionalInfoResponseSchema,
+)
+from app.api.v1.schemas.response.recipe_shopping_info_response import (
+    RecipeShoppingInfoResponse,
 )
 from app.api.v1.schemas.response.recommended_recipes_response import (
     PopularRecipesResponse as PopularRecipesResponseSchema,
@@ -506,6 +512,33 @@ def mock_pairing_suggestions_response_schema(
     )
 
 
+###########################
+# Mocked Shopping Schemas #
+###########################
+@pytest.fixture
+def mock_ingredient_shopping_info_response_schema() -> IngredientShoppingInfoResponse:
+    """Create a mock IngredientShoppingInfoResponse for testing."""
+    return IngredientShoppingInfoResponse(
+        ingredient_name="Test Ingredient",
+        quantity=Decimal("1.50"),
+        unit=IngredientUnitEnum.G,  # Using the actual enum value, not string
+        estimated_price=Decimal("2.50"),
+    )
+
+
+@pytest.fixture
+def mock_recipe_shopping_info_response_schema(
+    mock_ingredient_shopping_info_response_schema: IngredientShoppingInfoResponse,
+) -> RecipeShoppingInfoResponse:
+    """Create a mock RecipeShoppingInfoResponse for testing."""
+    ingredients = {1: mock_ingredient_shopping_info_response_schema}
+    return RecipeShoppingInfoResponse(
+        recipe_id=1,
+        ingredients=ingredients,
+        total_estimated_cost=Decimal("2.50"),
+    )
+
+
 #########################
 # Mocked Common Schemas #
 #########################
@@ -812,6 +845,22 @@ def mock_recommendations_service(
         return_value=mock_pairing_suggestions_response_schema
     )
     return mock
+
+
+@pytest.fixture
+def mock_shopping_service(
+    mock_ingredient_shopping_info_response_schema: IngredientShoppingInfoResponse,
+    mock_recipe_shopping_info_response_schema: RecipeShoppingInfoResponse,
+) -> Mock:
+    """Create a mock ShoppingService for testing."""
+    service = Mock()
+    service.get_ingredient_shopping_info.return_value = (
+        mock_ingredient_shopping_info_response_schema
+    )
+    service.get_recipe_shopping_info.return_value = (
+        mock_recipe_shopping_info_response_schema
+    )
+    return service
 
 
 ####################
