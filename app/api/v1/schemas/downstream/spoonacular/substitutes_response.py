@@ -47,10 +47,10 @@ class SpoonacularSubstitutesResponse(BaseSchema):
     @classmethod
     def validate_substitutes(
         cls,
-        v: list[Any] | None,
+        v: list[Any] | Any | None,
     ) -> list[SpoonacularSubstituteItem | str]:
         """Validate and parse the substitutes list."""
-        if not v:
+        if not v or not isinstance(v, list):
             return []
 
         validated_substitutes: list[SpoonacularSubstituteItem | str] = []

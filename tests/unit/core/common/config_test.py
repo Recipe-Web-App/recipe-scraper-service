@@ -27,6 +27,10 @@ def test_settings_env_and_properties(monkeypatch: pytest.MonkeyPatch) -> None:
         "RECIPE_SCRAPER_DB_USER": "mock-user",
         "RECIPE_SCRAPER_DB_PASSWORD": MOCK_DB_PASSWORD,
         "SPOONACULAR_API_KEY": "mock-apikey",  # pragma: allowlist secret
+        "KROGER_API_CLIENT_ID": "mock-kroger-client-id",  # pragma: allowlist secret
+        "KROGER_API_CLIENT_SECRET": (
+            "mock-kroger-client-secret"  # pragma: allowlist secret
+        ),
         "LOGGING_CONFIG_PATH": MOCK_LOGGING_PATH,
         "POPULAR_RECIPES_CONFIG_PATH": MOCK_RECIPES_PATH,
         "WEB_SCRAPER_CONFIG_PATH": MOCK_WEBSCRAPER_PATH,

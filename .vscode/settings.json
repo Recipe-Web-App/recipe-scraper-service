@@ -69,6 +69,7 @@
     "isort",
     "itemprop",
     "itemtype",
+    "joinedload",
     "jsamuelsen",
     "jsonable",
     "KHTML",
