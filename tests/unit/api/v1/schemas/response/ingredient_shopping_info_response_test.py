@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
+from app.api.v1.schemas.common.ingredient import Quantity
 from app.api.v1.schemas.response.ingredient_shopping_info_response import (
     IngredientShoppingInfoResponse,
 )
@@ -22,18 +23,17 @@ def test_ingredient_shopping_info_instantiation(
     # Act
     resp = IngredientShoppingInfoResponse(
         ingredient_name="Test Ingredient",
-        quantity=Decimal("1.50"),
-        unit=IngredientUnitEnum.G,
+        quantity=Quantity(amount=1.50, measurement=IngredientUnitEnum.G),
         estimated_price=Decimal("2.50"),
     )
 
     # Assert
     assert resp == info
     assert isinstance(resp.ingredient_name, str)
-    assert isinstance(resp.quantity, Decimal)
+    assert isinstance(resp.quantity, Quantity)
     assert isinstance(resp.estimated_price, Decimal)
-    # Check the string value since that's what we get after serialization
-    assert resp.unit == "G"
+    # Check the measurement unit
+    assert resp.quantity.measurement == IngredientUnitEnum.G
 
 
 @pytest.mark.unit
@@ -51,7 +51,7 @@ def test_ingredient_shopping_info_serialization(
     assert isinstance(data, dict)
     assert "ingredient_name" in data
     assert "quantity" in data
-    assert "unit" in data
+    assert "quantity" in data
     assert "estimated_price" in data
 
 
@@ -97,19 +97,18 @@ def test_ingredient_shopping_info_required_fields() -> None:
     with pytest.raises(ValidationError):
         IngredientShoppingInfoResponse()
 
-    with pytest.raises(ValidationError):
-        IngredientShoppingInfoResponse(
-            ingredient_name="Test",
-            quantity=Decimal("1.0"),
-            unit=IngredientUnitEnum.G,
-            estimated_price=None,
-        )
+    # This should NOT raise an error since estimated_price is optional with default None
+    response = IngredientShoppingInfoResponse(
+        ingredient_name="Test",
+        quantity=Quantity(amount=1.0, measurement=IngredientUnitEnum.G),
+        estimated_price=None,
+    )
+    assert response.estimated_price is None
 
     with pytest.raises(ValidationError):
         IngredientShoppingInfoResponse(
             ingredient_name="Test",
             quantity=None,
-            unit=IngredientUnitEnum.G,
             estimated_price=Decimal("1.00"),
         )
 
@@ -121,8 +120,7 @@ def test_ingredient_shopping_info_price_validation() -> None:
     with pytest.raises(ValidationError):
         IngredientShoppingInfoResponse(
             ingredient_name="Test",
-            quantity=Decimal("1.0"),
-            unit=IngredientUnitEnum.G,
+            quantity=Quantity(amount=1.0, measurement=IngredientUnitEnum.G),
             estimated_price=Decimal("-1.00"),
         )
 
@@ -134,7 +132,6 @@ def test_ingredient_shopping_info_quantity_validation() -> None:
     with pytest.raises(ValidationError):
         IngredientShoppingInfoResponse(
             ingredient_name="Test",
-            quantity=Decimal("-1.0"),
-            unit=IngredientUnitEnum.G,
+            quantity=Quantity(amount=-1.0, measurement=IngredientUnitEnum.G),
             estimated_price=Decimal("1.00"),
         )

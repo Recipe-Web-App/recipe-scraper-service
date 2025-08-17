@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.v1.schemas.common.ingredient import Quantity
+from app.api.v1.schemas.downstream.kroger.ingredient_price import KrogerIngredientPrice
 from app.api.v1.schemas.response.ingredient_shopping_info_response import (
     IngredientShoppingInfoResponse,
 )
@@ -23,7 +24,13 @@ from app.db.models.ingredient_models.ingredient import Ingredient
 from app.db.models.recipe_models.recipe import Recipe
 from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
-from app.exceptions.custom_exceptions import IncompatibleUnitsError
+from app.exceptions.custom_exceptions import (
+    DownstreamAuthenticationError,
+    DownstreamDataNotFoundError,
+    DownstreamServiceUnavailableError,
+    IncompatibleUnitsError,
+)
+from app.services.downstream.kroger_service import KrogerService
 
 _log = get_logger(__name__)
 
@@ -36,7 +43,13 @@ class ShoppingService:
 
     Attributes:
         log (logging.Logger): Logger instance for this service.
+        kroger_service (KrogerService): Service for getting real pricing data from
+            Kroger API.
     """
+
+    def __init__(self) -> None:
+        """Initialize the shopping service with downstream services."""
+        self.kroger_service = KrogerService()
 
     def get_ingredient_shopping_info(
         self,
@@ -198,7 +211,8 @@ class ShoppingService:
                 # Calculate shopping info for this ingredient
                 shopping_info = self._get_ingredient_shopping_info(ingredient, quantity)
                 ingredients[ingredient.ingredient_id] = shopping_info
-                total_cost += shopping_info.estimated_price
+                if shopping_info.estimated_price is not None:
+                    total_cost += shopping_info.estimated_price
 
             except (ValueError, TypeError, AttributeError) as e:
                 _log.exception(
@@ -240,26 +254,106 @@ class ShoppingService:
             IncompatibleUnitsError: If the requested unit conversion is not possible.
             ValueError: If there's an error in the calculation.
         """
-        # Get requested quantity and unit (from input or default)
-        if quantity:
-            requested_quantity = Decimal(str(quantity.amount))
-            requested_unit = quantity.measurement
-        else:
-            requested_quantity = Decimal("1.0")
-            requested_unit = IngredientUnitEnum.UNIT
+        # If no requested quantity, just request 1 unit
+        if not quantity:
+            quantity = Quantity(amount=1.0, measurement=IngredientUnitEnum.UNIT)
 
-        """TODO(Jsamuelsen): Replace with actual price calculation using:
-        - Ingredient's preferred unit type from database
-        - Proper unit conversion
-        - Real pricing data
-        """
-        mock_price = Decimal("2.50")
-        estimated_price = mock_price * requested_quantity
+        # Try to get real pricing from Kroger API
+        try:
+            kroger_price = self.kroger_service.get_ingredient_price(ingredient.name)
+            # Use Kroger pricing data
+            estimated_price = self._calculate_price_with_kroger_data(
+                kroger_price,
+                quantity,
+            )
+            _log.debug(
+                "Found Kroger price for '{}': ${} per {}",
+                ingredient.name,
+                kroger_price.price,
+                kroger_price.unit,
+            )
+        except DownstreamAuthenticationError as e:
+            # Authentication failed - this is a configuration issue
+            _log.error(
+                "Kroger API authentication failed - check API credentials",
+                extra={
+                    "error_type": "configuration_error",
+                    "service": "shopping_service",
+                    "operation": "get_ingredient_shopping_info",
+                    "ingredient_name": ingredient.name,
+                    "downstream_error": str(e),
+                },
+            )
+            # Re-raise authentication errors to inform users of misconfiguration
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "Pricing service authentication failed. "
+                    "Please check service configuration."
+                ),
+            ) from e
+        except DownstreamServiceUnavailableError as e:
+            # Service temporarily unavailable - log and continue without pricing
+            _log.warning(
+                "Kroger API temporarily unavailable - pricing unavailable",
+                extra={
+                    "error_type": "service_unavailable",
+                    "service": "shopping_service",
+                    "operation": "get_ingredient_shopping_info",
+                    "ingredient_name": ingredient.name,
+                    "downstream_error": str(e),
+                    "fallback_action": "continue_without_pricing",
+                },
+            )
+            estimated_price = None
+        except DownstreamDataNotFoundError:
+            # No pricing data available for this ingredient - this is normal
+            _log.debug(
+                "No Kroger price found - pricing unavailable",
+                extra={
+                    "service": "shopping_service",
+                    "operation": "get_ingredient_shopping_info",
+                    "ingredient_name": ingredient.name,
+                    "result": "no_pricing_data",
+                },
+            )
+            estimated_price = None
 
         return IngredientShoppingInfoResponse(
             ingredient_name=ingredient.name,
-            # Convert Decimal back to float for response
-            quantity=float(requested_quantity),
-            unit=requested_unit,
-            estimated_price=round(float(estimated_price), 2),
+            quantity=quantity,
+            estimated_price=(
+                round(float(estimated_price), 2)
+                if estimated_price is not None
+                else None
+            ),
         )
+
+    def _calculate_price_with_kroger_data(
+        self,
+        kroger_price: KrogerIngredientPrice,
+        requested_quantity: Quantity,
+    ) -> Decimal:
+        """Calculate estimated price using Kroger pricing data.
+
+        Args:
+            kroger_price: KrogerIngredientPrice object with pricing info
+            requested_quantity: Amount of ingredient needed
+
+        Returns:
+            Estimated price as Decimal
+        """
+        # For now, use simple multiplication
+        # TODO(jsamuelsen): Implement proper unit conversion between
+        # requested_unit and kroger_price.unit
+        base_price = Decimal(str(kroger_price.price))
+        estimated_price = base_price * Decimal(requested_quantity.amount)
+
+        _log.debug(
+            "Calculated price: ${} * {} = ${}",
+            base_price,
+            requested_quantity,
+            estimated_price,
+        )
+
+        return estimated_price

@@ -38,6 +38,9 @@ RUN poetry config virtualenvs.create true \
     && poetry config virtualenvs.in-project true \
     && poetry install --only=main --no-root
 
+# Download required NLTK data for ingredient-parser-nlp
+RUN .venv/bin/python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng', download_dir='/opt/nltk_data')"
+
 # Stage 2: Runtime image
 FROM python:3.11-slim AS runtime
 
@@ -49,7 +52,8 @@ RUN groupadd --gid 10001 appuser \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/home/appuser/.venv/bin:$PATH" \
-    PYTHONPATH="/app"
+    PYTHONPATH="/app" \
+    NLTK_DATA="/opt/nltk_data"
 
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -65,6 +69,9 @@ WORKDIR /app
 
 # Copy virtual environment from builder stage
 COPY --from=builder --chown=appuser:appuser /app/.venv /home/appuser/.venv
+
+# Copy NLTK data from builder stage
+COPY --from=builder /opt/nltk_data /opt/nltk_data
 
 # Fix permissions for virtual environment executables
 RUN chmod +x /home/appuser/.venv/bin/*

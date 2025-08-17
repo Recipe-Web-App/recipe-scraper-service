@@ -12,6 +12,7 @@ from uuid import UUID
 import pytest
 
 from app.api.v1.schemas.common.ingredient import Ingredient as IngredientSchema
+from app.api.v1.schemas.common.ingredient import Quantity
 from app.api.v1.schemas.common.ingredient import Quantity as QuantitySchema
 from app.api.v1.schemas.common.nutritional_info.fats import Fats as FatsSchema
 from app.api.v1.schemas.common.nutritional_info.fibers import Fibers as FibersSchema
@@ -520,8 +521,7 @@ def mock_ingredient_shopping_info_response_schema() -> IngredientShoppingInfoRes
     """Create a mock IngredientShoppingInfoResponse for testing."""
     return IngredientShoppingInfoResponse(
         ingredient_name="Test Ingredient",
-        quantity=Decimal("1.50"),
-        unit=IngredientUnitEnum.G,  # Using the actual enum value, not string
+        quantity=Quantity(amount=1.50, measurement=IngredientUnitEnum.G),
         estimated_price=Decimal("2.50"),
     )
 

@@ -17,7 +17,8 @@ class RecipeShoppingInfoResponse(BaseSchema):
         recipe_id (int): The unique identifier of the recipe.
         ingredients (dict[str, IngredientShoppingInfoResponse]): A dictionary mapping
             ingredient names to their shopping information.
-        total_estimated_cost (Decimal): The total estimated cost with 2 decimal places.
+        total_estimated_cost (Decimal): The total estimated cost with 2 decimal places
+            for ingredients with available pricing.
     """
 
     recipe_id: int = Field(..., description="The unique identifier of the recipe", gt=0)

@@ -69,6 +69,16 @@ spec:
                 secretKeyRef:
                   name: recipe-scraper-secrets
                   key: RECIPE_SCRAPER_DB_PASSWORD
+            - name: KROGER_API_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: recipe-scraper-config
+                  key: KROGER_API_CLIENT_ID
+            - name: KROGER_API_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: recipe-scraper-secrets
+                  key: KROGER_API_CLIENT_SECRET
             - name: SPOONACULAR_API_KEY
               valueFrom:
                 secretKeyRef:

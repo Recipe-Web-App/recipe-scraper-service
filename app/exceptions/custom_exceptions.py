@@ -119,3 +119,65 @@ class SubstitutionNotFoundError(Exception):
         Returns:     str | None: The reason for no substitutes, if provided.
         """
         return self.reason
+
+
+class DownstreamServiceError(Exception):
+    """Base exception for downstream service errors."""
+
+    def __init__(self, service_name: str, message: str) -> None:
+        """Initialize the exception with service name and message.
+
+        Args:
+            service_name: The name of the downstream service that failed.
+            message: Detailed error message.
+        """
+        self.service_name = service_name
+        super().__init__(f"{service_name}: {message}")
+
+
+class DownstreamAuthenticationError(DownstreamServiceError):
+    """Raised when authentication with a downstream service fails."""
+
+    def __init__(self, service_name: str, status_code: int | None = None) -> None:
+        """Initialize the authentication error.
+
+        Args:
+            service_name: The name of the downstream service.
+            status_code: Optional HTTP status code from the failed authentication.
+        """
+        self.status_code = status_code
+        message = "Authentication failed"
+        if status_code:
+            message += f" (HTTP {status_code})"
+        super().__init__(service_name, message)
+
+
+class DownstreamServiceUnavailableError(DownstreamServiceError):
+    """Raised when a downstream service is temporarily unavailable."""
+
+    def __init__(self, service_name: str, status_code: int | None = None) -> None:
+        """Initialize the service unavailable error.
+
+        Args:
+            service_name: The name of the downstream service.
+            status_code: Optional HTTP status code from the failed request.
+        """
+        self.status_code = status_code
+        message = "Service temporarily unavailable"
+        if status_code:
+            message += f" (HTTP {status_code})"
+        super().__init__(service_name, message)
+
+
+class DownstreamDataNotFoundError(DownstreamServiceError):
+    """Raised when requested data is not found in the downstream service."""
+
+    def __init__(self, service_name: str, resource: str) -> None:
+        """Initialize the data not found error.
+
+        Args:
+            service_name: The name of the downstream service.
+            resource: The resource that was not found.
+        """
+        self.resource = resource
+        super().__init__(service_name, f"Data not found for: {resource}")

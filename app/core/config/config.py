@@ -31,6 +31,8 @@ class _Settings(BaseSettings):
     WEB_SCRAPER_CATEGORY_PATTERNS: list[str] = Field(default_factory=list)
     WEB_SCRAPER_SINGLE_WORD_CATEGORIES: list[str] = Field(default_factory=list)
     WEB_SCRAPER_CATEGORY_INDICATORS: list[str] = Field(default_factory=list)
+    KROGER_API_CLIENT_ID: str = Field(..., alias="KROGER_API_CLIENT_ID")
+    KROGER_API_CLIENT_SECRET: str = Field(..., alias="KROGER_API_CLIENT_SECRET")
     SPOONACULAR_API_KEY: str = Field(..., alias="SPOONACULAR_API_KEY")
 
     # Security and middleware settings
@@ -237,6 +239,16 @@ class _Settings(BaseSettings):
     def web_scraper_category_indicators(self) -> list[str]:
         """Get category indicators for filtering out category pages."""
         return self.WEB_SCRAPER_CATEGORY_INDICATORS
+
+    @property
+    def kroger_api_client_id(self) -> str:
+        """Get Kroger API client ID."""
+        return self.KROGER_API_CLIENT_ID
+
+    @property
+    def kroger_api_client_secret(self) -> str:
+        """Get Kroger API client secret."""
+        return self.KROGER_API_CLIENT_SECRET
 
     @property
     def spoonacular_api_key(self) -> str:

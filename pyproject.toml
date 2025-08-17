@@ -32,6 +32,7 @@ psycopg2 = "^2.9.10"
 asyncpg = "^0.29.0"
 redis = "^6.2.0"
 uvicorn = { extras = ["standard"], version = "^0.32.0" }
+ingredient-parser-nlp = "^2.2.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -77,6 +78,7 @@ radon = "^6.0.1"
 locust = "^2.32.4"
 pylint = "^3.3.2"
 testcontainers = "^4.0.0"
+types-requests = "^2.32.4.20250809"
 
 [tool.black]
 line-length = 88
