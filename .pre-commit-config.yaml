@@ -71,6 +71,7 @@ repos:
           - types-beautifulsoup4
           - types-PyYAML
           - types-redis
+          - types-requests
           - pytest
 
   # Security scanning

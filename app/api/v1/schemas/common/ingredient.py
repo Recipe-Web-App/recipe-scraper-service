@@ -22,6 +22,7 @@ class Quantity(BaseSchema):
     amount: float = Field(
         ...,
         description="The numeric value of the ingredient quantity",
+        ge=0,
     )
     measurement: IngredientUnitEnum = Field(
         default=IngredientUnitEnum.UNIT,

@@ -7,6 +7,97 @@
   },
   "item": [
     {
+      "name": "Shopping",
+      "item": [
+        {
+          "name": "Get Recipe Shopping Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Shopping info retrieval successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains ingredients and total cost', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('ingredients');",
+                  "    pm.expect(response).to.have.property('total_estimated_cost');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/recipes/{{recipeScraperServiceTestRecipeId}}/shopping-info",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["recipes", "{{recipeScraperServiceTestRecipeId}}", "shopping-info"]
+            },
+            "description": "Get shopping information for all ingredients in a recipe"
+          }
+        },
+        {
+          "name": "Get Ingredient Shopping Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Shopping info retrieval successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains estimated price', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('estimated_price');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{recipeScraperServiceBaseUrl}}/ingredients/{{recipeScraperServiceTestIngredientId}}/shopping-info?amount=1.0&measurement=CUPS",
+              "host": ["{{recipeScraperServiceBaseUrl}}"],
+              "path": ["ingredients", "{{recipeScraperServiceTestIngredientId}}", "shopping-info"],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "1.0",
+                  "description": "Optional - Amount of the ingredient"
+                },
+                {
+                  "key": "measurement",
+                  "value": "CUPS",
+                  "description": "Optional - Unit of measurement (must be provided if amount is provided)"
+                }
+              ]
+            },
+            "description": "Get shopping information for a specific ingredient, optionally with quantity"
+          }
+        }
+      ],
+      "description": "Shopping and pricing information endpoints"
+    },
+    {
       "name": "Health",
       "item": [
         {
@@ -96,7 +187,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"recipeUrl\": \"https://spoonacular.com/recipes/Maple-Ginger-Bacon-650899\"\n}"
+              "raw": "{\n  \"recipeUrl\": \"https://www.allrecipes.com/recipe/218863/slow-cooker-cilantro-lime-chicken/\"\n}"
             },
             "url": {
               "raw": "{{recipeScraperServiceBaseUrl}}/create-recipe",

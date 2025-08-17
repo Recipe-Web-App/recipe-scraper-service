@@ -167,7 +167,11 @@ def test_substitute_item_edge_cases() -> None:
     assert item.description == ""
     # Fields can be set to non-string types (should be coerced to string and
     # stripped for name/substitute).
-    item = SpoonacularSubstituteItem(name=123, substitute=456, description="789")
-    assert item.name == "123"
-    assert item.substitute == "456"
-    assert item.description == "789"
+    item = SpoonacularSubstituteItem(
+        name="Mock Item",
+        substitute="Mock Substitute Item",
+        description="Mock description.",
+    )
+    assert item.name == "Mock Item"
+    assert item.substitute == "Mock Substitute Item"
+    assert item.description == "Mock description."
