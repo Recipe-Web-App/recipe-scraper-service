@@ -6,10 +6,14 @@ including database setup, mock services, and test client configuration.
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import pytest
+
+if TYPE_CHECKING:
+    from app.services.shopping_service import ShoppingService
 
 from app.api.v1.schemas.common.ingredient import Ingredient as IngredientSchema
 from app.api.v1.schemas.common.ingredient import Quantity
@@ -32,6 +36,7 @@ from app.api.v1.schemas.common.pagination_params import (
 )
 from app.api.v1.schemas.common.recipe import Recipe as RecipeSchema
 from app.api.v1.schemas.common.web_recipe import WebRecipe as WebRecipeSchema
+from app.api.v1.schemas.downstream.kroger.ingredient_price import KrogerIngredientPrice
 from app.api.v1.schemas.request.create_recipe_request import (
     CreateRecipeRequest as CreateRecipeRequestSchema,
 )
@@ -76,6 +81,7 @@ from app.enums.difficulty_level_enum import DifficultyLevelEnum
 from app.enums.food_group_enum import FoodGroupEnum
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.services.admin_service import AdminService
+from app.services.downstream.kroger_service import KrogerService
 from app.services.nutritional_info_service import NutritionalInfoService
 from app.services.recipe_scraper_service import RecipeScraperService
 from app.services.recommendations_service import RecommendationsService
@@ -539,6 +545,196 @@ def mock_recipe_shopping_info_response_schema(
     )
 
 
+####################################
+# Mocked Downstream Service Schemas #
+####################################
+@pytest.fixture
+def mock_kroger_ingredient_price() -> KrogerIngredientPrice:
+    """Create a mock KrogerIngredientPrice for testing."""
+    return KrogerIngredientPrice(
+        ingredient_name="tomatoes",
+        price=Decimal("2.99"),
+        unit="lb",
+        location_id="02900510",
+        product_id="0001111041956",
+    )
+
+
+@pytest.fixture
+def mock_kroger_token_response() -> dict[str, str]:
+    """Create a mock Kroger OAuth token response."""
+    return {
+        "access_token": "mock_access_token_12345",
+        "token_type": "Bearer",
+        "expires_in": "3600",
+        "scope": "product.compact",
+    }
+
+
+@pytest.fixture
+def mock_kroger_product_response() -> dict[str, list[dict[str, Any]]]:
+    """Create a mock Kroger product search response."""
+    return {
+        "data": [
+            {
+                "productId": "0001111041956",
+                "description": "Roma Tomatoes",
+                "items": [
+                    {
+                        "itemId": "0001111041956",
+                        "size": "lb",
+                        "price": {
+                            "regular": 2.99,
+                            "promo": 2.49,
+                        },
+                    }
+                ],
+            },
+            {
+                "productId": "0001111041957",
+                "description": "Cherry Tomatoes",
+                "items": [
+                    {
+                        "itemId": "0001111041957",
+                        "size": "container",
+                        "price": {
+                            "regular": 3.49,
+                        },
+                    }
+                ],
+            },
+        ]
+    }
+
+
+@pytest.fixture
+def mock_kroger_empty_response() -> dict[str, list[Any]]:
+    """Create a mock empty Kroger product search response."""
+    return {"data": []}
+
+
+@pytest.fixture
+def mock_kroger_no_pricing_response() -> dict[str, list[dict[str, Any]]]:
+    """Create a mock Kroger response with products but no pricing."""
+    return {
+        "data": [
+            {
+                "productId": "0001111041958",
+                "description": "Organic Tomatoes",
+                "items": [
+                    {
+                        "itemId": "0001111041958",
+                        "size": "lb",
+                        # No price field
+                    }
+                ],
+            }
+        ]
+    }
+
+
+# Spoonacular API Schemas
+@pytest.fixture
+def mock_spoonacular_substitutes_response() -> dict[str, Any]:
+    """Create a mock Spoonacular substitutes API response."""
+    return {
+        "status": "success",
+        "substitutes": [
+            "1 cup = 1 cup American cheese",
+            "2 tablespoons = 1 ounce cream cheese (softer texture)",
+            "1 cup = 1 cup sharp cheddar cheese",
+        ],
+        "message": "",
+    }
+
+
+@pytest.fixture
+def mock_spoonacular_substitutes_response_failure() -> dict[str, Any]:
+    """Create a mock failed Spoonacular substitutes API response."""
+    return {
+        "status": "failure",
+        "substitutes": [],
+        "message": "No substitutes found for this ingredient",
+    }
+
+
+@pytest.fixture
+def mock_spoonacular_similar_recipes_response() -> list[dict[str, Any]]:
+    """Create a mock Spoonacular similar recipes API response."""
+    return [
+        {
+            "id": 716429,
+            "title": "Pasta with Garlic, Scallions, Cauliflower & Breadcrumbs",
+            "image": "https://spoonacular.com/recipeImages/716429-312x231.jpg",
+            "readyInMinutes": 45,
+            "servings": 2,
+            "sourceUrl": "https://www.foodista.com/recipe/QHR4KSL7/pasta-with-garlic-scallions-cauliflower-breadcrumbs",
+        },
+        {
+            "id": 715538,
+            "title": "What to make for dinner tonight?? Bruschetta Style Pork & Pasta",
+            "image": "https://spoonacular.com/recipeImages/715538-312x231.jpg",
+            "readyInMinutes": 30,
+            "servings": 2,
+            "sourceUrl": "https://spoonacular.com/what-to-make-for-dinner-tonight-bruschetta-style-pork-pasta-715538",
+        },
+    ]
+
+
+@pytest.fixture
+def mock_spoonacular_ingredient_search_response() -> list[dict[str, Any]]:
+    """Create a mock Spoonacular ingredient search API response."""
+    return [
+        {
+            "id": 782585,
+            "title": "Cannellini Bean and Asparagus Salad with Mushrooms",
+            "image": "https://spoonacular.com/recipeImages/782585-312x231.jpg",
+            "usedIngredientCount": 2,
+            "missedIngredientCount": 1,
+            "missedIngredients": [
+                {
+                    "id": 11297,
+                    "amount": 2.0,
+                    "unit": "cups",
+                    "unitLong": "cups",
+                    "unitShort": "cup",
+                    "aisle": "Produce",
+                    "name": "parsley",
+                    "original": "2 cups fresh parsley",
+                    "originalString": "2 cups fresh parsley",
+                    "originalName": "fresh parsley",
+                    "metaInformation": ["fresh"],
+                    "meta": ["fresh"],
+                    "image": "https://spoonacular.com/cdn/ingredients_100x100/parsley.jpg",
+                }
+            ],
+            "usedIngredients": [
+                {
+                    "id": 11011,
+                    "amount": 1.0,
+                    "unit": "lb",
+                    "unitLong": "pound",
+                    "unitShort": "lb",
+                    "aisle": "Produce",
+                    "name": "asparagus",
+                    "original": "1 lb asparagus",
+                    "originalString": "1 lb asparagus",
+                    "originalName": "asparagus",
+                    "metaInformation": [],
+                    "meta": [],
+                    "image": "https://spoonacular.com/cdn/ingredients_100x100/asparagus.png",
+                }
+            ],
+        }
+    ]
+
+
+@pytest.fixture
+def mock_spoonacular_empty_response() -> list[Any]:
+    """Create a mock empty Spoonacular API response."""
+    return []
+
+
 #########################
 # Mocked Common Schemas #
 #########################
@@ -863,9 +1059,132 @@ def mock_shopping_service(
     return service
 
 
+@pytest.fixture
+def mock_kroger_service(
+    mock_kroger_ingredient_price: KrogerIngredientPrice,
+) -> Mock:
+    """Create a mock KrogerService for testing."""
+    service = Mock(spec=KrogerService)
+    service.get_ingredient_price.return_value = mock_kroger_ingredient_price
+    return service
+
+
+@pytest.fixture
+def mock_spoonacular_service() -> Mock:
+    """Create a mock SpoonacularService for testing."""
+    from app.services.downstream.spoonacular_service import SpoonacularService
+
+    service = Mock(spec=SpoonacularService)
+    service.get_ingredient_substitutes.return_value = [
+        {
+            "substitute_ingredient": "American Cheese",
+            "conversion_ratio": {"ratio": 1.0, "measurement": "cup"},
+            "notes": "1 cup = 1 cup American cheese",
+            "confidence_score": 0.8,
+        }
+    ]
+    service.get_similar_recipes.return_value = [
+        {
+            "recipe_name": "Test Recipe",
+            "url": "https://example.com/recipe",
+            "image_url": "https://example.com/image.jpg",
+            "summary": "Test recipe summary",
+            "ready_in_minutes": 30,
+            "servings": 4,
+            "source": "spoonacular",
+            "confidence_score": 0.7,
+        }
+    ]
+    return service
+
+
+# Common Service Testing Fixtures
+@pytest.fixture
+def mock_db_session() -> Mock:
+    """Create a mock database session for testing."""
+    return Mock()
+
+
+@pytest.fixture
+def sample_ingredient() -> Mock:
+    """Create a sample ingredient model for testing."""
+    from app.db.models.ingredient_models.ingredient import Ingredient as IngredientModel
+
+    ingredient = Mock(spec=IngredientModel)
+    ingredient.ingredient_id = 1
+    ingredient.name = "flour"
+    return ingredient
+
+
+@pytest.fixture
+def sample_recipe() -> Mock:
+    """Create a sample recipe model for testing."""
+    from app.db.models.recipe_models.recipe import Recipe as RecipeModel
+
+    recipe = Mock(spec=RecipeModel)
+    recipe.recipe_id = 1
+    recipe.title = "Test Recipe"
+    recipe.origin_url = "https://example.com/recipe"
+    return recipe
+
+
+@pytest.fixture
+def sample_quantity() -> QuantitySchema:
+    """Create a sample quantity schema for testing."""
+    return QuantitySchema(amount=2.0, measurement="cups")
+
+
+@pytest.fixture
+def sample_pagination() -> PaginationParamsSchema:
+    """Create a sample pagination params for testing."""
+    return PaginationParamsSchema(limit=10, offset=0, count_only=False)
+
+
+@pytest.fixture
+def mock_service_manager(mock_spoonacular_service: Mock) -> Mock:
+    """Create a mock service manager."""
+    manager = Mock()
+    manager.get_spoonacular_service.return_value = mock_spoonacular_service
+    return manager
+
+
+@pytest.fixture
+def recommendations_service(
+    mock_cache_manager: Mock, mock_service_manager: Mock
+) -> RecommendationsService:
+    """Create a RecommendationsService instance with mocked dependencies."""
+    from unittest.mock import patch
+
+    with (
+        patch(
+            "app.services.recommendations_service.get_cache_manager"
+        ) as mock_get_cache,
+        patch(
+            "app.services.recommendations_service.get_downstream_service_manager"
+        ) as mock_get_service_manager,
+    ):
+        mock_get_cache.return_value = mock_cache_manager
+        mock_get_service_manager.return_value = mock_service_manager
+        return RecommendationsService()
+
+
+@pytest.fixture
+def shopping_service(mock_kroger_service: Mock) -> "ShoppingService":
+    """Create a ShoppingService instance with mocked dependencies."""
+    from unittest.mock import patch
+
+    from app.services.shopping_service import ShoppingService
+
+    with patch("app.services.shopping_service.KrogerService") as mock_kroger_class:
+        mock_kroger_class.return_value = mock_kroger_service
+        return ShoppingService()
+
+
 ####################
 # Helper Utilities #
 ####################
+
+
 class IsType:
     """Utility class for type checking in assertions."""
 
