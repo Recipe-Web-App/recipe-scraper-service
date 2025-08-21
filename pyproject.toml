@@ -29,9 +29,9 @@ secure = ">=1.0.1,<2.0.0"
 pydantic-settings = "^2.9.1"
 sqlalchemy = "^2.0.41"
 psycopg2 = "^2.9.10"
-asyncpg = "^0.29.0"
+asyncpg = "^0.30.0"
 redis = "^6.2.0"
-uvicorn = { extras = ["standard"], version = "^0.32.0" }
+uvicorn = { extras = ["standard"], version = "^0.35.0" }
 ingredient-parser-nlp = "^2.2.0"
 
 [build-system]
@@ -45,7 +45,7 @@ test-unit = "tests.run_unit_tests:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
-pytest-asyncio = "^0.25.0"
+pytest-asyncio = "^1.1.0"
 pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.0"
 pytest-benchmark = "^5.1.0"

@@ -4,11 +4,10 @@ This module initializes and starts the FastAPI application, configures middlewar
 routers, and other startup procedures.
 """
 
-import time
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -17,75 +16,20 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.routes import api_router
 from app.core.config.config import get_settings
 from app.core.logging import get_logger
 from app.exceptions.handlers import unhandled_exception_handler
+from app.middleware.process_time_middleware import ProcessTimeMiddleware
 from app.middleware.request_id_middleware import RequestIDMiddleware
+from app.middleware.security_headers_middleware import SecurityHeadersMiddleware
 
 _log = get_logger(__name__)
 settings = get_settings()
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
-
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to all responses."""
-
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        """Add security headers to response.
-
-        Args:     request: The incoming request     call_next: The next
-        middleware/handler in chain
-
-        Returns:     Response with security headers added
-        """
-        response = await call_next(request)
-
-        # Security headers
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'"
-        )
-
-        return response
-
-
-class ProcessTimeMiddleware(BaseHTTPMiddleware):
-    """Add process time header to responses."""
-
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        """Add process time to response headers.
-
-        Args:     request: The incoming request     call_next: The next
-        middleware/handler in chain
-
-        Returns:     Response with process time header
-        """
-        start_time = time.time()
-        response = await call_next(request)
-        process_time = time.time() - start_time
-        response.headers["X-Process-Time"] = str(process_time)
-        return response
 
 
 @asynccontextmanager
