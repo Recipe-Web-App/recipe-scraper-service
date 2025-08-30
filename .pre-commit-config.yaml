@@ -1,7 +1,7 @@
 repos:
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -39,13 +39,13 @@ repos:
 
   # Code formatting
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 24.4.2
     hooks:
       - id: black
         args: [--skip-string-normalization]
 
   - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
+    rev: 5.13.2
     hooks:
       - id: isort
 

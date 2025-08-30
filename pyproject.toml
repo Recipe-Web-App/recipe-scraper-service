@@ -13,7 +13,7 @@ include = [".env.example", "README.md", "pyproject.toml", "app/**"]
 exclude = ["tests/**", ".env", ".venv", "*.log"]
 
 [tool.poetry.dependencies]
-python = "~3.11.0"
+python = "~3.13.0"
 fastapi = "^0.116.1"
 httpx = ">=0.28.1,<0.29.0"
 tenacity = ">=9.1.2,<10.0.0"
@@ -82,7 +82,7 @@ types-requests = "^2.32.4.20250809"
 
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py313"]
 include = '\.pyi?$'
 skip-string-normalization = true
 exclude = '''
@@ -106,7 +106,7 @@ known_first_party = ["app", "tests"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py313"
 show-fixes = true
 output-format = "grouped"
 
@@ -133,7 +133,7 @@ ignore = [
 per-file-ignores = { "tests/*.py" = ["FBT003", "S101"] }
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict = true
 plugins = ["pydantic.mypy"]
 mypy_path = "app"
