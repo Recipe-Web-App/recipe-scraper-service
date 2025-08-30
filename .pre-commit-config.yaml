@@ -1,7 +1,7 @@
 repos:
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -39,19 +39,19 @@ repos:
 
   # Code formatting
   - repo: https://github.com/psf/black
-    rev: 24.4.2
+    rev: 25.1.0
     hooks:
       - id: black
         args: [--skip-string-normalization]
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
 
   # Linting
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.7
+    rev: v0.12.11
     hooks:
       - id: ruff
         args: [--fix]
@@ -90,7 +90,7 @@ repos:
 
   # Documentation
   - repo: https://github.com/jsh9/pydoclint
-    rev: 0.6.7
+    rev: 0.6.10
     hooks:
       - id: pydoclint
         args: ["--style", "google"]
@@ -105,7 +105,7 @@ repos:
 
   # Conventional commit validation
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.6.0
+    rev: v4.2.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
