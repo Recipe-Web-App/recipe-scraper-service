@@ -181,3 +181,56 @@ class DownstreamDataNotFoundError(DownstreamServiceError):
         """
         self.resource = resource
         super().__init__(service_name, f"Data not found for: {resource}")
+
+
+class DatabaseUnavailableError(Exception):
+    """Raised when the database connection is unavailable.
+
+    This exception is raised when:
+    - The database server is unreachable
+    - Database authentication fails
+    - Connection pool is exhausted
+    - Database connection times out
+    """
+
+    def __init__(
+        self,
+        reason: str | None = None,
+        original_error: Exception | None = None,
+    ) -> None:
+        """Initialize the exception with optional reason and original error.
+
+        Args:
+            reason: Optional specific reason for the database unavailability.
+            original_error: Original exception causing database unavailability.
+        """
+        self.reason = reason
+        self.original_error = original_error
+
+        if reason:
+            message = f"Database unavailable: {reason}"
+        else:
+            message = "Database unavailable"
+
+        if original_error:
+            message += (
+                f" (Cause: {type(original_error).__name__}: " f"{str(original_error)})"
+            )
+
+        super().__init__(message)
+
+    def get_reason(self) -> str | None:
+        """Get the specific reason for database unavailability.
+
+        Returns:
+            str | None: The reason for unavailability, if provided.
+        """
+        return self.reason
+
+    def get_original_error(self) -> Exception | None:
+        """Get the original exception that caused the database to be unavailable.
+
+        Returns:
+            Exception | None: The original exception, if provided.
+        """
+        return self.original_error

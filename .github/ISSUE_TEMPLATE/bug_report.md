@@ -24,7 +24,7 @@ If applicable, add screenshots to help explain your problem.
 
 **Environment (please complete the following information):**
  - OS: [e.g. Linux, Windows]
- - Python version: [e.g. 3.11]
+ - Python version: [e.g. 3.13]
  - Version [e.g. 1.0.0]
 
 **Additional context**

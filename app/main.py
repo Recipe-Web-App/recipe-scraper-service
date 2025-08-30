@@ -7,10 +7,10 @@ routers, and other startup procedures.
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -20,10 +20,18 @@ from slowapi.util import get_remote_address
 from app.api.v1.routes import api_router
 from app.core.config.config import get_settings
 from app.core.logging import get_logger
-from app.exceptions.handlers import unhandled_exception_handler
+from app.exceptions.custom_exceptions import DatabaseUnavailableError
+from app.exceptions.handlers import (
+    database_unavailable_exception_handler,
+    unhandled_exception_handler,
+)
 from app.middleware.process_time_middleware import ProcessTimeMiddleware
 from app.middleware.request_id_middleware import RequestIDMiddleware
 from app.middleware.security_headers_middleware import SecurityHeadersMiddleware
+from app.services.database_monitor import (
+    start_database_monitoring,
+    stop_database_monitoring,
+)
 
 _log = get_logger(__name__)
 settings = get_settings()
@@ -32,8 +40,21 @@ settings = get_settings()
 limiter = Limiter(key_func=get_remote_address)
 
 
+async def rate_limit_handler(request: Request, exc: Exception) -> Response:
+    """Wrapper for slowapi rate limit handler with correct signature."""
+    if isinstance(exc, RateLimitExceeded):
+        # The slowapi handler returns Response, we need to return it properly
+        response: Response = _rate_limit_exceeded_handler(request, exc)
+        return response
+    # Fallback for unexpected exception types
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests"},
+    )
+
+
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Application lifespan management.
 
     Args:     app: FastAPI application instance
@@ -42,10 +63,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     _log.info("Starting Recipe Scraper Service")
 
+    # Start background database monitoring
+    try:
+        await start_database_monitoring()
+        _log.info("Database monitoring started successfully")
+    except Exception as e:
+        _log.warning(
+            "Failed to start database monitoring: {} ({})", str(e), type(e).__name__
+        )
+
     yield
 
     # Shutdown
     _log.info("Shutting down Recipe Scraper Service")
+
+    # Stop background database monitoring
+    try:
+        await stop_database_monitoring()
+        _log.info("Database monitoring stopped successfully")
+    except Exception as e:
+        _log.warning(
+            "Error stopping database monitoring: {} ({})", str(e), type(e).__name__
+        )
 
 
 app = FastAPI(
@@ -77,8 +116,11 @@ instrumentator = Instrumentator()
 instrumentator.instrument(app).expose(app)
 
 # Exception handlers
+app.add_exception_handler(
+    DatabaseUnavailableError, database_unavailable_exception_handler
+)
 app.add_exception_handler(Exception, unhandled_exception_handler)
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 # Middleware stack (order matters!)
 app.add_middleware(ProcessTimeMiddleware)

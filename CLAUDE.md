@@ -75,7 +75,7 @@ This is a FastAPI-based recipe scraping microservice with a modular, layered arc
 ## Configuration Notes
 
 ### Environment Setup
-- **Python Version**: 3.11 (strict requirement for compatibility)
+- **Python Version**: 3.13 (strict requirement for compatibility)
 - **Poetry**: Used for dependency management and virtual environments
 - **Pre-commit hooks**: Comprehensive code quality pipeline with security scanning and conventional commit validation
 - Requires `.env` file for database credentials and API keys (see README.md)

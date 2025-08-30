@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session]:
     """Yield a database session for FastAPI dependency injection.
 
     This function provides a SQLAlchemy Session instance to FastAPI routes via

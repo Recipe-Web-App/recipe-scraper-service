@@ -8,11 +8,11 @@ import asyncio
 import time
 from datetime import UTC, datetime
 from http import HTTPStatus
-from typing import Annotated, Any
+from typing import Any
 
 import httpx
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from prometheus_client import Counter, Histogram, Info
 from sqlalchemy import text
@@ -20,7 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config.config import get_settings
 from app.core.logging import get_logger
-from app.db.session import get_db
+from app.db.session import check_database_health
+from app.services.database_monitor import get_database_monitor_status
 
 router = APIRouter()
 _log = get_logger(__name__)
@@ -51,12 +52,14 @@ class HealthStatus:
     DEGRADED = "degraded"
 
 
-async def check_database_connection(db: AsyncSession) -> dict[str, Any]:
-    """Check database connectivity.
+async def check_database_connection_with_session(db: AsyncSession) -> dict[str, Any]:
+    """Check database connectivity with an existing session.
 
-    Args:     db: Database session
+    Args:
+        db: Database session
 
-    Returns:     Database health status dict
+    Returns:
+        Database health status dict
     """
     start_time = time.time()
     result = await db.execute(text("SELECT 1"))
@@ -73,6 +76,41 @@ async def check_database_connection(db: AsyncSession) -> dict[str, Any]:
         "response_time_ms": round(duration * 1000, 2),
         "message": "Database query returned unexpected result",
     }
+
+
+async def check_database_connection() -> dict[str, Any]:
+    """Check database connectivity without requiring a session dependency.
+
+    This function uses the check_database_health utility to test connectivity
+    and handles database unavailability gracefully for health endpoints.
+
+    Returns:
+        Database health status dict
+    """
+    start_time = time.time()
+    try:
+        is_healthy = await check_database_health()
+        duration = time.time() - start_time
+
+        if is_healthy:
+            return {
+                "status": HealthStatus.HEALTHY,
+                "response_time_ms": round(duration * 1000, 2),
+                "message": "Database connection successful",
+            }
+        else:
+            return {
+                "status": HealthStatus.DEGRADED,
+                "response_time_ms": round(duration * 1000, 2),
+                "message": "Database connection failed",
+            }
+    except Exception as e:
+        duration = time.time() - start_time
+        return {
+            "status": HealthStatus.DEGRADED,
+            "response_time_ms": round(duration * 1000, 2),
+            "message": f"Database health check error: {str(e)[:100]}",
+        }
 
 
 async def check_external_apis() -> dict[str, Any]:
@@ -166,36 +204,38 @@ async def liveness_probe() -> JSONResponse:
     description="Readiness check including database and external dependencies.",
     status_code=status.HTTP_200_OK,
 )
-async def readiness_probe(db: Annotated[AsyncSession, Depends(get_db)]) -> JSONResponse:
+async def readiness_probe() -> JSONResponse:
     """Readiness probe endpoint.
 
     Comprehensive readiness check including database connectivity. Used by Kubernetes
-    for readiness probes.
+    for readiness probes. Returns degraded status when database is unavailable but
+    service can still function.
 
-    Args:     db: Database session dependency
-
-    Returns:     JSONResponse with readiness status
-
-    Raises:     HTTPException: If service is not ready
+    Returns:
+        JSONResponse with readiness status (200 OK even when degraded)
     """
     with health_check_duration.labels(endpoint="readiness").time():
-        # Check database
-        db_status = await check_database_connection(db)
+        # Check database without dependency injection to avoid exceptions
+        db_status = await check_database_connection()
 
-        if db_status["status"] != HealthStatus.HEALTHY:
-            health_check_counter.labels(endpoint="readiness", status="failed").inc()
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Service not ready: Database unavailable",
-            )
-
-        health_check_counter.labels(endpoint="readiness", status="success").inc()
+        # Determine overall readiness status
+        if db_status["status"] == HealthStatus.HEALTHY:
+            overall_status = "ready"
+            health_check_counter.labels(endpoint="readiness", status="success").inc()
+        else:
+            overall_status = "degraded"
+            health_check_counter.labels(endpoint="readiness", status="degraded").inc()
 
         return JSONResponse(
             content={
-                "status": "ready",
+                "status": overall_status,
                 "timestamp": datetime.now(tz=UTC).isoformat(),
                 "checks": {"database": db_status},
+                "message": (
+                    "Service ready"
+                    if overall_status == "ready"
+                    else "Service degraded but operational"
+                ),
             }
         )
 
@@ -207,21 +247,21 @@ async def readiness_probe(db: Annotated[AsyncSession, Depends(get_db)]) -> JSONR
     description="Detailed health status including all dependencies and metrics.",
     status_code=status.HTTP_200_OK,
 )
-async def health_check(db: Annotated[AsyncSession, Depends(get_db)]) -> JSONResponse:
+async def health_check() -> JSONResponse:
     """Comprehensive health check endpoint.
 
     Provides detailed health information about the service and all its dependencies.
+    Handles database unavailability gracefully and shows degraded status.
 
-    Args:     db: Database session dependency
-
-    Returns:     JSONResponse with comprehensive health status
+    Returns:
+        JSONResponse with comprehensive health status
     """
     with health_check_duration.labels(endpoint="health").time():
         start_time = time.time()
 
-        # Run all health checks concurrently
+        # Run all health checks concurrently without database dependency injection
         results = await asyncio.gather(
-            check_database_connection(db),
+            check_database_connection(),
             check_external_apis(),
             check_redis_connection(),
             return_exceptions=True,
@@ -261,29 +301,31 @@ async def health_check(db: Annotated[AsyncSession, Depends(get_db)]) -> JSONResp
             "external_apis": external_apis_check,
         }
 
-        # Calculate overall status
-        unhealthy_count = sum(
-            1
-            for check in [db_check, redis_check]
-            if check.get("status") == HealthStatus.UNHEALTHY
-        )
+        # Calculate overall status with proper handling of degraded components
+        unhealthy_count = 0
+        degraded_count = 0
+
+        # Count unhealthy and degraded components
+        for check in [db_check, redis_check]:
+            if check.get("status") == HealthStatus.UNHEALTHY:
+                unhealthy_count += 1
+            elif check.get("status") == HealthStatus.DEGRADED:
+                degraded_count += 1
 
         # Check external APIs
         for api_status in external_apis_check.values():
             if api_status.get("status") == HealthStatus.UNHEALTHY:
                 unhealthy_count += 1
+            elif api_status.get("status") == HealthStatus.DEGRADED:
+                degraded_count += 1
 
+        # Determine overall status - service remains operational with degraded database
         if unhealthy_count > 0:
-            overall_status = (
-                HealthStatus.DEGRADED
-                if unhealthy_count == 1
-                else HealthStatus.UNHEALTHY
-            )
-            status_code = (
-                status.HTTP_503_SERVICE_UNAVAILABLE
-                if overall_status == HealthStatus.UNHEALTHY
-                else status.HTTP_200_OK
-            )
+            overall_status = HealthStatus.UNHEALTHY
+            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        elif degraded_count > 0:
+            overall_status = HealthStatus.DEGRADED
+            status_code = status.HTTP_200_OK  # Service still operational
         else:
             overall_status = HealthStatus.HEALTHY
             status_code = status.HTTP_200_OK
@@ -297,6 +339,9 @@ async def health_check(db: Annotated[AsyncSession, Depends(get_db)]) -> JSONResp
             ),
         ).inc()
 
+        # Include database monitoring status
+        db_monitor_status = get_database_monitor_status()
+
         response_content = {
             "status": overall_status,
             "timestamp": datetime.now(tz=UTC).isoformat(),
@@ -305,6 +350,7 @@ async def health_check(db: Annotated[AsyncSession, Depends(get_db)]) -> JSONResp
                 time.time()
             ),  # Would need startup time tracking for accurate uptime
             "checks": checks,
+            "database_monitoring": db_monitor_status,
             "response_time_ms": round(total_duration * 1000, 2),
         }
 
