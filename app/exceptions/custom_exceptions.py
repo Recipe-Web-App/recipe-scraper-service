@@ -234,3 +234,76 @@ class DatabaseUnavailableError(Exception):
             Exception | None: The original exception, if provided.
         """
         return self.original_error
+
+
+class AuthenticationError(Exception):
+    """Base exception for authentication-related errors."""
+
+    def __init__(self, message: str = "Authentication failed") -> None:
+        """Initialize the authentication error.
+
+        Args:
+            message: Detailed error message.
+        """
+        super().__init__(message)
+
+
+class AuthenticationRequiredError(AuthenticationError):
+    """Raised when authentication is required but not provided."""
+
+    def __init__(self) -> None:
+        """Initialize the authentication required error."""
+        super().__init__("Authentication required")
+
+
+class InvalidTokenError(AuthenticationError):
+    """Raised when the provided authentication token is invalid."""
+
+    def __init__(self, reason: str | None = None) -> None:
+        """Initialize the invalid token error.
+
+        Args:
+            reason: Optional specific reason why the token is invalid.
+        """
+        message = "Invalid authentication token"
+        if reason:
+            message += f": {reason}"
+        super().__init__(message)
+
+
+class ExpiredTokenError(AuthenticationError):
+    """Raised when the provided authentication token has expired."""
+
+    def __init__(self) -> None:
+        """Initialize the expired token error."""
+        super().__init__("Authentication token has expired")
+
+
+class InsufficientPermissionsError(AuthenticationError):
+    """Raised when the authenticated user lacks sufficient permissions."""
+
+    def __init__(self, required_permission: str | None = None) -> None:
+        """Initialize the insufficient permissions error.
+
+        Args:
+            required_permission: The permission that was required but not available.
+        """
+        message = "Insufficient permissions"
+        if required_permission:
+            message += f" (required: {required_permission})"
+        super().__init__(message)
+
+
+class OAuth2IntrospectionError(AuthenticationError):
+    """Raised when OAuth2 token introspection fails."""
+
+    def __init__(self, reason: str | None = None) -> None:
+        """Initialize the OAuth2 introspection error.
+
+        Args:
+            reason: Optional specific reason for the introspection failure.
+        """
+        message = "OAuth2 token introspection failed"
+        if reason:
+            message += f": {reason}"
+        super().__init__(message)

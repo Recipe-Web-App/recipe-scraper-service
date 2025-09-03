@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from app.deps.auth import ServiceToServiceAuth
 from app.services.admin_service import AdminService
 
 router = APIRouter()
@@ -27,13 +28,19 @@ def get_admin_service() -> AdminService:
 )
 async def clear_cache(
     admin_service: Annotated[AdminService, Depends(get_admin_service)],
+    auth_context: ServiceToServiceAuth,
 ) -> dict[str, str]:
     """Clear Cache Handler.
 
     This endpoint clears the cache for the Recipe Scraper service. It is intended for
-    administrative use only.
+    administrative use only and requires service-to-service authentication.
 
-    Returns:     dict: Success message confirming cache was cleared
+    Args:
+        admin_service: Service for administrative operations.
+        auth_context: Service-to-service authentication context.
+
+    Returns:
+        dict: Success message confirming cache was cleared
     """
     await admin_service.clear_cache()
     return {"message": "Cache cleared successfully"}

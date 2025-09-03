@@ -5,9 +5,9 @@ popular links.
 """
 
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Query
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from app.api.v1.schemas.response.recommended_recipes_response import (
     PopularRecipesResponse,
 )
 from app.core.logging import get_logger
+from app.deps.auth import OptionalAuth
 from app.deps.db import get_db
 from app.services.recipe_scraper_service import RecipeScraperService
 from app.utils.validators import validate_pagination_params
@@ -118,17 +119,25 @@ def create_recipe(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
     db: Annotated[Session, Depends(get_db)],
     request: CreateRecipeRequest,
-    user_id: Annotated[UUID, Header(..., alias="X-User-ID")],
+    user_context: OptionalAuth,
 ) -> CreateRecipeResponse:
     """Endpoint to create a recipe from a given URL and add it to the database.
 
-    Args:     service (RecipeScraperService): Service for recipe scraping logic.     db
-    (Session): Database session dependency.     request (CreateRecipeRequest): Request
-    body containing the recipe URL.     user_id (UUID): The unique identifier of the
-    user making the request.
+    Args:
+        service: Service for recipe scraping logic.
+        db: Database session dependency.
+        request: Request body containing the recipe URL.
+        user_context: Optional authentication context for the user.
 
-    Returns:     CreateRecipeResponse: The created recipe response.
+    Returns:
+        CreateRecipeResponse: The created recipe response.
     """
+    # Extract user ID from authentication context, generate anonymous ID if needed
+    if user_context and user_context.user_id:
+        user_id = UUID(user_context.user_id)
+    else:
+        # Generate anonymous user ID for tracking purposes
+        user_id = uuid4()
     return service.create_recipe(request.recipe_url, db, user_id)
 
 

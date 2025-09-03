@@ -20,8 +20,12 @@ from slowapi.util import get_remote_address
 from app.api.v1.routes import api_router
 from app.core.config.config import get_settings
 from app.core.logging import get_logger
-from app.exceptions.custom_exceptions import DatabaseUnavailableError
+from app.exceptions.custom_exceptions import (
+    AuthenticationError,
+    DatabaseUnavailableError,
+)
 from app.exceptions.handlers import (
+    authentication_exception_handler,
     database_unavailable_exception_handler,
     unhandled_exception_handler,
 )
@@ -119,6 +123,7 @@ instrumentator.instrument(app).expose(app)
 app.add_exception_handler(
     DatabaseUnavailableError, database_unavailable_exception_handler
 )
+app.add_exception_handler(AuthenticationError, authentication_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 

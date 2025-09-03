@@ -51,6 +51,18 @@ class _Settings(BaseSettings):
     ENABLE_RATE_LIMITING: bool = Field(default=True, alias="ENABLE_RATE_LIMITING")
     RATE_LIMIT_PER_MINUTE: int = Field(default=100, alias="RATE_LIMIT_PER_MINUTE")
 
+    # OAuth2 Authentication Configuration
+    JWT_SECRET: str = Field(default="", alias="JWT_SECRET")
+    OAUTH2_SERVICE_ENABLED: bool = Field(default=False, alias="OAUTH2_SERVICE_ENABLED")
+    OAUTH2_SERVICE_TO_SERVICE_ENABLED: bool = Field(
+        default=False, alias="OAUTH2_SERVICE_TO_SERVICE_ENABLED"
+    )
+    OAUTH2_INTROSPECTION_ENABLED: bool = Field(
+        default=False, alias="OAUTH2_INTROSPECTION_ENABLED"
+    )
+    OAUTH2_CLIENT_ID: str = Field(default="", alias="OAUTH2_CLIENT_ID")
+    OAUTH2_CLIENT_SECRET: str = Field(default="", alias="OAUTH2_CLIENT_SECRET")
+
     LOGGING_CONFIG_PATH: str = Field(
         str(
             (
@@ -297,6 +309,36 @@ class _Settings(BaseSettings):
     def rate_limit_per_minute(self) -> int:
         """Get rate limit per minute."""
         return self.RATE_LIMIT_PER_MINUTE
+
+    @property
+    def jwt_secret(self) -> str:
+        """Get JWT secret for token validation."""
+        return self.JWT_SECRET
+
+    @property
+    def oauth2_service_enabled(self) -> bool:
+        """Get OAuth2 service enabled flag."""
+        return self.OAUTH2_SERVICE_ENABLED
+
+    @property
+    def oauth2_service_to_service_enabled(self) -> bool:
+        """Get OAuth2 service-to-service enabled flag."""
+        return self.OAUTH2_SERVICE_TO_SERVICE_ENABLED
+
+    @property
+    def oauth2_introspection_enabled(self) -> bool:
+        """Get OAuth2 introspection enabled flag."""
+        return self.OAUTH2_INTROSPECTION_ENABLED
+
+    @property
+    def oauth2_client_id(self) -> str:
+        """Get OAuth2 client ID."""
+        return self.OAUTH2_CLIENT_ID
+
+    @property
+    def oauth2_client_secret(self) -> str:
+        """Get OAuth2 client secret."""
+        return self.OAUTH2_CLIENT_SECRET
 
 
 _settings: _Settings | None = None
