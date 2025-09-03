@@ -65,6 +65,14 @@ ALLOWED_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
 ENABLE_RATE_LIMITING=false
 SECRET_KEY=dev_secret_key_change_in_production
 
+# OAuth2 Authentication
+OAUTH2_SERVICE_ENABLED=true
+OAUTH2_SERVICE_TO_SERVICE_ENABLED=true
+OAUTH2_INTROSPECTION_ENABLED=false
+OAUTH2_CLIENT_ID=recipe-service-client
+OAUTH2_CLIENT_SECRET=dev_oauth2_client_secret
+JWT_SECRET=dev_jwt_secret_key_at_least_32_chars
+
 # Performance
 ENABLE_CACHING=true
 CACHE_LAYERS=["memory", "redis"]
@@ -99,6 +107,14 @@ ALLOWED_ORIGINS=["https://yourdomain.com"]
 ENABLE_RATE_LIMITING=true
 RATE_LIMIT_PER_MINUTE=100
 SECRET_KEY=${SECRET_KEY}
+
+# OAuth2 Authentication
+OAUTH2_SERVICE_ENABLED=true
+OAUTH2_SERVICE_TO_SERVICE_ENABLED=true
+OAUTH2_INTROSPECTION_ENABLED=true
+OAUTH2_CLIENT_ID=${OAUTH2_CLIENT_ID}
+OAUTH2_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
+JWT_SECRET=${JWT_SECRET}
 
 # Performance
 ENABLE_CACHING=true

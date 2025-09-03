@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.routes.recipes import get_recipe_scraper_service, router
 from app.api.v1.schemas.common.pagination_params import PaginationParams
+from app.api.v1.schemas.downstream.auth_service.introspection_response import (
+    OAuth2IntrospectionResponse,
+)
 from app.api.v1.schemas.request.create_recipe_request import CreateRecipeRequest
+from app.deps.auth import UserContext, get_optional_user_context
 from app.services.recipe_scraper_service import RecipeScraperService
 from tests.conftest import IsType
 
@@ -41,6 +45,19 @@ class TestRecipesRoutes:
         test_app.dependency_overrides[get_recipe_scraper_service] = (
             lambda: mock_recipe_scraper_service
         )
+
+        # Mock optional authentication to return user context with test user ID
+        mock_token_info = OAuth2IntrospectionResponse(
+            active=True,
+            sub=str(mock_user_id),
+            username="testuser",
+            client_id="test-client",
+        )
+        mock_user_context = UserContext(mock_token_info)
+        test_app.dependency_overrides[get_optional_user_context] = (
+            lambda: mock_user_context
+        )
+
         test_app.include_router(router)
         client = TestClient(test_app)
 
@@ -48,7 +65,6 @@ class TestRecipesRoutes:
         response = client.post(
             "/recipe-scraper/create-recipe",
             json=mock_create_recipe_request_schema.model_dump(),
-            headers={"X-User-ID": str(mock_user_id)},
         )
 
         # Assert

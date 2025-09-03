@@ -12,7 +12,51 @@ This document provides comprehensive information about the Recipe Scraper Servic
 
 ## Authentication
 
-Currently, the API does not require authentication for most endpoints. Future versions will include JWT-based authentication for user-specific operations.
+The API supports OAuth2 authentication with JWT tokens. Authentication can be configured to be optional or required depending on deployment settings.
+
+### Authentication Methods
+
+1. **JWT Token Validation** (Default)
+   - Uses local JWT validation with a shared secret
+   - Faster performance, no external calls required
+   - Configure with `OAUTH2_INTROSPECTION_ENABLED=false`
+
+2. **OAuth2 Token Introspection**
+   - Validates tokens via external OAuth2 introspection endpoint
+   - Real-time token validation and revocation support
+   - Configure with `OAUTH2_INTROSPECTION_ENABLED=true`
+
+### Authentication Headers
+
+Include the authorization header in your requests:
+
+```http
+Authorization: Bearer <your-jwt-token>
+```
+
+### Authentication Modes
+
+- **Optional Authentication**: Some endpoints work with or without authentication
+- **Required Authentication**: Protected endpoints require valid authentication
+- **Service-to-Service**: Admin endpoints require service-to-service tokens
+
+### Authentication Errors
+
+Authentication failures return specific error responses:
+
+```json
+{
+  "detail": "Authentication required",
+  "error_type": "authentication_required"
+}
+```
+
+Common authentication error types:
+- `authentication_required` - Missing or invalid authentication
+- `invalid_token` - Token is malformed or signature invalid
+- `expired_token` - Token has expired
+- `insufficient_permissions` - Valid token but lacks required permissions
+- `introspection_failed` - OAuth2 introspection validation failed
 
 ## Rate Limiting
 

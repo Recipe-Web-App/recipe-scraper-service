@@ -116,9 +116,10 @@ class RecipeScraperService:
     ) -> CreateRecipeResponse:
         """Create a recipe from the given URL using recipe_scraper and persist it.
 
-        Args:     url (str): The URL of the recipe to scrape.     db (Session): The
-        database session to add the recipe to.     user_id (UUID): The unique identifier
-        of the user creating the recipe.
+        Args:
+            url: The URL of the recipe to scrape.
+            db: The database session to add the recipe to.
+            user_id: The unique identifier of the user creating the recipe.
 
         Returns:     CreateRecipeResponse: The response containing the recipe data.
         """

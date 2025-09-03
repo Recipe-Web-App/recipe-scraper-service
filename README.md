@@ -20,6 +20,7 @@ A modern, high-performance FastAPI microservice for scraping and managing recipe
 - **Rate limiting** and security middleware stack
 
 ### 🔒 Security First
+- **OAuth2 Authentication** with JWT validation and token introspection
 - **Secret scanning** with detect-secrets and TruffleHog
 - **Dependency vulnerability scanning** with Safety and Snyk
 - **Code security analysis** with Bandit and Semgrep
@@ -430,7 +431,7 @@ While the Recipe Scraper Service is feature-complete and production-ready, here 
 ### **MEDIUM Priority**
 
 #### **🔐 Security Enhancements**
-- **Authentication & Authorization**: Implement JWT-based authentication system (currently uses header-based user ID)
+- **✅ Authentication & Authorization**: JWT-based OAuth2 authentication system with optional/required modes
 - **API Key Management**: Add API key authentication for external service access
 - **Input Sanitization**: Enhanced validation for recipe URLs and user-generated content
 - **Rate Limiting Per User**: Implement user-specific rate limiting instead of IP-based only
