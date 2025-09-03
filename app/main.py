@@ -6,6 +6,7 @@ routers, and other startup procedures.
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,7 +114,121 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
     lifespan=lifespan,
+    openapi_tags=[
+        {
+            "name": "Authentication",
+            "description": "OAuth2 authentication endpoints and utilities",
+        },
+        {
+            "name": "Recipes",
+            "description": "Recipe scraping and management operations",
+        },
+        {
+            "name": "Health",
+            "description": "Health check and monitoring endpoints",
+        },
+        {
+            "name": "Admin",
+            "description": "Administrative operations (requires service auth)",
+        },
+    ],
 )
+
+
+# Store the original openapi method
+_original_openapi = app.openapi
+
+
+def custom_openapi() -> dict[str, Any]:
+    """Generate custom OpenAPI schema with OAuth2 security."""
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    # Get the default schema using the original method
+    openapi_schema = _original_openapi()
+
+    # Add OAuth2 Bearer token security scheme
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "OAuth2 JWT Bearer token authentication",
+        },
+        "OAuth2": {
+            "type": "oauth2",
+            "flows": {
+                "clientCredentials": {
+                    "tokenUrl": "/oauth/token",
+                    "scopes": {
+                        "read": "Read access to resources",
+                        "write": "Write access to resources",
+                        "admin": "Administrative access",
+                    },
+                }
+            },
+            "description": "OAuth2 authentication with JWT tokens",
+        },
+    }
+
+    # Add common response schemas for authentication errors
+    openapi_schema["components"]["responses"] = {
+        "UnauthorizedError": {
+            "description": "Authentication required",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "detail": {
+                                "type": "string",
+                                "example": "Authentication required",
+                            },
+                            "error_type": {
+                                "type": "string",
+                                "example": "authentication_required",
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        "ForbiddenError": {
+            "description": "Insufficient permissions",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "detail": {
+                                "type": "string",
+                                "example": "Insufficient permissions",
+                            },
+                            "error_type": {
+                                "type": "string",
+                                "example": "insufficient_permissions",
+                            },
+                        },
+                    }
+                }
+            },
+        },
+    }
+
+    # Add global security requirement (can be overridden per endpoint)
+    openapi_schema["security"] = [
+        {"BearerAuth": []},
+        {"OAuth2": []},
+    ]
+
+    app.openapi_schema = openapi_schema
+    return openapi_schema
+
+
+# Replace the openapi method with our custom one
+# Using property assignment with type cast to satisfy both mypy and ruff
+app.openapi = custom_openapi  # type: ignore[method-assign]
+
 
 # Prometheus instrumentation (must be done before middleware setup)
 instrumentator = Instrumentator()

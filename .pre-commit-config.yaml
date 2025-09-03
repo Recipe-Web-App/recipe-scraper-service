@@ -130,7 +130,7 @@ repos:
       # Python testing
       - id: pytest-check
         name: pytest-check
-        entry: poetry run pytest --co -q
+        entry: poetry run test-unit
         language: system
         pass_filenames: false
         always_run: true
