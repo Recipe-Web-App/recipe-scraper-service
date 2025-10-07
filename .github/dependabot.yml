@@ -7,9 +7,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 10
-    reviewers:
-      - "jsamuelsen"
+    open-pull-requests-limit: 100
     assignees:
       - "jsamuelsen"
     commit-message:
@@ -38,9 +36,7 @@ updates:
       interval: "weekly"
       day: "tuesday"
       time: "09:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "jsamuelsen"
+    open-pull-requests-limit: 100
     assignees:
       - "jsamuelsen"
     commit-message:
@@ -57,9 +53,7 @@ updates:
       interval: "weekly"
       day: "wednesday"
       time: "09:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "jsamuelsen"
+    open-pull-requests-limit: 100
     assignees:
       - "jsamuelsen"
     commit-message:
