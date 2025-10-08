@@ -1,6 +1,7 @@
 # API Documentation
 
-This document provides comprehensive information about the Recipe Scraper Service API endpoints, request/response formats, and usage examples.
+This document provides comprehensive information about the Recipe Scraper
+Service API endpoints, request/response formats, and usage examples.
 
 ## Base Information
 
@@ -12,7 +13,8 @@ This document provides comprehensive information about the Recipe Scraper Servic
 
 ## Authentication
 
-The API supports OAuth2 authentication with JWT tokens. Authentication can be configured to be optional or required depending on deployment settings.
+The API supports OAuth2 authentication with JWT tokens. Authentication can
+be configured to be optional or required depending on deployment settings.
 
 ### Authentication Methods
 
@@ -52,6 +54,7 @@ Authentication failures return specific error responses:
 ```
 
 Common authentication error types:
+
 - `authentication_required` - Missing or invalid authentication
 - `invalid_token` - Token is malformed or signature invalid
 - `expired_token` - Token has expired
@@ -114,9 +117,11 @@ All API responses follow a consistent structure:
 ### Health Check Endpoints
 
 #### GET `/health`
+
 Comprehensive health check including all dependencies.
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -140,9 +145,11 @@ Comprehensive health check including all dependencies.
 ```
 
 #### GET `/liveness`
+
 Basic liveness probe for Kubernetes.
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -154,9 +161,11 @@ Basic liveness probe for Kubernetes.
 ```
 
 #### GET `/readiness`
+
 Readiness probe checking critical dependencies.
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -173,9 +182,11 @@ Readiness probe checking critical dependencies.
 ### Recipe Scraper Endpoints
 
 #### POST `/recipe-scraper/create-recipe`
+
 Create a recipe by scraping data from a URL.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/recipe",
@@ -186,6 +197,7 @@ Create a recipe by scraping data from a URL.
 ```
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -225,15 +237,18 @@ Create a recipe by scraping data from a URL.
 ```
 
 #### GET `/recipe-scraper/popular-recipes`
+
 Get a list of popular recipes from various cooking websites.
 
 **Query Parameters:**
+
 - `limit` (int, optional): Number of recipes to return (default: 20, max: 100)
 - `offset` (int, optional): Number of recipes to skip (default: 0)
 - `category` (string, optional): Recipe category filter
 - `difficulty` (string, optional): Difficulty level filter
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -265,16 +280,20 @@ Get a list of popular recipes from various cooking websites.
 ### Nutritional Information Endpoints
 
 #### GET `/nutritional-info/{ingredient}`
+
 Get nutritional information for a specific ingredient.
 
 **Path Parameters:**
+
 - `ingredient` (string): Name of the ingredient
 
 **Query Parameters:**
+
 - `amount` (float, optional): Amount of ingredient (default: 100)
 - `unit` (string, optional): Unit of measurement (default: "grams")
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -313,15 +332,18 @@ Get nutritional information for a specific ingredient.
 ### Recommendation Endpoints
 
 #### GET `/recommendations/substitutes`
+
 Get ingredient substitution recommendations.
 
 **Query Parameters:**
+
 - `ingredient` (string, required): Original ingredient name
 - `amount` (float, optional): Amount of original ingredient
 - `unit` (string, optional): Unit of measurement
 - `dietary_restrictions` (array, optional): Dietary restrictions to consider
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -352,9 +374,11 @@ Get ingredient substitution recommendations.
 ```
 
 #### GET `/recommendations/similar-recipes`
+
 Get recommendations for similar recipes.
 
 **Query Parameters:**
+
 - `recipe_id` (string, optional): Recipe ID for similarity matching
 - `ingredients` (array, optional): List of ingredients to match
 - `cuisine` (string, optional): Cuisine type preference
@@ -362,6 +386,7 @@ Get recommendations for similar recipes.
 - `max_cook_time` (int, optional): Maximum cooking time in minutes
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -391,9 +416,11 @@ Get recommendations for similar recipes.
 ### Admin Endpoints
 
 #### GET `/admin/system-stats`
+
 Get system statistics and performance metrics.
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -426,9 +453,11 @@ Get system statistics and performance metrics.
 ```
 
 #### POST `/admin/cache/clear`
+
 Clear application cache.
 
 **Request Body:**
+
 ```json
 {
   "cache_type": "all",  // Options: "all", "redis", "memory", "files"
@@ -437,6 +466,7 @@ Clear application cache.
 ```
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -455,6 +485,7 @@ Clear application cache.
 The service can send webhook notifications when recipes are processed:
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "recipe.created",
@@ -509,11 +540,14 @@ class RecipeScraperClient {
   }
 
   async createRecipe(url, options = {}) {
-    const response = await fetch(`${this.baseUrl}/recipe-scraper/create-recipe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, ...options })
-    });
+    const response = await fetch(
+      `${this.baseUrl}/recipe-scraper/create-recipe`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, ...options })
+      }
+    );
     return response.json();
   }
 
@@ -551,7 +585,8 @@ curl "http://localhost:8000/api/v1/recipe-scraper/popular-recipes?limit=10&categ
 
 ### Using Postman
 
-Import the provided Postman collection from `/postman/` directory for comprehensive API testing with pre-configured environments and test scripts.
+Import the provided Postman collection from `/postman/` directory for
+comprehensive API testing with pre-configured environments and test scripts.
 
 ## API Versioning
 
@@ -565,7 +600,8 @@ Import the provided Postman collection from `/postman/` directory for comprehens
 - **Caching**: Responses are cached for improved performance
 - **Rate Limiting**: Implement client-side rate limiting for high-volume usage
 - **Pagination**: Use limit/offset parameters for large datasets
-- **Async Processing**: Long-running operations may return 202 Accepted with status endpoints
+- **Async Processing**: Long-running operations may return 202 Accepted with
+  status endpoints
 
 ## Monitoring and Observability
 
@@ -574,4 +610,6 @@ Import the provided Postman collection from `/postman/` directory for comprehens
 - **Health Checks**: Use health endpoints for monitoring
 - **Logging**: Structured logs with correlation IDs
 
-For more detailed implementation examples and advanced usage patterns, refer to the [interactive API documentation](http://localhost:8000/docs) when the service is running.
+For more detailed implementation examples and advanced usage patterns, refer
+to the [interactive API documentation](http://localhost:8000/docs) when the
+service is running.

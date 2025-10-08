@@ -10,7 +10,8 @@
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Breaking change (fix or feature that would cause existing
+  functionality to not work as expected)
 - [ ] Performance improvement
 - [ ] Refactoring (no functional changes)
 - [ ] Documentation update
@@ -21,7 +22,8 @@
 
 ## Related Issues
 
-<!-- Link to related issues using keywords: Fixes #123, Resolves #456, Related to #789 -->
+<!-- Link to related issues using keywords: Fixes #123, Resolves #456,
+Related to #789 -->
 
 Fixes #
 
@@ -147,7 +149,8 @@ Fixes #
 
 <!-- Ensure all items are completed before requesting review -->
 
-- [ ] Code follows the project's style guidelines (`poetry run black .`, `poetry run isort .`)
+- [ ] Code follows the project's style guidelines
+  (`poetry run black .`, `poetry run isort .`)
 - [ ] Linting passes (`poetry run ruff check .`)
 - [ ] Type checking passes (`poetry run mypy app/`)
 - [ ] Self-review of code performed

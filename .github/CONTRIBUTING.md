@@ -1,6 +1,7 @@
 # Contributing to Recipe Scraper Service
 
-Thank you for your interest in contributing to the Recipe Scraper Service! This document provides guidelines and instructions for contributing to this project.
+Thank you for your interest in contributing to the Recipe Scraper Service! This
+document provides guidelines and instructions for contributing to this project.
 
 ## Table of Contents
 
@@ -17,7 +18,9 @@ Thank you for your interest in contributing to the Recipe Scraper Service! This 
 
 ## Code of Conduct
 
-This project adheres to a code of conduct. By participating, you are expected to uphold this standard. Please refer to [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
+This project adheres to a code of conduct. By participating, you are expected
+to uphold this standard. Please refer to
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
 
 ## Getting Started
 
@@ -33,11 +36,14 @@ This project adheres to a code of conduct. By participating, you are expected to
 
 1. Fork the repository on GitHub
 2. Clone your fork locally:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/recipe-scraper-service.git
    cd recipe-scraper-service
    ```
+
 3. Add the upstream repository:
+
    ```bash
    git remote add upstream https://github.com/Recipe-Web-App/recipe-scraper-service.git
    ```
@@ -60,6 +66,7 @@ poetry shell
 ### Environment Configuration
 
 1. Copy the example environment file:
+
    ```bash
    cp .env.example .env
    ```
@@ -241,6 +248,7 @@ pre-commit run --all-files
 ```
 
 Hooks will automatically run on `git commit` and include:
+
 - Black formatting
 - isort import sorting
 - Ruff linting
@@ -250,11 +258,12 @@ Hooks will automatically run on `git commit` and include:
 
 ## Commit Guidelines
 
-This project strictly enforces **Conventional Commits** for automated changelog generation and semantic versioning.
+This project strictly enforces **Conventional Commits** for automated
+changelog generation and semantic versioning.
 
 ### Commit Message Format
 
-```
+```text
 <type>[optional scope]: <description>
 
 [optional body]
@@ -312,12 +321,14 @@ git config commit.template .gitmessage
 ### Before Submitting
 
 1. **Update your branch** with the latest upstream changes:
+
    ```bash
    git fetch upstream
    git rebase upstream/main
    ```
 
 2. **Run all quality checks**:
+
    ```bash
    # Format code
    poetry run black .
@@ -346,6 +357,7 @@ git config commit.template .gitmessage
 ### Creating a Pull Request
 
 1. Push your branch to your fork:
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -389,7 +401,8 @@ git config commit.template .gitmessage
 **DO NOT** create public issues for security vulnerabilities.
 
 Instead, please report security issues via:
-- **GitHub Security Advisories**: https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new
+
+- **GitHub Security Advisories**: <https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new>
 
 For more information, see [SECURITY.md](SECURITY.md).
 

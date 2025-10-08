@@ -15,15 +15,17 @@ We release patches for security vulnerabilities. Currently supported versions:
 
 ### For Critical and High Severity Issues
 
-If you discover a security vulnerability, please report it via **GitHub Security Advisories**:
+If you discover a security vulnerability, please report it via
+**GitHub Security Advisories**:
 
-1. Go to https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new
+1. Go to <https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new>
 2. Click "Report a vulnerability"
 3. Fill out the security advisory form with details
 
 ### What to Include in Your Report
 
-To help us better understand and resolve the issue, please include as much of the following information as possible:
+To help us better understand and resolve the issue, please include as
+much of the following information as possible:
 
 - **Type of vulnerability** (e.g., SQL injection, XSS, authentication bypass, etc.)
 - **Full path** of the source file(s) related to the vulnerability
@@ -201,7 +203,8 @@ We follow a coordinated disclosure process:
 We appreciate the work of security researchers:
 
 - We will credit you in the security advisory (unless you prefer to remain anonymous)
-- Your name will be added to our [Security Hall of Fame](../README.md#security-hall-of-fame) (if you wish)
+- Your name will be added to our
+  [Security Hall of Fame](../README.md#security-hall-of-fame) (if you wish)
 - We may offer a thank-you letter or swag for significant discoveries
 
 ## Security Updates
@@ -260,7 +263,7 @@ pre-commit run --all-files
 
 For security concerns that don't require immediate disclosure:
 
-- **Email**: security@recipe-web-app.com (if available)
+- **Email**: <security@recipe-web-app.com> (if available)
 - **GitHub**: @jsamuelsen11
 
 For urgent security issues, always use **GitHub Security Advisories**.

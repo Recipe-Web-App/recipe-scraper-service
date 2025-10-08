@@ -1,6 +1,7 @@
 # Support
 
-Thank you for using the Recipe Scraper Service! This document provides guidance on getting help and finding resources.
+Thank you for using the Recipe Scraper Service! This document provides
+guidance on getting help and finding resources.
 
 ## Table of Contents
 
@@ -31,7 +32,7 @@ Start with our comprehensive documentation:
 
 Choose the appropriate support channel based on your needs:
 
-```
+```text
 ┌─────────────────────────────────┬──────────────────────────┐
 │ Question Type                   │ Support Channel          │
 ├─────────────────────────────────┼──────────────────────────┤
@@ -109,7 +110,8 @@ We provide structured templates for different types of issues:
 - **Performance Issue** - Report performance degradation or optimization opportunities
 - **Documentation** - Report documentation issues or improvements
 - **Task** - Track development tasks and implementation work
-- **Security Vulnerability** - Report low-severity security issues (use Security Advisories for high/critical)
+- **Security Vulnerability** - Report low-severity security issues (use
+  Security Advisories for high/critical)
 
 ### Creating an Issue
 
@@ -126,7 +128,8 @@ We provide structured templates for different types of issues:
 ### For Security Vulnerabilities
 
 Use **GitHub Security Advisories**:
-- Go to https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new
+
+- Go to <https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new>
 - Provide details about the vulnerability
 - We will respond within 48 hours
 
@@ -139,6 +142,7 @@ See [SECURITY.md](SECURITY.md) for complete security reporting guidelines.
 **Q: How do I install and run the service locally?**
 
 A: Follow these steps:
+
 ```bash
 # Clone the repository
 git clone https://github.com/Recipe-Web-App/recipe-scraper-service.git
@@ -160,22 +164,25 @@ See [README.md](../README.md) for detailed setup instructions.
 **Q: What environment variables do I need to configure?**
 
 A: Essential environment variables:
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Redis connection string (optional, for caching)
 - `SPOONACULAR_API_KEY` - Spoonacular API key for nutritional data
 - `SECRET_KEY` - Secret key for security features
 
-See `.env.example` for a complete list and [DEPLOYMENT.md](../DEPLOYMENT.md) for production configuration.
+See `.env.example` for a complete list and [DEPLOYMENT.md](../DEPLOYMENT.md)
+for production configuration.
 
 **Q: How do I get a Spoonacular API key?**
 
-A: Visit https://spoonacular.com/food-api to sign up for a free or paid API key.
+A: Visit <https://spoonacular.com/food-api> to sign up for a free or paid API key.
 
 ### Using the API
 
 **Q: How do I scrape a recipe from a URL?**
 
 A: Make a POST request to `/api/v1/recipes/scrape`:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/recipes/scrape" \
   -H "Content-Type: application/json" \
@@ -186,11 +193,14 @@ See [API.md](../API.md) for complete API documentation.
 
 **Q: What recipe websites are supported?**
 
-A: The service uses the `recipe-scrapers` library which supports 100+ popular recipe websites. See `config/recipe_scraping/recipe_blog_urls.json` for a curated list of popular sites.
+A: The service uses the `recipe-scrapers` library which supports 100+ popular
+recipe websites. See `config/recipe_scraping/recipe_blog_urls.json` for a
+curated list of popular sites.
 
 **Q: How do I get nutritional information for a recipe?**
 
 A: Use the `/api/v1/nutritional-info/analyze` endpoint:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/nutritional-info/analyze" \
   -H "Content-Type: application/json" \
@@ -202,6 +212,7 @@ curl -X POST "http://localhost:8000/api/v1/nutritional-info/analyze" \
 **Q: I'm getting a "Database connection failed" error. What should I do?**
 
 A: Check the following:
+
 1. Ensure PostgreSQL is running
 2. Verify your `DATABASE_URL` in `.env` is correct
 3. Check database credentials and permissions
@@ -210,6 +221,7 @@ A: Check the following:
 **Q: Recipe scraping is failing for certain websites. Why?**
 
 A: Possible causes:
+
 1. The website may have changed its HTML structure
 2. The website may block scraping attempts
 3. Rate limiting may be in effect
@@ -220,6 +232,7 @@ Try scraping from a different source or open an issue with the specific URL.
 **Q: I'm getting "API rate limit exceeded" errors. What should I do?**
 
 A: The service implements rate limiting to prevent abuse:
+
 1. Check your request frequency
 2. Implement backoff and retry logic in your client
 3. Consider caching responses
@@ -230,6 +243,7 @@ A: The service implements rate limiting to prevent abuse:
 **Q: How do I run tests?**
 
 A: Run tests using pytest:
+
 ```bash
 # All tests with coverage
 pytest --cov=app tests/
@@ -246,6 +260,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed testing guidelines.
 **Q: How do I format and lint my code?**
 
 A: Use the provided tools:
+
 ```bash
 # Format code
 poetry run black .
@@ -277,6 +292,7 @@ Please note these are approximate response times:
 | Pull Requests       | 3-5 business days     |
 
 Response times may vary based on:
+
 - Issue complexity
 - Maintainer availability
 - Number of open issues
@@ -347,9 +363,8 @@ When reporting a bug, include:
 - Redis: 7.0.10
 
 **Logs**:
-```
-ERROR: ConnectionTimeout: Request timed out after 10 seconds
-```
+
+    ERROR: ConnectionTimeout: Request timed out after 10 seconds
 
 **Additional Context**: This started happening after upgrading to version 1.2.0
 ```
@@ -358,12 +373,12 @@ ERROR: ConnectionTimeout: Request timed out after 10 seconds
 
 ### External Documentation
 
-- **Python**: https://docs.python.org/3/
-- **FastAPI**: https://fastapi.tiangolo.com/
-- **SQLAlchemy**: https://docs.sqlalchemy.org/
-- **Poetry**: https://python-poetry.org/docs/
-- **pytest**: https://docs.pytest.org/
-- **recipe-scrapers**: https://github.com/hhursev/recipe-scrapers
+- **Python**: <https://docs.python.org/3/>
+- **FastAPI**: <https://fastapi.tiangolo.com/>
+- **SQLAlchemy**: <https://docs.sqlalchemy.org/>
+- **Poetry**: <https://python-poetry.org/docs/>
+- **pytest**: <https://docs.pytest.org/>
+- **recipe-scrapers**: <https://github.com/hhursev/recipe-scrapers>
 
 ### Specifications
 
@@ -385,8 +400,11 @@ If you can't find an answer:
 2. **Check** [existing issues](https://github.com/Recipe-Web-App/recipe-scraper-service/issues)
 3. **Browse** [discussions](https://github.com/Recipe-Web-App/recipe-scraper-service/discussions)
 4. **Ask** in [GitHub Discussions](https://github.com/Recipe-Web-App/recipe-scraper-service/discussions)
-5. **Create** a new [issue](https://github.com/Recipe-Web-App/recipe-scraper-service/issues/new/choose) with all relevant details
+5. **Create** a new
+   [issue](https://github.com/Recipe-Web-App/recipe-scraper-service/issues/new/choose)
+   with all relevant details
 
 ---
 
-Thank you for using the Recipe Scraper Service! We appreciate your participation in our community.
+Thank you for using the Recipe Scraper Service! We appreciate your
+participation in our community.
