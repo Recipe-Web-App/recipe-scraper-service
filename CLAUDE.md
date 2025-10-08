@@ -121,9 +121,9 @@ This is a FastAPI-based recipe scraping microservice with a modular, layered arc
 The project includes comprehensive documentation:
 - **README.md**: Main project documentation with features and setup
 - **API.md**: Complete API reference with examples and client code
-- **CONTRIBUTING.md**: Development workflow and coding standards
+- **.github/CONTRIBUTING.md**: Development workflow and coding standards
 - **DEPLOYMENT.md**: Production deployment strategies and configurations
-- **SECURITY.md**: Security policies and vulnerability reporting
+- **.github/SECURITY.md**: Security policies and vulnerability reporting
 - **CHANGELOG.md**: Automatically generated from conventional commits
 
 ## Conventional Commits

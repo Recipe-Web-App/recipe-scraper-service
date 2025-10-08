@@ -820,4 +820,4 @@ redis-cli info memory
 redis-cli info stats | grep keyspace
 ```
 
-For additional support and troubleshooting, refer to the [API documentation](API.md) and [contributing guidelines](CONTRIBUTING.md).
+For additional support and troubleshooting, refer to the [API documentation](API.md) and [contributing guidelines](.github/CONTRIBUTING.md).

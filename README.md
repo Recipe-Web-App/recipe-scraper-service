@@ -387,8 +387,8 @@ Pre-configured Prometheus alerting rules for:
 ### Core Documentation
 - **[API Documentation](API.md)** - Comprehensive API reference with examples
 - **[Deployment Guide](DEPLOYMENT.md)** - Production deployment strategies
-- **[Contributing Guide](CONTRIBUTING.md)** - Development workflow and standards
-- **[Security Policy](SECURITY.md)** - Security guidelines and vulnerability reporting
+- **[Contributing Guide](.github/CONTRIBUTING.md)** - Development workflow and standards
+- **[Security Policy](.github/SECURITY.md)** - Security guidelines and vulnerability reporting
 
 ### Additional Resources
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant guidance for development
