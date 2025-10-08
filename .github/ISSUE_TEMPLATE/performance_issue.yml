@@ -1,0 +1,153 @@
+---
+name: Performance Issue
+description: Report performance degradation or optimization opportunities
+title: "[Performance]: "
+labels: ["performance", "needs-triage"]
+assignees:
+  - jsamuelsen
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report performance problems or suggest performance
+        optimizations for the recipe scraper service.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: Describe the performance problem
+      placeholder: "API endpoint /recipes/scrape is taking too long..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which component has the performance issue?
+      options:
+        - Recipe Scraping Engine
+        - Web Scraper (Popular Recipes)
+        - Spoonacular Integration
+        - Nutritional Analysis
+        - API Endpoints
+        - Database Queries
+        - Cache Operations
+        - Background Tasks
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact Severity
+      description: How severe is the performance impact?
+      options:
+        - Critical (Service unusable/timing out)
+        - High (Significantly degraded user experience)
+        - Medium (Noticeable slowdown)
+        - Low (Minor optimization opportunity)
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Provide specific performance metrics (response times, throughput, resource usage)
+      placeholder: |
+        - Current response time: 15 seconds
+        - Expected response time: < 2 seconds
+        - CPU usage: 95%
+        - Memory usage: 8GB
+        - Database query time: 10 seconds
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Send request to /api/v1/recipes/scrape
+        2. With URL from allrecipes.com
+        3. Measure response time
+    validations:
+      required: true
+
+  - type: textarea
+    id: load
+    attributes:
+      label: Load Characteristics
+      description: Describe the load when this performance issue occurs
+      placeholder: |
+        - Number of concurrent requests: 100
+        - Requests per second: 10
+        - Data volume: 10,000 recipes in database
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Environment details where performance issue occurs
+      value: |
+        - Python version:
+        - Deployment: (Docker/Kubernetes/Local)
+        - OS:
+        - CPU cores:
+        - RAM:
+        - PostgreSQL version:
+        - Redis version:
+      placeholder: Fill in environment details
+    validations:
+      required: true
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration
+      description: Relevant configuration settings
+      placeholder: |
+        DATABASE_POOL_SIZE=10
+        REDIS_MAX_CONNECTIONS=50
+        WORKER_PROCESSES=4
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling Data (if available)
+      description: Include profiling data, slow query logs, or performance traces
+      render: shell
+      placeholder: Paste profiling output here
+
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Optimization Suggestions
+      description: Do you have suggestions for improving performance?
+      placeholder: "Could be optimized by adding database index on..."
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information about the performance issue
+      placeholder: Graphs, charts, or additional metrics
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have provided specific performance metrics
+          required: true
+        - label: I can provide profiling data if needed
+          required: false

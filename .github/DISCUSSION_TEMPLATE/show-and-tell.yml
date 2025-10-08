@@ -1,0 +1,48 @@
+labels: [show-and-tell]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share your projects, integrations, and use cases with the Recipe Scraper Service community!
+
+  - type: textarea
+    id: project
+    attributes:
+      label: What Did You Build?
+      description: Describe your project or integration
+      placeholder: I built a meal planning app that uses...
+    validations:
+      required: true
+
+  - type: textarea
+    id: usage
+    attributes:
+      label: How Are You Using the Recipe Scraper Service?
+      description: Explain how you're using the service in your project
+      placeholder: The service scrapes recipes and then I...
+    validations:
+      required: true
+
+  - type: textarea
+    id: challenges
+    attributes:
+      label: Interesting Challenges or Solutions
+      description: Share any interesting problems you solved or approaches you took
+      placeholder: One challenge I faced was...
+
+  - type: textarea
+    id: demo
+    attributes:
+      label: Screenshots or Demo
+      description: Share screenshots, demo links, or repository links
+      placeholder: |
+        Demo: https://example.com
+        Repository: https://github.com/username/project
+
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Feedback for the Project
+      description: Any feedback or suggestions based on your experience?
+      placeholder: It would be great if...

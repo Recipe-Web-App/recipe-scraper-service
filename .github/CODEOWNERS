@@ -1,2 +1,11 @@
 # Global code ownership
-* @jsamuelsen11
+* @jsamuelsen
+
+# GitHub configuration
+.github/ @jsamuelsen
+
+# Documentation
+*.md @jsamuelsen
+
+# CI/CD
+.github/workflows/ @jsamuelsen
