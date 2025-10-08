@@ -261,7 +261,7 @@ pre-commit run --all-files
 For security concerns that don't require immediate disclosure:
 
 - **Email**: security@recipe-web-app.com (if available)
-- **GitHub**: @jsamuelsen
+- **GitHub**: @jsamuelsen11
 
 For urgent security issues, always use **GitHub Security Advisories**.
 

@@ -60,7 +60,7 @@ class RecipeRevision(BaseDatabaseModel):
         ),
         nullable=False,
     )
-    # TODO(jsamuelsen): Define types to enforce valid JSON structure
+    # TODO(jsamuelsen11): Define types to enforce valid JSON structure
     previous_data: Mapped[Any] = mapped_column(
         JSON,
         nullable=False,

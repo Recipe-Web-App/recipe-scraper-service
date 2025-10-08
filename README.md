@@ -1,7 +1,7 @@
 # Recipe Scraper Service 🍽️
 
-[![CI/CD Pipeline](https://github.com/jsamuelsen/recipe-scraper-service/actions/workflows/ci.yml/badge.svg)](https://github.com/jsamuelsen/recipe-scraper-service/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/github/jsamuelsen/recipe-scraper-service/branch/main/graph/badge.svg)](https://codecov.io/github/jsamuelsen/recipe-scraper-service)
+[![CI/CD Pipeline](https://github.com/jsamuelsen11/recipe-scraper-service/actions/workflows/ci.yml/badge.svg)](https://github.com/jsamuelsen11/recipe-scraper-service/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/jsamuelsen11/recipe-scraper-service/branch/main/graph/badge.svg)](https://codecov.io/github/jsamuelsen11/recipe-scraper-service)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.118.0-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -92,7 +92,7 @@ recipe-scraper-service/
 
 1. **Clone and setup the repository**:
    ```bash
-   git clone https://github.com/jsamuelsen/recipe-scraper-service.git
+   git clone https://github.com/jsamuelsen11/recipe-scraper-service.git
    cd recipe-scraper-service
 
    # Copy and configure environment
@@ -482,6 +482,6 @@ The service is fully functional with enterprise-grade security, monitoring, and 
 
 ---
 
-**Made with ❤️ by [jsamuelsen](https://github.com/jsamuelsen)**
+**Made with ❤️ by [jsamuelsen11](https://github.com/jsamuelsen11)**
 
-For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/jsamuelsen/recipe-scraper-service).
+For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/jsamuelsen11/recipe-scraper-service).

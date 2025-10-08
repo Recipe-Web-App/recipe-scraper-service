@@ -7,7 +7,7 @@ info:
     ingredient substitutions, recipe recommendations, and shopping information.
   contact:
     name: Recipe Scraper Team
-    url: https://github.com/jsamuelsen/recipe-scraper-service
+    url: https://github.com/jsamuelsen11/recipe-scraper-service
     email: jsamuelsen11@gmail.com
   license:
     name: MIT
@@ -1597,4 +1597,4 @@ tags:
   description: Administrative operations requiring elevated permissions
 externalDocs:
   description: Recipe Scraper Service Documentation
-  url: https://github.com/jsamuelsen/recipe-scraper-service
+  url: https://github.com/jsamuelsen11/recipe-scraper-service

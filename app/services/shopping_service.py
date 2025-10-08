@@ -344,7 +344,7 @@ class ShoppingService:
             Estimated price as Decimal
         """
         # For now, use simple multiplication
-        # TODO(jsamuelsen): Implement proper unit conversion between
+        # TODO(jsamuelsen11): Implement proper unit conversion between
         # requested_unit and kroger_price.unit
         base_price = Decimal(str(kroger_price.price))
         estimated_price = base_price * Decimal(requested_quantity.amount)
