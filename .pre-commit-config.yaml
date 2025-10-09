@@ -1,3 +1,21 @@
+ci:
+  autofix_commit_msg: |
+    chore(pre-commit-ci): auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: 'chore(pre-commit-ci): pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip:
+    # Local hooks - require Poetry environment and system dependencies
+    - radon-cc
+    - radon-mi
+    - pytest-check
+    - kube-score
+    - sphinx-docs-build
+  submodules: false
+
 repos:
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
