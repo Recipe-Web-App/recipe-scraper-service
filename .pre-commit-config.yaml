@@ -39,26 +39,26 @@ repos:
 
   # Code formatting
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 25.9.0
     hooks:
       - id: black
         args: [--skip-string-normalization]
 
   - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
+    rev: 6.1.0
     hooks:
       - id: isort
 
   # Linting
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.11
+    rev: v0.14.0
     hooks:
       - id: ruff
         args: [--fix]
 
   # Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
+    rev: v1.18.2
     hooks:
       - id: mypy
         additional_dependencies:
@@ -90,7 +90,7 @@ repos:
 
   # Documentation
   - repo: https://github.com/jsh9/pydoclint
-    rev: 0.6.10
+    rev: 0.7.3
     hooks:
       - id: pydoclint
         args: ["--style", "google"]
