@@ -2,12 +2,12 @@
 name = "recipe_scraper_service"
 version = "0.1.0"
 description = "API microservice to handle scraping recipe data from the internet."
-authors = ["jsamuelsen <jsamuelsen11@gmail.com>"]
+authors = ["jsamuelsen11 <jsamuelsen11@gmail.com>"]
 readme = "README.md"
 license = "MIT"
-homepage = "https://github.com/jsamuelsen/recipe-scraper-service"
-repository = "https://github.com/jsamuelsen/recipe-scraper-service"
-documentation = "https://github.com/jsamuelsen/recipe-scraper-service"
+homepage = "https://github.com/jsamuelsen11/recipe-scraper-service"
+repository = "https://github.com/jsamuelsen11/recipe-scraper-service"
+documentation = "https://github.com/jsamuelsen11/recipe-scraper-service"
 packages = [{ include = "app" }]
 include = [".env.example", "README.md", "pyproject.toml", "app/**"]
 exclude = ["tests/**", ".env", ".venv", "*.log"]

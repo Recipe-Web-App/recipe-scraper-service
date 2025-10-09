@@ -1,0 +1,57 @@
+# PR Labeler Configuration
+
+# Dependencies
+dependencies:
+  - pyproject.toml
+  - poetry.lock
+  - requirements.txt
+
+# Documentation
+documentation:
+  - '**/*.md'
+  - docs/**/*
+
+# GitHub configuration
+github:
+  - .github/**/*
+
+# Workflows
+github-actions:
+  - .github/workflows/**/*
+
+# Docker
+docker:
+  - Dockerfile
+  - docker-compose*.yml
+  - .dockerignore
+
+# Configuration
+configuration:
+  - '**/*.yml'
+  - '**/*.yaml'
+  - '**/*.json'
+  - .env.example
+
+# Python source
+python:
+  - '**/*.py'
+  - app/**/*
+
+# Tests
+tests:
+  - '**/test_*.py'
+  - '**/*_test.py'
+  - tests/**/*
+
+# Database
+database:
+  - app/db/**/*
+  - migrations/**/*
+
+# API
+api:
+  - app/api/**/*
+
+# Scripts
+scripts:
+  - scripts/**/*

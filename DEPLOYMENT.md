@@ -1,34 +1,35 @@
 # Deployment Guide
 
-This guide covers deployment strategies for the Recipe Scraper Service across different environments and platforms.
+This guide covers deployment strategies for the Recipe Scraper Service
+across different environments and platforms.
 
 ## Table of Contents
 
--   [Prerequisites](#prerequisites)
--   [Environment Configuration](#environment-configuration)
--   [Local Development](#local-development)
--   [Docker Deployment](#docker-deployment)
--   [Kubernetes Deployment](#kubernetes-deployment)
--   [Production Considerations](#production-considerations)
--   [Monitoring and Logging](#monitoring-and-logging)
--   [Troubleshooting](#troubleshooting)
+- [Prerequisites](#prerequisites)
+- [Environment Configuration](#environment-configuration)
+- [Local Development](#local-development)
+- [Docker Deployment](#docker-deployment)
+- [Kubernetes Deployment](#kubernetes-deployment)
+- [Production Considerations](#production-considerations)
+- [Monitoring and Logging](#monitoring-and-logging)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
 ### System Requirements
 
--   **CPU**: Minimum 2 cores, recommended 4+ cores for production
--   **Memory**: Minimum 2GB RAM, recommended 4GB+ for production
--   **Storage**: Minimum 10GB available space
--   **Network**: Outbound HTTPS access for external API calls
+- **CPU**: Minimum 2 cores, recommended 4+ cores for production
+- **Memory**: Minimum 2GB RAM, recommended 4GB+ for production
+- **Storage**: Minimum 10GB available space
+- **Network**: Outbound HTTPS access for external API calls
 
 ### Software Dependencies
 
--   **Python**: 3.13+ (with JIT compiler support)
--   **Poetry**: 2.1.3+ for dependency management
--   **Docker**: 24.0+ and Docker Compose 2.0+
--   **PostgreSQL**: 14+ (can be containerized)
--   **Redis**: 6.2+ (can be containerized)
+- **Python**: 3.13+ (with JIT compiler support)
+- **Poetry**: 2.1.3+ for dependency management
+- **Docker**: 24.0+ and Docker Compose 2.0+
+- **PostgreSQL**: 14+ (can be containerized)
+- **Redis**: 6.2+ (can be containerized)
 
 ## Environment Configuration
 
@@ -451,7 +452,10 @@ spec:
 
 ### High Availability
 
-The deployment includes a PodDisruptionBudget to ensure service availability during cluster maintenance operations. This guarantees that at least one pod remains available during voluntary disruptions like node drains or cluster upgrades.
+The deployment includes a PodDisruptionBudget to ensure service
+availability during cluster maintenance operations. This guarantees
+that at least one pod remains available during voluntary disruptions
+like node drains or cluster upgrades.
 
 ### Horizontal Pod Autoscaler
 
@@ -488,17 +492,20 @@ spec:
 The deployment follows Kubernetes security best practices and passes kube-score validation:
 
 #### Container Security
+
 - Runs as non-privileged user with high UID/GID to avoid host conflicts
 - Uses read-only root filesystem for enhanced security
 - Drops all Linux capabilities by default
 - Enforces resource limits to prevent resource exhaustion
 
 #### Network Security
+
 - Network policies restrict ingress and egress traffic to essential services only
 - Pod anti-affinity rules distribute pods across nodes for resilience
 - Separate health check endpoints for liveness and readiness probes
 
 #### Availability
+
 - Multiple replicas with pod disruption budgets ensure service continuity
 - Health checks enable automatic recovery from failures
 - Resource requests guarantee minimum compute allocation
@@ -551,7 +558,7 @@ appendfsync everysec
 
 ### Security Hardening
 
-#### Container Security
+#### Docker Container Security
 
 ```dockerfile
 # Use non-root user
@@ -565,7 +572,7 @@ RUN apt-get remove -y apt-get && \
 COPY --chown=1001:1001 --chmod=644 app/ ./app/
 ```
 
-#### Network Security
+#### Kubernetes Network Security
 
 ```yaml
 # Network policies for Kubernetes
@@ -644,7 +651,8 @@ spec:
                               - /bin/bash
                               - -c
                               - |
-                                  pg_dump -h postgres-service -U $POSTGRES_USER $POSTGRES_DB \
+                                  pg_dump -h postgres-service \
+                                    -U $POSTGRES_USER $POSTGRES_DB \
                                     | gzip > /backup/backup_$(date +%Y%m%d_%H%M%S).sql.gz
                           env:
                               - name: POSTGRES_USER
@@ -762,7 +770,8 @@ docker exec recipe-scraper env | grep -E "(POSTGRES|REDIS)"
 
 ```bash
 # Test database connectivity
-kubectl exec -it postgres-pod -- psql -U recipe_user_prod -d recipe_scraper_prod -c "SELECT 1;"
+kubectl exec -it postgres-pod -- \
+  psql -U recipe_user_prod -d recipe_scraper_prod -c "SELECT 1;"
 
 # Check service DNS resolution
 kubectl exec -it recipe-scraper-pod -- nslookup postgres-service
@@ -820,4 +829,6 @@ redis-cli info memory
 redis-cli info stats | grep keyspace
 ```
 
-For additional support and troubleshooting, refer to the [API documentation](API.md) and [contributing guidelines](CONTRIBUTING.md).
+For additional support and troubleshooting, refer to the
+[API documentation](API.md) and
+[contributing guidelines](.github/CONTRIBUTING.md).

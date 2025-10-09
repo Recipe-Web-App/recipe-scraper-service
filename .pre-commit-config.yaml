@@ -1,3 +1,21 @@
+ci:
+  autofix_commit_msg: |
+    chore(pre-commit-ci): auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: 'chore(pre-commit-ci): pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip:
+    # Local hooks - require Poetry environment and system dependencies
+    - radon-cc
+    - radon-mi
+    - pytest-check
+    - kube-score
+    - sphinx-docs-build
+  submodules: false
+
 repos:
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -39,26 +57,26 @@ repos:
 
   # Code formatting
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 25.9.0
     hooks:
       - id: black
         args: [--skip-string-normalization]
 
   - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
+    rev: 6.1.0
     hooks:
       - id: isort
 
   # Linting
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.11
+    rev: v0.14.0
     hooks:
       - id: ruff
         args: [--fix]
 
   # Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
+    rev: v1.18.2
     hooks:
       - id: mypy
         additional_dependencies:
@@ -90,10 +108,21 @@ repos:
 
   # Documentation
   - repo: https://github.com/jsh9/pydoclint
-    rev: 0.6.10
+    rev: 0.7.3
     hooks:
       - id: pydoclint
         args: ["--style", "google"]
+
+  # Markdown linting and formatting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
+        args: ["--fix"]
+        exclude: |
+          (?x)^(
+            CHANGELOG\.md$
+          )$
 
   # Spell checking
   - repo: https://github.com/codespell-project/codespell

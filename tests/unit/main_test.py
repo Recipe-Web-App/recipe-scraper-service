@@ -204,7 +204,7 @@ class TestAppConfiguration:
         # Assert
         expected_contact = {
             "name": "Recipe Scraper Team",
-            "url": "https://github.com/jsamuelsen/recipe-scraper-service",
+            "url": "https://github.com/jsamuelsen11/recipe-scraper-service",
             "email": "jsamuelsen11@gmail.com",
         }
         assert app.contact == expected_contact

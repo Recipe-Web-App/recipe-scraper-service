@@ -1,0 +1,138 @@
+---
+name: Documentation
+description: Report documentation issues or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+assignees:
+  - jsamuelsen11
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report documentation issues or suggest documentation
+        improvements for the recipe scraper service.
+
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation issue is this?
+      options:
+        - Missing documentation
+        - Incorrect/outdated documentation
+        - Unclear documentation
+        - Typo or grammar error
+        - Broken link
+        - Missing example
+        - Needs more detail
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue?
+      options:
+        - README.md
+        - API.md (API Documentation)
+        - CONTRIBUTING.md
+        - DEPLOYMENT.md
+        - SECURITY.md
+        - SUPPORT.md
+        - CLAUDE.md
+        - Code comments/docstrings
+        - API endpoint documentation (/docs)
+        - OpenAPI specification
+        - GitHub Wiki
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Describe the documentation issue
+      placeholder: "The documentation for X is unclear because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: specific_location
+    attributes:
+      label: Specific Location
+      description: Provide specific file path, line number, URL, or section heading
+      placeholder: |
+        File: API.md
+        Section: "Recipe Scraping Endpoints"
+        Line: 42
+        Or URL: https://github.com/Recipe-Web-App/recipe-scraper-service/blob/main/README.md#setup
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_content
+    attributes:
+      label: Current Documentation
+      description: Quote the current documentation (if applicable)
+      placeholder: "Current text: '...'"
+
+  - type: textarea
+    id: suggested_content
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: "Suggested text: '...'"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who is the primary audience for this documentation?
+      options:
+        - End users (API consumers)
+        - Contributors (developers)
+        - Operators (deployment/maintenance)
+        - All audiences
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: What task or question would this documentation help with?
+      placeholder: "This would help users who are trying to..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to contribute the documentation fix?
+      options:
+        - label: I am willing to submit a PR with the documentation fix
+          required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information about the documentation issue
+      placeholder: Screenshots, examples, or related documentation
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have provided specific location information
+          required: true
+        - label: I have suggested how to improve the documentation
+          required: true
