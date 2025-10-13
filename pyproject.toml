@@ -14,7 +14,7 @@ exclude = ["tests/**", ".env", ".venv", "*.log"]
 
 [tool.poetry.dependencies]
 python = "~3.13.0"
-fastapi = "^0.118.0"
+fastapi = "^0.119.0"
 httpx = ">=0.28.1,<0.29.0"
 tenacity = ">=9.1.2,<10.0.0"
 beautifulsoup4 = ">=4.13.4,<5.0.0"
