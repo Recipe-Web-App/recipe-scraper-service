@@ -162,7 +162,7 @@ repos:
         entry: poetry run test-unit
         language: system
         pass_filenames: false
-        always_run: true
+        types: [python]
 
       # Kubernetes YAML scoring
       - id: kube-score
