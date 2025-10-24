@@ -1,6 +1,6 @@
 # Multi-stage Docker build for Recipe Scraper Service
 # Stage 1: Build dependencies and compile Python packages
-FROM python:3.14-slim AS builder
+FROM python:3.13-slim AS builder
 
 # Set build environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -42,7 +42,7 @@ RUN poetry config virtualenvs.create true \
 RUN .venv/bin/python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng', download_dir='/opt/nltk_data')"
 
 # Stage 2: Runtime image
-FROM python:3.14-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 # Create non-root user for security (matching K8s securityContext)
 RUN groupadd --gid 10001 appuser \
@@ -105,8 +105,8 @@ ENTRYPOINT ["dumb-init", "--"]
 
 # Default command with security hardening
 CMD ["/home/appuser/.venv/bin/python", "-m", "uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1", \
-     "--access-log", \
-     "--log-level", "info"]
+    "--host", "0.0.0.0", \
+    "--port", "8000", \
+    "--workers", "1", \
+    "--access-log", \
+    "--log-level", "info"]
