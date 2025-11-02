@@ -19,6 +19,7 @@ from app.db.models.base_database_model import BaseDatabaseModel
 from app.enums.difficulty_level_enum import DifficultyLevelEnum
 
 if TYPE_CHECKING:
+    from app.db.models.recipe_models.recipe_comment import RecipeComment
     from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
     from app.db.models.recipe_models.recipe_review import RecipeReview
     from app.db.models.recipe_models.recipe_step import RecipeStep
@@ -110,6 +111,12 @@ class Recipe(BaseDatabaseModel):
     )
     reviews: Mapped[list["RecipeReview"]] = relationship(
         "RecipeReview",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        lazy="joined",
+    )
+    comments: Mapped[list["RecipeComment"]] = relationship(
+        "RecipeComment",
         back_populates="recipe",
         cascade="all, delete-orphan",
         lazy="joined",
