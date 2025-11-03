@@ -2530,14 +2530,14 @@ requests = ">=2.28.2,<3.0.0"
 
 [[package]]
 name = "mirakuru"
-version = "2.6.1"
+version = "3.0.1"
 description = "Process executor (not only) for tests."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "mirakuru-2.6.1-py3-none-any.whl", hash = "sha256:4be0bfd270744454fa0c0466b8127b66bd55f4decaf05bbee9b071f2acbd9473"},
-    {file = "mirakuru-2.6.1.tar.gz", hash = "sha256:95d4f5a5ad406a625e9ca418f20f8e09386a35dad1ea30fd9073e0ae93f712c7"},
+    {file = "mirakuru-3.0.1-py3-none-any.whl", hash = "sha256:43d27dc0e59dfde27bf720516a5e96ead0b4cf9e12cb1adb57cdeea3c9239b93"},
+    {file = "mirakuru-3.0.1.tar.gz", hash = "sha256:834686822da3ac06edd13fa1852143fd9ebcf0fea68d56b78b7d4be1e947f8c0"},
 ]
 
 [package.dependencies]
