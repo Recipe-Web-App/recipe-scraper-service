@@ -89,6 +89,22 @@ recipe-scraper-service/
 - **Testing**: pytest + testcontainers + hypothesis
 - **Security**: Bandit + Safety + Semgrep + Trivy
 
+### Service-to-Service Authentication
+
+The service uses **OAuth2 client credentials flow** for authenticating with
+downstream services:
+
+- **ServiceTokenManager**: Handles token acquisition and automatic refresh
+- **Token Storage**: Tokens cached in-memory with automatic expiry handling
+- **Service URLs**: Centralized configuration via `ServiceURLs` class
+- **Required Credentials**: `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` in environment
+
+Downstream services integrated:
+
+- **auth-service**: OAuth2 token endpoint for service authentication
+- **notification-service**: Email notifications for recipe events (planned)
+- **user-management-service**: User and follower data (planned)
+
 ## 🚀 Quick Start
 
 ### Prerequisites

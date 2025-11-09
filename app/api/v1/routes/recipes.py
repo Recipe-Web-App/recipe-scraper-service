@@ -21,6 +21,9 @@ from app.api.v1.schemas.response.recommended_recipes_response import (
 from app.core.logging import get_logger
 from app.deps.auth import OptionalAuth
 from app.deps.db import get_db
+from app.deps.notification_service import get_notification_service
+from app.deps.user_management_service import get_user_management_service
+from app.services.downstream.spoonacular_service import SpoonacularService
 from app.services.recipe_scraper_service import RecipeScraperService
 from app.utils.validators import validate_pagination_params
 
@@ -39,7 +42,15 @@ def get_recipe_scraper_service() -> RecipeScraperService:
     """
     global _service_instance  # noqa: PLW0603
     if _service_instance is None:
-        _service_instance = RecipeScraperService()
+        spoonacular_service = SpoonacularService()
+        notification_service = get_notification_service()
+        user_mgmt_service = get_user_management_service()
+
+        _service_instance = RecipeScraperService(
+            spoonacular_service=spoonacular_service,
+            notification_service=notification_service,
+            user_mgmt_service=user_mgmt_service,
+        )
     return _service_instance
 
 
@@ -115,7 +126,7 @@ router = APIRouter()
         }
     },
 )
-def create_recipe(
+async def create_recipe(
     service: Annotated[RecipeScraperService, Depends(get_recipe_scraper_service)],
     db: Annotated[Session, Depends(get_db)],
     request: CreateRecipeRequest,
@@ -138,7 +149,7 @@ def create_recipe(
     else:
         # Generate anonymous user ID for tracking purposes
         user_id = uuid4()
-    return service.create_recipe(request.recipe_url, db, user_id)
+    return await service.create_recipe(request.recipe_url, db, user_id)
 
 
 @router.get(
