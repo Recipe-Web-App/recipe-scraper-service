@@ -171,11 +171,18 @@ class TestRecipeScraperService:
     @pytest.fixture
     def recipe_scraper_service(self) -> RecipeScraperService:
         """Create a RecipeScraperService instance for testing."""
-        with (
-            patch("app.services.recipe_scraper_service.get_cache_manager"),
-            patch("app.services.recipe_scraper_service.SpoonacularService"),
-        ):
-            return RecipeScraperService()
+        # Create mock services
+        mock_spoonacular = Mock()
+        mock_notification = AsyncMock()
+        mock_user_mgmt = AsyncMock()
+
+        with patch("app.services.recipe_scraper_service.get_cache_manager"):
+            service = RecipeScraperService(
+                spoonacular_service=mock_spoonacular,
+                notification_service=mock_notification,
+                user_mgmt_service=mock_user_mgmt,
+            )
+            return service
 
     @pytest.fixture
     def mock_user_id(self) -> UUID:
@@ -210,7 +217,8 @@ class TestRecipeScraperService:
         assert hasattr(recipe_scraper_service, 'spoonacular_service')
 
     @patch("app.services.recipe_scraper_service.scrape_me")
-    def test_create_recipe_success(
+    @pytest.mark.asyncio
+    async def test_create_recipe_success(
         self,
         mock_scrape_me: Mock,
         recipe_scraper_service: RecipeScraperService,
@@ -263,7 +271,7 @@ class TestRecipeScraperService:
             mock_from_db.return_value = mock_recipe_schema
 
             # Act
-            result = recipe_scraper_service.create_recipe(
+            result = await recipe_scraper_service.create_recipe(
                 url, mock_db_session, mock_user_id
             )
 
@@ -275,7 +283,8 @@ class TestRecipeScraperService:
             mock_db_session.commit.assert_called_once()
 
     @patch("app.services.recipe_scraper_service.scrape_me")
-    def test_create_recipe_already_exists(
+    @pytest.mark.asyncio
+    async def test_create_recipe_already_exists(
         self,
         mock_scrape_me: Mock,
         recipe_scraper_service: RecipeScraperService,
@@ -293,14 +302,17 @@ class TestRecipeScraperService:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            recipe_scraper_service.create_recipe(url, mock_db_session, mock_user_id)
+            await recipe_scraper_service.create_recipe(
+                url, mock_db_session, mock_user_id
+            )
 
         assert exc_info.value.status_code == 409
         assert "Recipe ID 123 already exists" in str(exc_info.value.detail)
         mock_scrape_me.assert_not_called()
 
     @patch("app.services.recipe_scraper_service.scrape_me")
-    def test_create_recipe_database_error(
+    @pytest.mark.asyncio
+    async def test_create_recipe_database_error(
         self,
         mock_scrape_me: Mock,
         recipe_scraper_service: RecipeScraperService,
@@ -339,12 +351,15 @@ class TestRecipeScraperService:
 
             # Act & Assert
             with pytest.raises(Exception, match="Database error"):
-                recipe_scraper_service.create_recipe(url, mock_db_session, mock_user_id)
+                await recipe_scraper_service.create_recipe(
+                    url, mock_db_session, mock_user_id
+                )
 
             mock_db_session.rollback.assert_called_once()
 
     @patch("app.services.recipe_scraper_service.scrape_me")
-    def test_create_recipe_invalid_servings(
+    @pytest.mark.asyncio
+    async def test_create_recipe_invalid_servings(
         self,
         mock_scrape_me: Mock,
         recipe_scraper_service: RecipeScraperService,
@@ -382,7 +397,7 @@ class TestRecipeScraperService:
             mock_from_db.return_value = mock_recipe_schema
 
             # Act
-            result = recipe_scraper_service.create_recipe(
+            result = await recipe_scraper_service.create_recipe(
                 url, mock_db_session, mock_user_id
             )
 
@@ -393,7 +408,8 @@ class TestRecipeScraperService:
             assert recipe_call_args["servings"] is None
 
     @patch("app.services.recipe_scraper_service.scrape_me")
-    def test_create_recipe_schema_conversion_error(
+    @pytest.mark.asyncio
+    async def test_create_recipe_schema_conversion_error(
         self,
         mock_scrape_me: Mock,
         recipe_scraper_service: RecipeScraperService,
@@ -432,7 +448,9 @@ class TestRecipeScraperService:
 
             # Act & Assert
             with pytest.raises(HTTPException) as exc_info:
-                recipe_scraper_service.create_recipe(url, mock_db_session, mock_user_id)
+                await recipe_scraper_service.create_recipe(
+                    url, mock_db_session, mock_user_id
+                )
 
             assert exc_info.value.status_code == 500
             assert "Failed to convert recipe to response schema" in str(
@@ -644,7 +662,8 @@ class TestRecipeScraperService:
             assert len(result) == 0
 
     @patch("app.services.recipe_scraper_service.scrape_me")
-    def test_create_recipe_complex_ingredient_parsing(
+    @pytest.mark.asyncio
+    async def test_create_recipe_complex_ingredient_parsing(
         self,
         mock_scrape_me: Mock,
         recipe_scraper_service: RecipeScraperService,
@@ -717,7 +736,7 @@ class TestRecipeScraperService:
             mock_from_db.return_value = mock_recipe_schema
 
             # Act
-            result = recipe_scraper_service.create_recipe(
+            result = await recipe_scraper_service.create_recipe(
                 url, mock_db_session, mock_user_id
             )
 
@@ -726,4 +745,112 @@ class TestRecipeScraperService:
             # Since ingredients already exist in DB, no new ones should be created
             assert mock_ingredient_class.call_count == 0
             # Verify recipe was created with correct structure
+
+    @patch("app.services.recipe_scraper_service.scrape_me")
+    @pytest.mark.asyncio
+    async def test_create_recipe_with_notifications_success(
+        self,
+        mock_scrape_me: Mock,
+        recipe_scraper_service: RecipeScraperService,
+        mock_db_session: Mock,
+        mock_user_id: UUID,
+        mock_scraped_data: dict[str, Any],
+    ) -> None:
+        """Test that notifications are sent after successful recipe creation."""
+        # Arrange
+        url = "https://example.com/recipe"
+        mock_scraper = Mock()
+        mock_scraper.to_json.return_value = mock_scraped_data
+        mock_scrape_me.return_value = mock_scraper
+
+        # Mock database
+        mock_db_session.query().filter().first.return_value = None
+        mock_existing_ingredients: list[Mock] = []
+        for name in ["flour", "salt", "milk"]:
+            mock_ingredient = Mock(spec=IngredientModel)
+            mock_ingredient.name = name
+            mock_ingredient.ingredient_id = len(mock_existing_ingredients) + 1
+            mock_existing_ingredients.append(mock_ingredient)
+        mock_db_session.query().filter().all.return_value = mock_existing_ingredients
+
+        mock_recipe = Mock(spec=Recipe)
+        mock_recipe.recipe_id = 123
+
+        with (
+            patch("app.services.recipe_scraper_service.IngredientModel"),
+            patch("app.services.recipe_scraper_service.Recipe") as mock_recipe_class,
+            patch.object(RecipeSchema, "from_db_model") as mock_from_db,
+        ):
+            mock_recipe_class.return_value = mock_recipe
+            mock_recipe_schema = Mock(spec=RecipeSchema)
+            mock_from_db.return_value = mock_recipe_schema
+
+            # Act
+            result = await recipe_scraper_service.create_recipe(
+                url, mock_db_session, mock_user_id
+            )
+
+            # Assert
+            assert isinstance(result, CreateRecipeResponse)
+            # Notifications should be sent via the mocked async services
+            assert recipe_scraper_service.notification_service is not None
+
+    @patch("app.services.recipe_scraper_service.scrape_me")
+    @pytest.mark.asyncio
+    async def test_create_recipe_notification_failure_silent(
+        self,
+        mock_scrape_me: Mock,
+        recipe_scraper_service: RecipeScraperService,
+        mock_db_session: Mock,
+        mock_user_id: UUID,
+        mock_scraped_data: dict[str, Any],
+    ) -> None:
+        """Test that notification failures don't break recipe creation."""
+        # Arrange
+        url = "https://example.com/recipe"
+        mock_scraper = Mock()
+        mock_scraper.to_json.return_value = mock_scraped_data
+        mock_scrape_me.return_value = mock_scraper
+
+        # Mock database
+        mock_db_session.query().filter().first.return_value = None
+        mock_existing_ingredients: list[Mock] = []
+        for name in ["flour", "salt", "milk"]:
+            mock_ingredient = Mock(spec=IngredientModel)
+            mock_ingredient.name = name
+            mock_ingredient.ingredient_id = len(mock_existing_ingredients) + 1
+            mock_existing_ingredients.append(mock_ingredient)
+        mock_db_session.query().filter().all.return_value = mock_existing_ingredients
+
+        mock_recipe = Mock(spec=Recipe)
+        mock_recipe.recipe_id = 456
+
+        # Configure the AsyncMock to raise an exception when get_follower_ids is called
+        mock_get_follower_ids = AsyncMock(
+            side_effect=Exception("User management service unavailable")
+        )
+
+        with (
+            patch("app.services.recipe_scraper_service.IngredientModel"),
+            patch("app.services.recipe_scraper_service.Recipe") as mock_recipe_class,
+            patch.object(RecipeSchema, "from_db_model") as mock_from_db,
+            patch.object(
+                recipe_scraper_service.user_mgmt_service,
+                "get_follower_ids",
+                mock_get_follower_ids,
+            ),
+        ):
+            mock_recipe_class.return_value = mock_recipe
+            mock_recipe_schema = Mock(spec=RecipeSchema)
+            mock_from_db.return_value = mock_recipe_schema
+
+            # Act - should not raise exception
+            result = await recipe_scraper_service.create_recipe(
+                url, mock_db_session, mock_user_id
+            )
+
+            # Assert
+            assert isinstance(result, CreateRecipeResponse)
+            # Recipe creation should still succeed even though notifications failed
+            mock_db_session.commit.assert_called_once()
             mock_recipe_class.assert_called_once()

@@ -30,7 +30,9 @@ from app.db.models.recipe_models.recipe_ingredient import RecipeIngredient
 from app.db.models.recipe_models.recipe_step import RecipeStep
 from app.enums.ingredient_unit_enum import IngredientUnitEnum
 from app.exceptions.custom_exceptions import RecipeScrapingError
+from app.services.downstream.notification_service import NotificationService
 from app.services.downstream.spoonacular_service import SpoonacularService
+from app.services.downstream.user_management_service import UserManagementService
 from app.utils.cache_manager import get_cache_manager
 from app.utils.popular_recipe_web_scraper import scrape_popular_recipes
 
@@ -103,12 +105,68 @@ class RecipeScraperService:
     and beautiful_soup.
     """
 
-    def __init__(self) -> None:
-        """Initialize the service with cache manager and Spoonacular service."""
-        self.cache_manager = get_cache_manager()
-        self.spoonacular_service = SpoonacularService()
+    def __init__(
+        self,
+        spoonacular_service: SpoonacularService,
+        notification_service: NotificationService,
+        user_mgmt_service: UserManagementService,
+    ) -> None:
+        """Initialize the service with dependencies.
 
-    def create_recipe(
+        Args:
+            spoonacular_service: Service for nutritional data
+            notification_service: Service for sending notifications
+            user_mgmt_service: Service for user/follower data
+        """
+        self.cache_manager = get_cache_manager()
+        self.spoonacular_service = spoonacular_service
+        self.notification_service = notification_service
+        self.user_mgmt_service = user_mgmt_service
+
+    async def _send_follower_notifications(self, recipe_id: int, user_id: UUID) -> None:
+        """Send recipe published notifications to followers.
+
+        Silent failure pattern - logs errors but doesn't raise exceptions.
+        This ensures notification failures don't break recipe creation.
+
+        Args:
+            recipe_id: ID of the newly created recipe
+            user_id: ID of the user who created the recipe
+        """
+        try:
+            # Fetch follower IDs
+            follower_ids = await self.user_mgmt_service.get_follower_ids(user_id)
+
+            if not follower_ids:
+                _log.debug("No followers to notify for recipe_id: {}", recipe_id)
+                return
+
+            # Send notifications
+            success = (
+                await self.notification_service.send_recipe_published_notification(
+                    recipe_id, follower_ids
+                )
+            )
+
+            if success:
+                _log.info(
+                    "Queued notifications for recipe_id {} to {} followers",
+                    recipe_id,
+                    len(follower_ids),
+                )
+            else:
+                _log.warning(
+                    "Failed to queue notifications for recipe_id {}",
+                    recipe_id,
+                )
+        except Exception as e:
+            _log.error(
+                "Unexpected error sending notifications for recipe_id {}: {}",
+                recipe_id,
+                e,
+            )
+
+    async def create_recipe(
         self,
         url: str,
         db: Session,
@@ -228,6 +286,9 @@ class RecipeScraperService:
             db.commit()
             db.refresh(recipe)
             _log.debug("Recipe added to database: {}", recipe)
+
+            # Send notifications to followers (silent failure)
+            await self._send_follower_notifications(recipe.recipe_id, user_id)
         except Exception as e:
             db.rollback()
             _log.exception("Error saving recipe to database", e)
