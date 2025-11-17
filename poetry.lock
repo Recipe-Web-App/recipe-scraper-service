@@ -5460,14 +5460,14 @@ types-cryptography = "*"
 
 [[package]]
 name = "types-python-dateutil"
-version = "2.9.0.20251008"
+version = "2.9.0.20251115"
 description = "Typing stubs for python-dateutil"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "types_python_dateutil-2.9.0.20251008-py3-none-any.whl", hash = "sha256:b9a5232c8921cf7661b29c163ccc56055c418ab2c6eabe8f917cbcc73a4c4157"},
-    {file = "types_python_dateutil-2.9.0.20251008.tar.gz", hash = "sha256:c3826289c170c93ebd8360c3485311187df740166dbab9dd3b792e69f2bc1f9c"},
+    {file = "types_python_dateutil-2.9.0.20251115-py3-none-any.whl", hash = "sha256:9cf9c1c582019753b8639a081deefd7e044b9fa36bd8217f565c6c4e36ee0624"},
+    {file = "types_python_dateutil-2.9.0.20251115.tar.gz", hash = "sha256:8a47f2c3920f52a994056b8786309b43143faa5a64d4cbb2722d6addabdf1a58"},
 ]
 
 [[package]]
@@ -6217,4 +6217,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.13.0"
-content-hash = "e3a7427946ae8eedf5e4630868383d64242e964ca1556a94877aa915914bd9a6"
+content-hash = "dcd10e26546c1d0c03882008030d1f940cd4d8e4c61046da732bd175ec88dde8"
