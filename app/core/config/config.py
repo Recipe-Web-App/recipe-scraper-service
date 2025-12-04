@@ -41,6 +41,7 @@ class _Settings(BaseSettings):
             "http://localhost:3000",
             "http://localhost:8080",
             "https://localhost:3000",
+            "http://recipe-scraper.local",
         ],
         alias="ALLOWED_ORIGINS",
     )
