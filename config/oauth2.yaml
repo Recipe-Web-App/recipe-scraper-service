@@ -1,0 +1,1 @@
+introspection_url: "http://auth-service.local/api/v1/auth/oauth2/introspect"

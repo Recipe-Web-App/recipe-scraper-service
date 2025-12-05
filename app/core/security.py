@@ -4,6 +4,8 @@ Contains security-related functions and settings, including authentication,
 authorization, and encryption utilities.
 """
 
+import time
+
 import httpx
 from fastapi import Request
 
@@ -58,10 +60,11 @@ async def validate_token_via_introspection(token: str) -> OAuth2IntrospectionRes
     if not settings.oauth2_client_id or not settings.oauth2_client_secret:
         raise OAuth2IntrospectionError("OAuth2 client credentials not configured")
 
-    # This would typically point to your auth-service's introspection endpoint
-    introspection_url = "http://auth-service/oauth/introspect"
+    introspection_url = settings.oauth2_introspection_url
+    _log.debug("Calling introspection endpoint: {}", introspection_url)
 
     try:
+        start_time = time.monotonic()
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
                 introspection_url,
@@ -72,26 +75,35 @@ async def validate_token_via_introspection(token: str) -> OAuth2IntrospectionRes
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+        _log.debug(
+            "Introspection response: status={}, time={:.1f}ms",
+            response.status_code,
+            elapsed_ms,
+        )
 
-            if response.status_code != 200:
-                raise OAuth2IntrospectionError(
-                    f"Introspection endpoint returned {response.status_code}"
-                )
-
-            # Parse and validate the response using our schema
-            parsed_response = OAuth2IntrospectionResponse.model_validate(
-                response.json()
+        if response.status_code != 200:
+            _log.debug("Introspection failed with response body: {}", response.text)
+            raise OAuth2IntrospectionError(
+                f"Introspection endpoint returned {response.status_code}"
             )
 
-            # Check if token is active
-            if not parsed_response.active:
-                raise OAuth2IntrospectionError("Token is not active")
+        # Parse and validate the response using our schema
+        parsed_response = OAuth2IntrospectionResponse.model_validate(response.json())
 
-            return parsed_response
+        # Check if token is active
+        if not parsed_response.active:
+            _log.debug("Token introspection returned inactive token")
+            raise OAuth2IntrospectionError("Token is not active")
+
+        _log.debug("Token validated successfully for subject: {}", parsed_response.sub)
+        return parsed_response
 
     except httpx.RequestError as e:
         _log.error("Failed to connect to introspection endpoint: {}", str(e))
         raise OAuth2IntrospectionError(f"Connection failed: {str(e)}") from e
+    except OAuth2IntrospectionError:
+        raise
     except Exception as e:
         _log.error("Unexpected error during token introspection: {}", str(e))
         raise OAuth2IntrospectionError(f"Introspection failed: {str(e)}") from e
