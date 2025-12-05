@@ -97,6 +97,17 @@ class _Settings(BaseSettings):
         alias="WEB_SCRAPER_CONFIG_PATH",
     )
 
+    OAUTH2_CONFIG_PATH: str = Field(
+        str(
+            (
+                Path(__file__).parent.parent.parent.parent / "config" / "oauth2.yaml"
+            ).resolve(),
+        ),
+        alias="OAUTH2_CONFIG_PATH",
+    )
+
+    OAUTH2_INTROSPECTION_URL: str = Field(default="")
+
     _LOGGING_SINKS: list[LoggingSink] = PrivateAttr(default_factory=list)
 
     model_config = SettingsConfigDict(
@@ -164,6 +175,19 @@ class _Settings(BaseSettings):
         self.WEB_SCRAPER_CATEGORY_INDICATORS = web_scraper_config.get(
             "category_indicators",
             [],
+        )
+
+        # Load OAuth2 configuration
+        try:
+            oauth2_path = Path(self.OAUTH2_CONFIG_PATH).expanduser().resolve()
+            with oauth2_path.open("r", encoding="utf-8") as f:
+                oauth2_config = yaml.safe_load(f) or {}
+        except (FileNotFoundError, yaml.YAMLError):
+            oauth2_config = {}
+
+        self.OAUTH2_INTROSPECTION_URL = oauth2_config.get(
+            "introspection_url",
+            "http://auth-service.local/api/v1/auth/oauth2/introspect",
         )
 
     @property
@@ -340,6 +364,11 @@ class _Settings(BaseSettings):
     def oauth2_client_secret(self) -> str:
         """Get OAuth2 client secret."""
         return self.OAUTH2_CLIENT_SECRET
+
+    @property
+    def oauth2_introspection_url(self) -> str:
+        """Get OAuth2 introspection endpoint URL."""
+        return self.OAUTH2_INTROSPECTION_URL
 
 
 _settings: _Settings | None = None
