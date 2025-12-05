@@ -184,21 +184,21 @@ print_separator "-"
 echo "✅ Recipe-Scraper app is up and running in namespace '$NAMESPACE'."
 
 print_separator "="
-echo "🔗 Setting up /etc/hosts for recipe.local..."
+echo "🔗 Setting up /etc/hosts for recipe-scraper.local..."
 print_separator "-"
 
 MINIKUBE_IP=$(minikube ip)
-if grep -q "recipe.local" /etc/hosts; then
-  echo "🔄 Updating /etc/hosts for recipe.local..."
-  sed -i "/recipe.local/d" /etc/hosts
+if grep -q "recipe-scraper.local" /etc/hosts; then
+  echo "🔄 Updating /etc/hosts for recipe-scraper.local..."
+  sed -i "/recipe-scraper.local/d" /etc/hosts
 else
-  echo "➕ Adding recipe.local to /etc/hosts..."
+  echo "➕ Adding recipe-scraper.local to /etc/hosts..."
 fi
-echo "$MINIKUBE_IP recipe.local" >> /etc/hosts
-echo "✅ /etc/hosts updated with recipe.local pointing to $MINIKUBE_IP"
+echo "$MINIKUBE_IP recipe-scraper.local" >> /etc/hosts
+echo "✅ /etc/hosts updated with recipe-scraper.local pointing to $MINIKUBE_IP"
 
 print_separator "="
-echo "🌍 You can now access your app at: http://recipe.local/api/recipe-scraper/health"
+echo "🌍 You can now access your app at: http://recipe-scraper.local/api/recipe-scraper/health"
 
 POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l app=recipe-scraper -o jsonpath="{.items[0].metadata.name}")
 SERVICE_JSON=$(kubectl get svc recipe-scraper -n "$NAMESPACE" -o json)
@@ -211,5 +211,5 @@ echo "📡 Access info:"
 echo "  Pod: $POD_NAME"
 echo "  Service: $SERVICE_IP:$SERVICE_PORT"
 echo "  Ingress Hosts: $INGRESS_HOSTS"
-echo "  Minikube IP: $MINIKUBE_IP (added to /etc/hosts as recipe.local)"
+echo "  Minikube IP: $MINIKUBE_IP (added to /etc/hosts as recipe-scraper.local)"
 print_separator "="

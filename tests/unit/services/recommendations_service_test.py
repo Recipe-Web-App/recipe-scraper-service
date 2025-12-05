@@ -677,7 +677,7 @@ class TestRecommendationsService:
             assert result[0].recipe_name == "Similar Recipe 1"
             assert result[0].url == "https://example.com/1"
             assert result[1].recipe_name == "Similar Recipe 2"
-            assert result[1].url == "https://recipe.local/recipes/2"
+            assert result[1].url == "https://recipe-scraper.local/recipes/2"
 
     def test_find_recipes_with_similar_tags_success(
         self,
