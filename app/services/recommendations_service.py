@@ -426,7 +426,7 @@ class RecommendationsService:
             WebRecipe(
                 recipe_name=recipe.title,
                 url=recipe.origin_url
-                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+                or f"https://recipe-scraper.local/recipes/{recipe.recipe_id}",
             )
             for recipe, _ in similar_recipes
         ]
@@ -472,7 +472,7 @@ class RecommendationsService:
             WebRecipe(
                 recipe_name=recipe.title,
                 url=recipe.origin_url
-                or f"https://recipe.local/recipes/{recipe.recipe_id}",
+                or f"https://recipe-scraper.local/recipes/{recipe.recipe_id}",
             )
             for recipe, _ in similar_recipes
         ]
