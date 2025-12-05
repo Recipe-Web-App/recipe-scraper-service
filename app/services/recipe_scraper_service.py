@@ -259,9 +259,19 @@ class RecipeScraperService:
             for ing in new_ingredients:
                 name_to_ingredient[ing.name] = ing
 
-        # 4. Create RecipeIngredient objects using the mapping
+        # 4. Deduplicate ingredients by name (ingredient_id)
+        # The recipe_ingredients table has a composite PK of (recipe_id, ingredient_id),
+        # so each ingredient can only appear once per recipe. When an ingredient appears
+        # multiple times (possibly with different units/quantities), we keep the first.
+        seen_ingredient_names: set[str] = set()
         recipe.ingredients = []
         for quantity, unit, name in parsed_ingredients:
+            if name in seen_ingredient_names:
+                _log.debug(
+                    "Skipping duplicate ingredient '{}' (already added to recipe)", name
+                )
+                continue
+            seen_ingredient_names.add(name)
             ingredient = name_to_ingredient[name]
             recipe.ingredients.append(
                 RecipeIngredient(
