@@ -73,7 +73,7 @@ class TestUserManagementService:
     ) -> None:
         """Test service initialization."""
         assert user_management_service.token_manager is mock_token_manager
-        assert user_management_service.base_url == "http://user-management-service:8000"
+        assert user_management_service.base_url == "http://user-management.local"
         assert user_management_service.scope == "user:read"
 
     @pytest.mark.asyncio

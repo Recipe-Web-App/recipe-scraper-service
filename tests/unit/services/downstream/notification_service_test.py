@@ -53,7 +53,7 @@ class TestNotificationService:
     ) -> None:
         """Test service initialization."""
         assert notification_service.token_manager is mock_token_manager
-        assert notification_service.base_url == "http://notification-service:8000"
+        assert notification_service.base_url == "http://notification-service.local"
         assert notification_service.scope == "notification:admin"
 
     @pytest.mark.asyncio

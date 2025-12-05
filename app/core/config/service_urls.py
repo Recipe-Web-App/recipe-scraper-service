@@ -1,22 +1,38 @@
 """Service URL configuration.
 
-Centralized configuration for downstream service URLs. URLs are hardcoded for the
-development environment. Update these URLs directly when deploying to production.
+Centralized configuration for downstream service URLs. URLs are loaded from
+config/service_urls.yaml with sensible defaults for production.
 """
+
+from pathlib import Path
+
+import yaml
 
 
 class ServiceURLs:
     """Centralized service URLs configuration.
 
-    Provides access to downstream service endpoints via static methods. URLs are private
-    class attributes accessed through static methods.
+    Provides access to downstream service endpoints via static methods. URLs are loaded
+    from config/service_urls.yaml with fallback defaults.
     """
 
-    _AUTH_SERVICE_TOKEN_URL = (
-        "http://auth-service:8080/api/v1/auth/oauth2/token"  # nosec B105
-    )
-    _NOTIFICATION_SERVICE_URL = "http://notification-service:8000"
-    _USER_MANAGEMENT_SERVICE_URL = "http://user-management-service:8000"
+    _config: dict[str, str] = {}
+    _loaded: bool = False
+
+    @classmethod
+    def _load_config(cls) -> None:
+        """Load service URLs from config file (lazy loading, once only)."""
+        if cls._loaded:
+            return
+        config_path = (
+            Path(__file__).parent.parent.parent.parent / "config" / "service_urls.yaml"
+        )
+        try:
+            with config_path.open("r", encoding="utf-8") as f:
+                cls._config = yaml.safe_load(f) or {}
+        except (FileNotFoundError, yaml.YAMLError):
+            cls._config = {}
+        cls._loaded = True
 
     @staticmethod
     def auth_service_token_url() -> str:
@@ -25,7 +41,11 @@ class ServiceURLs:
         Returns:
             OAuth2 token endpoint URL
         """
-        return ServiceURLs._AUTH_SERVICE_TOKEN_URL
+        ServiceURLs._load_config()
+        return ServiceURLs._config.get(
+            "auth_service_token_url",
+            "http://auth-service.local/api/v1/auth/oauth2/token",
+        )
 
     @staticmethod
     def notification_service_url() -> str:
@@ -34,7 +54,11 @@ class ServiceURLs:
         Returns:
             Notification service base URL
         """
-        return ServiceURLs._NOTIFICATION_SERVICE_URL
+        ServiceURLs._load_config()
+        return ServiceURLs._config.get(
+            "notification_service_url",
+            "http://notification-service.local",
+        )
 
     @staticmethod
     def user_management_service_url() -> str:
@@ -43,4 +67,8 @@ class ServiceURLs:
         Returns:
             User management service base URL
         """
-        return ServiceURLs._USER_MANAGEMENT_SERVICE_URL
+        ServiceURLs._load_config()
+        return ServiceURLs._config.get(
+            "user_management_service_url",
+            "http://user-management.local",
+        )
