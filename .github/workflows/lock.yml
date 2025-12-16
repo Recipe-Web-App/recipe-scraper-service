@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Lock closed issues and PRs
-        uses: dessant/lock-threads@v5
+        uses: dessant/lock-threads@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
