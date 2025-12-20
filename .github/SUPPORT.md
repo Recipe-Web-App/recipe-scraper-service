@@ -285,11 +285,11 @@ A: Python 3.13 is required (strict requirement per CLAUDE.md).
 Please note these are approximate response times:
 
 | Channel              | Expected Response Time |
-|---------------------|------------------------|
-| Security Advisories | 48 hours              |
-| GitHub Issues       | 3-5 business days     |
-| GitHub Discussions  | 5-7 business days     |
-| Pull Requests       | 3-5 business days     |
+|----------------------|------------------------|
+| Security Advisories  | 48 hours               |
+| GitHub Issues        | 3-5 business days      |
+| GitHub Discussions   | 5-7 business days      |
+| Pull Requests        | 3-5 business days      |
 
 Response times may vary based on:
 
