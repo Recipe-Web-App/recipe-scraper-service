@@ -489,7 +489,8 @@ spec:
 
 ### Security Best Practices
 
-The deployment follows Kubernetes security best practices and passes kube-score validation:
+The deployment follows Kubernetes security best practices and
+passes kube-score validation:
 
 #### Container Security
 
