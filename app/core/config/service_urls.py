@@ -44,7 +44,7 @@ class ServiceURLs:
         ServiceURLs._load_config()
         return ServiceURLs._config.get(
             "auth_service_token_url",
-            "http://auth-service.local/api/v1/auth/oauth2/token",
+            "http://sous-chef-proxy.local/api/v1/auth/oauth2/token",
         )
 
     @staticmethod
@@ -57,7 +57,7 @@ class ServiceURLs:
         ServiceURLs._load_config()
         return ServiceURLs._config.get(
             "notification_service_url",
-            "http://notification-service.local",
+            "http://sous-chef-proxy.local",
         )
 
     @staticmethod
@@ -70,5 +70,5 @@ class ServiceURLs:
         ServiceURLs._load_config()
         return ServiceURLs._config.get(
             "user_management_service_url",
-            "http://user-management.local",
+            "http://sous-chef-proxy.local",
         )

@@ -181,7 +181,7 @@ subsequent requests:
 
 **Development Environment:**
 
-- Recipe Scraper Service: `http://recipe-scraper.local/api/v1/recipe-scraper`
+- Recipe Scraper Service: `http://sous-chef-proxy.local/api/v1/recipe-scraper`
 
 **Local Environment:**
 
