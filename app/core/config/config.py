@@ -41,7 +41,7 @@ class _Settings(BaseSettings):
             "http://localhost:3000",
             "http://localhost:8080",
             "https://localhost:3000",
-            "http://recipe-scraper.local",
+            "http://sous-chef-proxy.local",
         ],
         alias="ALLOWED_ORIGINS",
     )
@@ -187,7 +187,7 @@ class _Settings(BaseSettings):
 
         self.OAUTH2_INTROSPECTION_URL = oauth2_config.get(
             "introspection_url",
-            "http://auth-service.local/api/v1/auth/oauth2/introspect",
+            "http://sous-chef-proxy.local/api/v1/auth/oauth2/introspect",
         )
 
     @property

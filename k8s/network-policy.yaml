@@ -17,9 +17,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               name: recipe-scraper
-        - podSelector:
+        - namespaceSelector:
             matchLabels:
-              app: ingress-nginx
+              name: kong
       ports:
         - protocol: TCP
           port: 8000

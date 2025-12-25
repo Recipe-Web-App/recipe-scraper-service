@@ -43,7 +43,7 @@ kubectl delete -f "${CONFIG_DIR}/pod-disruption-budget.yaml" -n "$NAMESPACE" --i
 kubectl delete -f "${CONFIG_DIR}/network-policy.yaml" -n "$NAMESPACE" --ignore-not-found
 kubectl delete -f "${CONFIG_DIR}/secret-template.yaml" -n "$NAMESPACE" --ignore-not-found
 kubectl delete -f "${CONFIG_DIR}/service.yaml" -n "$NAMESPACE" --ignore-not-found
-kubectl delete -f "${CONFIG_DIR}/ingress.yaml" -n "$NAMESPACE" --ignore-not-found
+kubectl delete -f "${CONFIG_DIR}/gateway-route.yaml" -n "$NAMESPACE" --ignore-not-found
 
 print_separator "="
 echo "🐳 Removing Docker image '${FULL_IMAGE_NAME}' from Minikube..."
