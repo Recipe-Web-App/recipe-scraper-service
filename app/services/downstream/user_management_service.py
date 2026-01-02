@@ -4,12 +4,15 @@ Provides methods to interact with the user-management-service for retrieving fol
 information needed for sending notifications.
 """
 
+import asyncio
 from uuid import UUID
 
 import httpx
 
 from app.api.v1.schemas.downstream.user_management_service import (
     GetFollowedUsersResponse,
+    NotificationPreferences,
+    PreferenceCategoryResponse,
 )
 from app.core.config.service_urls import ServiceURLs
 from app.services.downstream.base_service import BaseServiceWithOAuth2
@@ -114,3 +117,119 @@ class UserManagementService(BaseServiceWithOAuth2):
                 e,
             )
             return []
+
+    async def get_notification_preferences(
+        self,
+        user_id: UUID,
+    ) -> NotificationPreferences | None:
+        """Get notification preferences for a user.
+
+        Uses silent failure pattern: returns None on any error.
+
+        Args:
+            user_id: UUID of the user whose preferences to retrieve
+
+        Returns:
+            NotificationPreferences if successful, None on error
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"/api/v1/user-management/users/{user_id}/preferences/notification",
+            )
+            response.raise_for_status()
+
+            data = PreferenceCategoryResponse(**response.json())
+            self._log.debug(
+                "Fetched notification preferences for user_id: {}",
+                user_id,
+            )
+            return data.preferences
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                self._log.warning(
+                    "User or preferences not found for user_id: {}",
+                    user_id,
+                )
+            else:
+                self._log.error(
+                    "HTTP error fetching preferences for user_id {}: {} - {}",
+                    user_id,
+                    e.response.status_code,
+                    e.response.text,
+                )
+            return None
+
+        except httpx.RequestError as e:
+            self._log.error(
+                "Connection error fetching preferences for user_id {}: {}",
+                user_id,
+                e,
+            )
+            return None
+
+        except ValueError as e:
+            self._log.error(
+                "Invalid response format for preferences user_id {}: {}",
+                user_id,
+                e,
+            )
+            return None
+
+        except Exception as e:
+            self._log.error(
+                "Unexpected error fetching preferences for user_id {}: {}",
+                user_id,
+                e,
+            )
+            return None
+
+    async def get_notification_preferences_batch(
+        self,
+        user_ids: list[UUID],
+        max_concurrency: int = 10,
+    ) -> dict[UUID, NotificationPreferences | None]:
+        """Get notification preferences for multiple users concurrently.
+
+        Uses asyncio.Semaphore to limit concurrent requests and prevent
+        overwhelming the downstream service.
+
+        Args:
+            user_ids: List of user IDs to fetch preferences for
+            max_concurrency: Maximum concurrent requests (default: 10)
+
+        Returns:
+            Dict mapping user_id to NotificationPreferences (or None on error)
+        """
+        if not user_ids:
+            return {}
+
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def fetch_with_semaphore(
+            uid: UUID,
+        ) -> tuple[UUID, NotificationPreferences | None]:
+            async with semaphore:
+                prefs = await self.get_notification_preferences(uid)
+                return uid, prefs
+
+        results = await asyncio.gather(
+            *[fetch_with_semaphore(uid) for uid in user_ids],
+            return_exceptions=True,
+        )
+
+        preferences: dict[UUID, NotificationPreferences | None] = {}
+        for result in results:
+            if isinstance(result, BaseException):
+                self._log.error("Batch preference fetch error: {}", result)
+                continue
+            uid, prefs = result
+            preferences[uid] = prefs
+
+        self._log.info(
+            "Batch fetched preferences for {} of {} users",
+            len(preferences),
+            len(user_ids),
+        )
+        return preferences

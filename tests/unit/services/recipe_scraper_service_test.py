@@ -854,3 +854,243 @@ class TestRecipeScraperService:
             # Recipe creation should still succeed even though notifications failed
             mock_db_session.commit.assert_called_once()
             mock_recipe_class.assert_called_once()
+
+
+class TestFilterByNotificationPreferences:
+    """Unit tests for _filter_by_notification_preferences method."""
+
+    @pytest.fixture
+    def recipe_scraper_service(self) -> RecipeScraperService:
+        """Create a RecipeScraperService instance for testing."""
+
+        mock_spoonacular = Mock()
+        mock_notification = AsyncMock()
+        mock_user_mgmt = AsyncMock()
+
+        with patch("app.services.recipe_scraper_service.get_cache_manager"):
+            service = RecipeScraperService(
+                spoonacular_service=mock_spoonacular,
+                notification_service=mock_notification,
+                user_mgmt_service=mock_user_mgmt,
+            )
+            return service
+
+    @pytest.mark.asyncio
+    async def test_filter_empty_list(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test filtering with empty user list."""
+        result = await recipe_scraper_service._filter_by_notification_preferences([])
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_filter_all_opted_in(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test filtering when all users have opted in."""
+        from app.api.v1.schemas.downstream.user_management_service import (
+            NotificationPreferences,
+        )
+
+        user_ids = [uuid4(), uuid4(), uuid4()]
+
+        # Mock batch preferences - all opted in
+        mock_prefs = {
+            uid: NotificationPreferences(recipe_recommendations=True)
+            for uid in user_ids
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        assert len(result) == 3
+        assert set(result) == set(user_ids)
+
+    @pytest.mark.asyncio
+    async def test_filter_some_opted_out(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test filtering when some users have opted out."""
+        from app.api.v1.schemas.downstream.user_management_service import (
+            NotificationPreferences,
+        )
+
+        user_ids = [uuid4(), uuid4(), uuid4()]
+
+        # Second user opted out
+        mock_prefs = {
+            user_ids[0]: NotificationPreferences(recipe_recommendations=True),
+            user_ids[1]: NotificationPreferences(recipe_recommendations=False),
+            user_ids[2]: NotificationPreferences(recipe_recommendations=True),
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        assert len(result) == 2
+        assert user_ids[0] in result
+        assert user_ids[1] not in result  # Opted out
+        assert user_ids[2] in result
+
+    @pytest.mark.asyncio
+    async def test_filter_all_opted_out(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test filtering when all users have opted out."""
+        from app.api.v1.schemas.downstream.user_management_service import (
+            NotificationPreferences,
+        )
+
+        user_ids = [uuid4(), uuid4()]
+
+        # All opted out
+        mock_prefs = {
+            uid: NotificationPreferences(recipe_recommendations=False)
+            for uid in user_ids
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_filter_fetch_failure_includes_user(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test that users are included when preference fetch fails (fail-open)."""
+        from app.api.v1.schemas.downstream.user_management_service import (
+            NotificationPreferences,
+        )
+
+        user_ids = [uuid4(), uuid4()]
+
+        # One user has prefs, one failed to fetch (None)
+        mock_prefs = {
+            user_ids[0]: NotificationPreferences(recipe_recommendations=True),
+            user_ids[1]: None,  # Failed to fetch
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        # Both should be included (fail-open)
+        assert len(result) == 2
+        assert user_ids[0] in result
+        assert user_ids[1] in result
+
+    @pytest.mark.asyncio
+    async def test_filter_null_preference_treated_as_true(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test that None preference value is treated as True (default opted-in)."""
+        from app.api.v1.schemas.downstream.user_management_service import (
+            NotificationPreferences,
+        )
+
+        user_ids = [uuid4()]
+
+        # recipe_recommendations is None (not explicitly set)
+        mock_prefs = {
+            user_ids[0]: NotificationPreferences(recipe_recommendations=None),
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        # Should be included (None means default = opted in)
+        assert len(result) == 1
+        assert user_ids[0] in result
+
+    @pytest.mark.asyncio
+    async def test_filter_user_not_in_preferences_map(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test that users missing from preferences map are included (fail-open)."""
+        user_ids = [uuid4(), uuid4()]
+
+        # Only first user in map, second missing entirely
+        mock_prefs: dict[UUID, Any] = {
+            # user_ids[0] not in map
+            # user_ids[1] not in map
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        # Both should be included (fail-open when not in map)
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_filter_mixed_scenarios(
+        self,
+        recipe_scraper_service: RecipeScraperService,
+    ) -> None:
+        """Test filtering with mixed opt-in, opt-out, None, and fetch failures."""
+        from app.api.v1.schemas.downstream.user_management_service import (
+            NotificationPreferences,
+        )
+
+        user_ids = [uuid4() for _ in range(5)]
+
+        mock_prefs = {
+            user_ids[0]: NotificationPreferences(recipe_recommendations=True),  # In
+            user_ids[1]: NotificationPreferences(recipe_recommendations=False),  # Out
+            user_ids[2]: NotificationPreferences(recipe_recommendations=None),  # In
+            user_ids[3]: None,  # Fetch failed - In (fail-open)
+            # user_ids[4] not in map - In (fail-open)
+        }
+
+        recipe_scraper_service.user_mgmt_service.get_notification_preferences_batch = (  # type: ignore[method-assign]
+            AsyncMock(return_value=mock_prefs)
+        )
+
+        result = await recipe_scraper_service._filter_by_notification_preferences(
+            user_ids
+        )
+
+        # 4 should be included, 1 opted out
+        assert len(result) == 4
+        assert user_ids[0] in result  # Opted in
+        assert user_ids[1] not in result  # Opted out
+        assert user_ids[2] in result  # None = default true
+        assert user_ids[3] in result  # Fetch failed = fail-open
+        assert user_ids[4] in result  # Not in map = fail-open
