@@ -124,10 +124,13 @@ class RecipeScraperService:
         self.user_mgmt_service = user_mgmt_service
 
     async def _send_follower_notifications(self, recipe_id: int, user_id: UUID) -> None:
-        """Send recipe published notifications to followers.
+        """Send recipe published notifications to followers who have opted in.
 
         Silent failure pattern - logs errors but doesn't raise exceptions.
         This ensures notification failures don't break recipe creation.
+
+        Filters out users who have disabled recipe recommendations in their
+        notification preferences.
 
         Args:
             recipe_id: ID of the newly created recipe
@@ -141,10 +144,29 @@ class RecipeScraperService:
                 _log.debug("No followers to notify for recipe_id: {}", recipe_id)
                 return
 
+            # Filter followers by notification preferences
+            eligible_follower_ids = await self._filter_by_notification_preferences(
+                follower_ids
+            )
+
+            if not eligible_follower_ids:
+                _log.info(
+                    "No followers opted in for recipe notifications for recipe_id: {}",
+                    recipe_id,
+                )
+                return
+
+            _log.info(
+                "Filtered {} to {} eligible followers for recipe_id {}",
+                len(follower_ids),
+                len(eligible_follower_ids),
+                recipe_id,
+            )
+
             # Send notifications
             success = (
                 await self.notification_service.send_recipe_published_notification(
-                    recipe_id, follower_ids
+                    recipe_id, eligible_follower_ids
                 )
             )
 
@@ -152,7 +174,7 @@ class RecipeScraperService:
                 _log.info(
                     "Queued notifications for recipe_id {} to {} followers",
                     recipe_id,
-                    len(follower_ids),
+                    len(eligible_follower_ids),
                 )
             else:
                 _log.warning(
@@ -165,6 +187,55 @@ class RecipeScraperService:
                 recipe_id,
                 e,
             )
+
+    async def _filter_by_notification_preferences(
+        self,
+        user_ids: list[UUID],
+    ) -> list[UUID]:
+        """Filter user IDs to only those who have opted in for recipe notifications.
+
+        Users are included if:
+        - Their recipe_recommendations preference is True
+        - Their recipe_recommendations preference is None (default = opted in)
+        - Their preferences could not be fetched (fail-open for better UX)
+
+        Args:
+            user_ids: List of user IDs to filter
+
+        Returns:
+            List of user IDs who should receive notifications
+        """
+        if not user_ids:
+            return []
+
+        # Fetch preferences for all users concurrently
+        preferences_map = (
+            await self.user_mgmt_service.get_notification_preferences_batch(user_ids)
+        )
+
+        eligible_ids: list[UUID] = []
+        for uid in user_ids:
+            prefs = preferences_map.get(uid)
+
+            # Fail-open: if we couldn't fetch preferences, include the user
+            if prefs is None:
+                _log.debug(
+                    "No preferences for user {}, including by default",
+                    uid,
+                )
+                eligible_ids.append(uid)
+                continue
+
+            # Check if recipe recommendations are enabled (default True if None)
+            if prefs.recipe_recommendations is None or prefs.recipe_recommendations:
+                eligible_ids.append(uid)
+            else:
+                _log.debug(
+                    "User {} has opted out of recipe recommendations",
+                    uid,
+                )
+
+        return eligible_ids
 
     async def create_recipe(
         self,
