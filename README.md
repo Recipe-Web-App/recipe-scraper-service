@@ -3,7 +3,7 @@
 [![CI/CD Pipeline](https://github.com/jsamuelsen11/recipe-scraper-service/actions/workflows/ci.yml/badge.svg)](https://github.com/jsamuelsen11/recipe-scraper-service/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/jsamuelsen11/recipe-scraper-service/branch/main/graph/badge.svg)](https://codecov.io/github/jsamuelsen11/recipe-scraper-service)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.118.0-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
@@ -16,7 +16,7 @@ comprehensive monitoring, and enterprise-grade security.
 
 ### 🚀 Modern Architecture
 
-- **FastAPI 0.118+** with async/await support and Python 3.13 JIT compiler
+- **FastAPI 0.128+** with async/await support and Python 3.13 JIT compiler
 - **Multi-tier caching** with Redis, in-memory, and file-based layers
 - **Comprehensive health checks** with Kubernetes-ready probes
 - **OpenAPI 3.1** documentation with interactive examples
@@ -71,7 +71,7 @@ recipe-scraper-service/
 │   └── middleware/          # Custom middleware (logging, security)
 ├── tests/
 │   ├── unit/                # Fast, isolated unit tests
-│   ├── integration/         # API integration tests with testcontainers
+│   ├── component/           # API component tests with testcontainers
 │   └── performance/         # Load and performance tests
 ├── config/                  # Configuration files (logging, scraping rules)
 ├── k8s/                     # Kubernetes deployment manifests
@@ -82,7 +82,7 @@ recipe-scraper-service/
 ### Technology Stack
 
 - **Runtime**: Python 3.13 with JIT compilation
-- **Framework**: FastAPI 0.118+ with async support
+- **Framework**: FastAPI 0.128+ with async support
 - **Database**: PostgreSQL with SQLAlchemy 2.0+
 - **Caching**: Redis + multi-tier caching system
 - **Monitoring**: Prometheus + Grafana
@@ -111,7 +111,7 @@ Downstream services integrated:
 
 - **Python 3.13+** (leverages JIT compiler for performance)
 - **Poetry 2.1.3+** for dependency management
-- **Docker & Docker Compose** for local development
+- **Docker** for containerized deployment
 - **Git** with pre-commit hooks
 
 ### Development Setup
@@ -156,22 +156,6 @@ Downstream services integrated:
    - **Health Check**: <http://localhost:8000/api/v1/health>
    - **Metrics**: <http://localhost:8000/metrics>
 
-### Docker Development
-
-```bash
-# Start all services (API + PostgreSQL + Redis)
-docker-compose up --build
-
-# Run in background
-docker-compose up -d
-
-# View logs
-docker-compose logs -f recipe-scraper-service
-
-# Stop services
-docker-compose down
-```
-
 ## 🧪 Testing
 
 ### Running Tests
@@ -183,8 +167,8 @@ pytest --cov=app tests/
 # Run only unit tests (fast)
 poetry run test-unit
 
-# Run integration tests with testcontainers
-pytest tests/integration/ -v
+# Run component tests with testcontainers
+pytest tests/component/ -v
 
 # Run performance benchmarks
 pytest tests/performance/ --benchmark-only
@@ -197,7 +181,7 @@ open htmlcov/index.html
 ### Test Categories
 
 - **Unit Tests** (`tests/unit/`): Fast, isolated tests with mocked dependencies
-- **Integration Tests** (`tests/integration/`): End-to-end API tests with real databases
+- **Component Tests** (`tests/component/`): End-to-end API tests with real databases
 - **Performance Tests** (`tests/performance/`): Load testing and benchmarks
 
 ## 🔧 Configuration
@@ -484,8 +468,6 @@ here are recommended enhancements for future development:
 
 - **Poetry Configuration Migration**: Update `pyproject.toml` to use
   modern `[project]` section instead of deprecated `[tool.poetry]` fields
-- **Docker Compose File**: Missing `docker-compose.yml` for local
-  multi-service development (currently documented but not present)
 - **Database Migrations**: Implement Alembic migrations for schema
   versioning and deployment automation
 - **Environment Configuration**: Add validation for required environment

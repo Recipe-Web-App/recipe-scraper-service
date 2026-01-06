@@ -171,25 +171,6 @@ poetry run dev
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Docker Compose Setup
-
-```bash
-# Start all services
-docker-compose up --build
-
-# Run in background
-docker-compose up -d
-
-# View logs
-docker-compose logs -f recipe-scraper-service
-
-# Stop services
-docker-compose down
-
-# Clean up (remove volumes)
-docker-compose down -v
-```
-
 ## Docker Deployment
 
 ### Single Container Deployment
@@ -224,76 +205,6 @@ docker run -d \
   -e REDIS_URL=redis://your-redis-host:6379/0 \
   --restart unless-stopped \
   recipe-scraper-service:latest
-```
-
-### Multi-Service Docker Compose
-
-#### Production docker-compose.yml
-
-```yaml
-version: "3.8"
-
-services:
-    recipe-scraper:
-        image: recipe-scraper-service:latest
-        build:
-            context: .
-            dockerfile: Dockerfile
-        ports:
-            - "8000:8000"
-        environment:
-            - ENVIRONMENT=production
-            - POSTGRES_HOST=postgres
-            - REDIS_URL=redis://redis:6379/0
-        env_file:
-            - .env.production
-        depends_on:
-            - postgres
-            - redis
-        restart: unless-stopped
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 60s
-
-    postgres:
-        image: postgres:15-alpine
-        environment:
-            POSTGRES_DB: recipe_scraper_prod
-            POSTGRES_USER: recipe_user_prod
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
-        ports:
-            - "5432:5432"
-        restart: unless-stopped
-
-    redis:
-        image: redis:7-alpine
-        command: redis-server --appendonly yes
-        volumes:
-            - redis_data:/data
-        ports:
-            - "6379:6379"
-        restart: unless-stopped
-
-    nginx:
-        image: nginx:alpine
-        ports:
-            - "80:80"
-            - "443:443"
-        volumes:
-            - ./nginx.conf:/etc/nginx/nginx.conf:ro
-            - ./ssl:/etc/nginx/ssl:ro
-        depends_on:
-            - recipe-scraper
-        restart: unless-stopped
-
-volumes:
-    postgres_data:
-    redis_data:
 ```
 
 ## Kubernetes Deployment

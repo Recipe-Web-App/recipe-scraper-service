@@ -181,10 +181,10 @@ A: Visit <https://spoonacular.com/food-api> to sign up for a free or paid API ke
 
 **Q: How do I scrape a recipe from a URL?**
 
-A: Make a POST request to `/api/v1/recipes/scrape`:
+A: Make a POST request to `/api/v1/recipe-scraper/create-recipe`:
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/recipes/scrape" \
+curl -X POST "http://localhost:8000/api/v1/recipe-scraper/create-recipe" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/recipe"}'
 ```
@@ -384,13 +384,12 @@ When reporting a bug, include:
 
 - **OpenAPI Spec**: Available at `/docs` endpoint (Swagger UI)
 - **ReDoc**: Available at `/redoc` endpoint
-- **OpenAPI JSON**: `openapi.yaml` in repository root
+- **OpenAPI Spec**: `docs/openapi.yaml`
 
 ### Tools and Integrations
 
 - **Postman Collection**: See `postman/` directory
 - **Client Libraries**: See [API.md](../API.md) for examples
-- **Docker Compose**: `docker-compose.yml` for local development
 
 ## Still Need Help?
 
