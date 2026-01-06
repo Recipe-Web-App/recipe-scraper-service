@@ -137,7 +137,7 @@ poetry run test-unit
 # Or: pytest tests/unit/
 
 # Run specific test file
-pytest tests/unit/test_recipe_service.py
+pytest tests/unit/services/recipe_scraper_service_test.py
 
 # Run with verbose output
 pytest -v
@@ -153,7 +153,7 @@ pytest -v
 ### Test Organization
 
 - Unit tests: `tests/unit/`
-- Integration tests: `tests/integration/`
+- Component tests: `tests/component/`
 - Performance tests: `tests/performance/`
 - Follow existing test structure and naming conventions
 
