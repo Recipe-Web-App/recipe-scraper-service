@@ -15,7 +15,10 @@ with code in this repository.
 
 - **Run all tests with coverage**: `pytest --cov=app tests/`
 - **Run unit tests only**: `poetry run test-unit` or `pytest tests/unit/`
+- **Run a single test file**: `pytest tests/unit/services/recipe_scraper_service_test.py`
+- **Run a single test**: `pytest tests/unit/services/recipe_scraper_service_test.py::test_function_name -v`
 - **Coverage report locations**: `htmlcov/` (HTML), terminal output
+- **Coverage target**: 80% minimum (fails build if under)
 
 ### Code Quality
 
@@ -24,7 +27,7 @@ with code in this repository.
 - **Lint code**: `ruff check .` (with auto-fix: `ruff check . --fix`)
 - **Type checking**: `mypy app/`
 - **Documentation lint**: `pydoclint app/`
-- **Security scanning**: `bandit app/` (excluding tests)
+- **Security scanning**: `bandit app/`
 - **Dependency vulnerability check**: `safety check`
 - **Code complexity**: `radon cc --min B app/` and `radon mi --min B app/`
 - **Pre-commit hooks**: `pre-commit run --all-files`
@@ -37,176 +40,141 @@ with code in this repository.
 
 ### Release Management
 
-- **IMPORTANT**: This project uses automated changelog generation from
-  conventional commits
-- **Commit format**: Must follow conventional commits (enforced by
-  pre-commit hooks)
-- **Version bumps**: Automatic based on commit types (feat = minor,
-  fix = patch, etc.)
+- **IMPORTANT**: Uses automated changelog generation from conventional commits
+- **Commit format**: Must follow conventional commits (enforced by pre-commit hooks)
+- **Version bumps**: Automatic based on commit types (feat = minor, fix = patch)
 - **Manual release**: `gh workflow run release.yml` or push to main branch
 - **Setup commit template**: `git config commit.template .gitmessage`
 
 ## Architecture Overview
 
-This is a FastAPI-based recipe scraping microservice with a modular,
-layered architecture:
+This is a FastAPI-based recipe scraping microservice with a modular, layered architecture.
 
 ### Core Structure
 
-- **`app/main.py`**: Application entry point with FastAPI app setup,
-  middleware, and router registration
-- **`app/api/v1/`**: Versioned API layer with routes organized by
-  resource (recipes, health, admin, nutritional_info, recommendations)
-- **`app/services/`**: Business logic layer including recipe scraping,
-  nutritional analysis, and downstream service integrations
-  (Spoonacular API)
-- **`app/db/`**: Database layer with SQLAlchemy models organized by
-  domain (recipes, users, ingredients, meal_plans, nutritional_info)
+- **`app/main.py`**: Application entry point with FastAPI app, middleware, and router registration
+- **`app/api/v1/routes/`**: Versioned API endpoints (recipes, health, admin, nutritional_info, recommendations, shopping)
+- **`app/services/`**: Business logic layer including recipe scraping and downstream service integrations
+- **`app/services/downstream/`**: External API integrations (Spoonacular, Kroger, notification, user management)
+- **`app/db/models/`**: SQLAlchemy models organized by domain (recipes, users, ingredients, meal_plans, nutritional_info)
+- **`app/deps/`**: Dependency injection (auth, database sessions, service managers)
 - **`app/core/`**: Core application components (config, logging, security)
 
-### Key Patterns
+### Schema Organization
 
-- **Schema Organization**: Pydantic schemas in `app/api/v1/schemas/`
-  organized by type:
-  - `common/`: Shared schemas (Recipe, Ingredient, pagination,
-    nutritional info components)
-  - `request/`: API request schemas
-  - `response/`: API response schemas
-  - `downstream/`: External API schemas (Spoonacular)
-- **Service Dependencies**: Services use dependency injection pattern
-  with mocked services in tests
-- **Configuration**: Centralized config in `app/core/config/config.py`
-  with environment variable loading and file-based configs
-- **Database Models**: SQLAlchemy models follow domain-driven design
-  with relationship mappings
+Pydantic schemas in `app/api/v1/schemas/` organized by type:
 
-### External Integrations
+- `common/`: Shared schemas (Recipe, Ingredient, pagination, nutritional info)
+- `request/`: API request schemas
+- `response/`: API response schemas
+- `downstream/`: External API schemas (Spoonacular, Kroger, Auth Service, User Management)
 
-- **Recipe Scrapers**: Uses `recipe-scrapers` library for extracting
-  recipe data from web URLs
-- **Spoonacular API**: Provides ingredient substitutions, nutritional
-  data, and recipe recommendations
-- **Web Scraping**: Custom web scraper in
-  `app/utils/popular_recipe_web_scraper.py` for discovering popular
-  recipes
+### Authentication Patterns
+
+Three authentication dependency aliases in `app/deps/auth.py`:
+
+```python
+from app.deps.auth import OptionalAuth, RequiredAuth, ServiceToServiceAuth
+
+# Public endpoints - token optional
+@router.get("/recipes")
+async def get_recipes(user: OptionalAuth): ...
+
+# Protected endpoints - token required
+@router.get("/recipes/favorites")
+async def get_favorites(user: RequiredAuth): ...
+
+# Admin/internal endpoints - service-to-service only
+@router.post("/admin/sync")
+async def sync(user: ServiceToServiceAuth): ...
+```
+
+### Downstream Service Pattern
+
+External services in `app/services/downstream/` inherit from `BaseService`:
+
+- `SpoonacularService`: Nutritional data, substitutions, recipe recommendations
+- `KrogerService`: Product pricing and store inventory
+- `NotificationService`: Email and push notifications
+- `UserManagementService`: User profiles and preferences
+
+Services are accessed via `DownstreamServiceManager` in `app/deps/downstream_service_manager.py`.
+
+### Caching Architecture
+
+Multi-tier cache in `app/utils/cache_manager.py` (EnhancedCacheManager):
+
+1. **L1 (Memory)**: In-process dictionary, fastest
+2. **L2 (Redis)**: Persistent, shared across instances
+3. **L3 (File)**: Fallback when Redis unavailable
 
 ### Testing Strategy
 
-- **Unit Tests**: Located in `tests/unit/` with comprehensive fixtures
-  in `conftest.py`
-- **Integration Tests**: Located in `tests/integration/` using
-  testcontainers for realistic testing
-- **Performance Tests**: Located in `tests/performance/` with
-  pytest-benchmark for load testing
-- **Test Organization**: Mirror app structure (api/routes, services,
-  db/models, etc.)
-- **Mocked Services**: All external dependencies are mocked using
-  pytest fixtures
-- **Test Naming Convention**: Files use `*_test.py` pattern
-  (not `test_*.py`)
-- **Coverage Target**: 80% minimum coverage requirement
-  (fails build if under)
+- **Unit Tests**: `tests/unit/` with mocked dependencies (fixtures in `conftest.py`)
+- **Component Tests**: `tests/component/` for integration testing
+- **Performance Tests**: `tests/performance/` with pytest-benchmark
+- **Test Naming**: Files use `*_test.py` pattern (not `test_*.py`)
+- **Mocked Services**: All external dependencies mocked via pytest fixtures
 
-## Configuration Notes
+### Key Environment Variables
 
-### Environment Setup
+```bash
+# Database
+POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_SCHEMA
+RECIPE_SCRAPER_DB_USER, RECIPE_SCRAPER_DB_PASSWORD
 
-- **Python Version**: 3.13 (strict requirement for compatibility)
-- **Poetry**: Used for dependency management and virtual environments
-- **Pre-commit hooks**: Comprehensive code quality pipeline with
-  security scanning and conventional commit validation
-- Requires `.env` file for database credentials and API keys
-  (see README.md)
-- Configuration files in `config/`:
-  - `logging.json`: Logging configuration with multiple sinks
-  - `recipe_scraping/recipe_blog_urls.json`: Popular recipe
-    website URLs
-  - `recipe_scraping/web_scraper.yaml`: Web scraper filtering rules
+# External APIs
+SPOONACULAR_API_KEY
+KROGER_API_CLIENT_ID, KROGER_API_CLIENT_SECRET
 
-### Database
+# Caching
+REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
-- PostgreSQL database with SQLAlchemy ORM
-- Database session management in `app/db/session.py`
-- Models use base class with common fields (id, created_at, updated_at)
+# Security
+JWT_SECRET  # min 32 chars
+OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
+OAUTH2_SERVICE_ENABLED, OAUTH2_INTROSPECTION_ENABLED
+```
 
-### API Design
+### Configuration Files
 
-- RESTful endpoints with consistent response formats
-- Pagination support using limit/offset pattern
-- Request/response validation with Pydantic
-- OpenAPI documentation generation available at `/docs` and `/redoc`
-- Rate limiting and security middleware included
-- Comprehensive health checks (`/api/v1/health`, `/api/v1/liveness`,
-  `/api/v1/readiness`)
+- `config/logging.json`: Logging configuration
+- `config/recipe_scraping/recipe_blog_urls.json`: Popular recipe website URLs
+- `config/recipe_scraping/web_scraper.yaml`: Web scraper filtering rules
+- `config/service_urls.yaml`: Downstream service endpoints
 
-## Important Implementation Details
+## Implementation Details
 
-- **Error Handling**: Custom exceptions in `app/exceptions/` with
-  global exception handlers
-- **Middleware**: Request ID middleware for tracing, logging middleware
-  for request/response logging
-- **Caching**: Cache manager utility for performance optimization
-- **Unit Conversion**: Built-in unit converter for recipe ingredient
-  quantities
-- **Slug Generation**: URL-friendly slug generation for recipes
-- **Validation**: Comprehensive validation utilities for recipe data
-- **Code Style**: Black formatting (88 char line length), isort for
-  imports, strict MyPy typing
-- **Security**: Bandit security scanning, secret detection, dependency
-  vulnerability checks
-
-## Quality Assurance
-
-### Automated Quality Checks
-
-- **Pre-commit pipeline**: Runs formatting, linting, type checking,
-  security scanning, and conventional commit validation
-- **Code complexity**: Radon complexity analysis (min grade B required)
-- **Documentation**: Google-style doc-strings with pydoclint validation
-- **Security**: Multiple security scanners (bandit, safety, detect-secrets)
-- **CI/CD Pipeline**: GitHub Actions with automated testing, security
-  scanning, and releases
-
-### Documentation
-
-The project includes comprehensive documentation:
-
-- **README.md**: Main project documentation with features and setup
-- **API.md**: Complete API reference with examples and client code
-- **.github/CONTRIBUTING.md**: Development workflow and coding standards
-- **DEPLOYMENT.md**: Production deployment strategies and configurations
-- **.github/SECURITY.md**: Security policies and vulnerability reporting
-- **CHANGELOG.md**: Automatically generated from conventional commits
+- **Error Handling**: Custom exceptions in `app/exceptions/` with global handlers
+- **Middleware**: Request ID (tracing), security headers, process time, logging
+- **Database**: PostgreSQL with SQLAlchemy, models use `recipe_manager` schema
+- **API Design**: RESTful with pagination (limit/offset), health checks at `/api/v1/health`, `/api/v1/liveness`, `/api/v1/readiness`
+- **Code Style**: Black (88 chars), isort, strict MyPy typing, Google-style docstrings
 
 ## Conventional Commits
 
-**CRITICAL**: This project strictly enforces conventional commits for
-automated changelog generation and semantic versioning. Commit messages
-are validated by pre-commit hooks.
-
-### Required Format
+**CRITICAL**: This project strictly enforces conventional commits for automated changelog generation.
 
 ```bash
 <type>[optional scope]: <description>
 ```
 
-### Important Types
+### Types
 
 - `feat`: New feature (minor version bump)
 - `fix`: Bug fix (patch version bump)
 - `security`: Security improvement (patch version bump)
-- `docs`: Documentation changes (no version bump)
-- `chore`: Maintenance tasks (no version bump)
+- `docs`: Documentation (no version bump)
+- `refactor`, `test`, `chore`: No version bump
+
+### Scopes
+
+`api`, `scraper`, `nutritional`, `cache`, `db`, `auth`, `deps`
 
 ### Examples
 
 ```bash
 feat(api): add ingredient substitution endpoint
-fix(cache): resolve Redis connection timeout
+fix(scraper): handle missing recipe images gracefully
 security(auth): implement rate limiting
-docs: update API documentation
 ```
-
-When working with this codebase, ensure compatibility with the existing
-patterns, use conventional commits, and utilize the comprehensive test
-fixtures for consistent testing.
