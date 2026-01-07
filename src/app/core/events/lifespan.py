@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from app.cache.redis import close_redis_pools, init_redis_pools
 from app.core.config import get_settings
 from app.observability.logging import get_logger, setup_logging
+from app.workers.jobs import close_arq_pool, get_arq_pool
 
 
 if TYPE_CHECKING:
@@ -59,7 +60,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     except Exception:
         logger.exception("Failed to initialize Redis - continuing without cache")
 
-    # TODO(Phase 5): Initialize ARQ background job worker
+    # Initialize ARQ connection pool for job enqueuing
+    try:
+        await get_arq_pool()
+    except Exception:
+        logger.exception("Failed to initialize ARQ pool - background jobs unavailable")
 
     logger.info("Application startup complete")
 
@@ -68,9 +73,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # === SHUTDOWN ===
     logger.info("Shutting down application")
 
+    # Close ARQ connection pool
+    await close_arq_pool()
+
     # Close Redis connection pools
     await close_redis_pools()
-
-    # TODO(Phase 5): Close ARQ background job worker
 
     logger.info("Application shutdown complete")
