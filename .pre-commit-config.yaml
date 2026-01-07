@@ -139,7 +139,7 @@ repos:
     rev: v2.14.0
     hooks:
       - id: hadolint
-        args: [--failure-threshold=warning]
+        args: [--config=.hadolint.yaml, --failure-threshold=warning]
 
   # =============================================================================
   # Kubernetes - kubeconform (local - no remote hook available)
