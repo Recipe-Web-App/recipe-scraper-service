@@ -10,6 +10,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
+from app.cache.redis import close_redis_pools, init_redis_pools
 from app.core.config import get_settings
 from app.observability.logging import get_logger, setup_logging
 
@@ -52,7 +53,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         is_development=settings.is_development,
     )
 
-    # TODO(Phase 4): Initialize Redis connection pools
+    # Initialize Redis connection pools
+    try:
+        await init_redis_pools()
+    except Exception:
+        logger.exception("Failed to initialize Redis - continuing without cache")
+
     # TODO(Phase 5): Initialize ARQ background job worker
 
     logger.info("Application startup complete")
@@ -62,7 +68,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # === SHUTDOWN ===
     logger.info("Shutting down application")
 
-    # TODO(Phase 4): Close Redis connection pools
+    # Close Redis connection pools
+    await close_redis_pools()
+
     # TODO(Phase 5): Close ARQ background job worker
 
     logger.info("Application shutdown complete")

@@ -11,6 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.cache.redis import check_redis_health
 from app.core.config import Settings, get_settings
 
 
@@ -73,14 +74,12 @@ async def readiness_check(
     This endpoint is used by Kubernetes readiness probes to determine
     if the service should receive traffic. It checks all external dependencies.
     """
-    dependencies: dict[str, str] = {}
-
-    # TODO(Phase 4): Implement Redis health check
-    dependencies["redis"] = "not_configured"
+    # Check Redis health
+    dependencies = await check_redis_health()
 
     # Determine overall status
     all_healthy = all(
-        status in ("healthy", "not_configured") for status in dependencies.values()
+        status in ("healthy", "not_initialized") for status in dependencies.values()
     )
 
     return ReadinessResponse(
