@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import Settings, get_settings
 
+
 router = APIRouter(tags=["health"])
 
 
@@ -74,14 +75,7 @@ async def readiness_check(
     """
     dependencies: dict[str, str] = {}
 
-    # Check Redis connection (will be implemented in Phase 4)
-    # try:
-    #     await redis_client.ping()
-    #     dependencies["redis"] = "healthy"
-    # except Exception:
-    #     dependencies["redis"] = "unhealthy"
-
-    # For now, assume all dependencies are healthy
+    # TODO(Phase 4): Implement Redis health check
     dependencies["redis"] = "not_configured"
 
     # Determine overall status

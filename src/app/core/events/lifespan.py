@@ -7,28 +7,30 @@ This module defines the lifespan context manager that handles:
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from app.core.config import get_settings
 from app.observability.logging import get_logger, setup_logging
 
+
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from fastapi import FastAPI
 
 logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifespan events.
 
     This context manager handles startup and shutdown events for the application.
     Resources initialized here are available throughout the application's lifetime.
 
     Args:
-        app: The FastAPI application instance.
+        _app: The FastAPI application instance (unused, for future extensions).
 
     Yields:
         None - control returns to the application to handle requests.
@@ -50,11 +52,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         is_development=settings.is_development,
     )
 
-    # Initialize Redis connections (will be implemented in Phase 4)
-    # await init_redis_pools(settings)
-
-    # Initialize background job worker connection (will be implemented in Phase 5)
-    # await init_arq_pool(settings)
+    # TODO(Phase 4): Initialize Redis connection pools
+    # TODO(Phase 5): Initialize ARQ background job worker
 
     logger.info("Application startup complete")
 
@@ -63,10 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # === SHUTDOWN ===
     logger.info("Shutting down application")
 
-    # Close Redis connections (will be implemented in Phase 4)
-    # await close_redis_pools()
-
-    # Close background job worker connection (will be implemented in Phase 5)
-    # await close_arq_pool()
+    # TODO(Phase 4): Close Redis connection pools
+    # TODO(Phase 5): Close ARQ background job worker
 
     logger.info("Application shutdown complete")

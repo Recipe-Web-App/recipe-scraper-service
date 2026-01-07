@@ -10,11 +10,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import jwt
+from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError
 from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.observability.logging import get_logger
+
 
 logger = get_logger(__name__)
 
@@ -158,19 +160,22 @@ def decode_token(token: str, *, verify_type: str | None = None) -> TokenPayload:
 
         # Verify token type if specified
         if verify_type and payload.get("type") != verify_type:
-            raise TokenInvalidError(
+            msg = (
                 f"Invalid token type. Expected {verify_type}, got {payload.get('type')}"
             )
+            raise TokenInvalidError(msg)
 
         return TokenPayload(**payload)
 
-    except jwt.ExpiredSignatureError as e:
+    except ExpiredSignatureError as e:
         logger.debug("Token expired", error=str(e))
-        raise TokenExpiredError("Token has expired") from e
+        msg = "Token has expired"
+        raise TokenExpiredError(msg) from e
 
-    except jwt.InvalidTokenError as e:
+    except JWTError as e:
         logger.warning("Invalid token", error=str(e))
-        raise TokenInvalidError("Invalid token") from e
+        msg = "Invalid token"
+        raise TokenInvalidError(msg) from e
 
 
 def verify_token(token: str, *, verify_type: str | None = None) -> bool:
@@ -185,6 +190,7 @@ def verify_token(token: str, *, verify_type: str | None = None) -> bool:
     """
     try:
         decode_token(token, verify_type=verify_type)
-        return True
     except TokenError:
         return False
+    else:
+        return True

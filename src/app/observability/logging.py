@@ -14,16 +14,22 @@ import logging
 import sys
 from contextvars import ContextVar
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import orjson
 from loguru import logger
 
+
 if TYPE_CHECKING:
-    from typing import Any
+    from types import FrameType
+
+    from loguru import Logger, Record
 
 
 # Context variable for request-scoped data (request_id, user_id, etc.)
-_log_context: ContextVar[dict[str, Any]] = ContextVar("log_context", default={})
+_log_context: ContextVar[dict[str, Any] | None] = ContextVar(
+    "log_context", default=None
+)
 
 
 class InterceptHandler(logging.Handler):
@@ -36,13 +42,15 @@ class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         """Emit a log record by forwarding to Loguru."""
         # Get corresponding Loguru level if it exists
+        level: str | int
         try:
             level = logger.level(record.levelname).name
         except ValueError:
             level = record.levelno
 
         # Find caller from where the logged message originated
-        frame, depth = logging.currentframe(), 2
+        frame: FrameType | None = logging.currentframe()
+        depth = 2
         while frame and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
@@ -52,10 +60,10 @@ class InterceptHandler(logging.Handler):
         )
 
 
-def _format_record(record: dict[str, Any]) -> str:
+def _format_record(record: Record) -> str:
     """Format log record with context variables for JSON serialization."""
-    # Get context from ContextVar
-    context = _log_context.get()
+    # Get context from ContextVar (default to empty dict if not set)
+    context = _log_context.get() or {}
 
     # Add context to the record's extra dict
     record["extra"].update(context)
@@ -74,19 +82,22 @@ def _format_record(record: dict[str, Any]) -> str:
     # Add exception info if present
     if record["exception"]:
         serialize_fields["exception"] = {
-            "type": record["exception"].type.__name__ if record["exception"].type else None,
-            "value": str(record["exception"].value) if record["exception"].value else None,
+            "type": record["exception"].type.__name__
+            if record["exception"].type
+            else None,
+            "value": str(record["exception"].value)
+            if record["exception"].value
+            else None,
             "traceback": record["exception"].traceback,
         }
 
     # Return JSON-serialized record
-    import orjson
     return orjson.dumps(serialize_fields).decode() + "\n"
 
 
-def _format_record_dev(record: dict[str, Any]) -> str:
+def _format_record_dev(record: Record) -> str:
     """Format log record for development (human-readable with context)."""
-    context = _log_context.get()
+    context = _log_context.get() or {}
 
     # Build context string
     context_str = ""
@@ -186,7 +197,7 @@ def setup_logging(
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
-def get_logger(name: str) -> "logger":  # type: ignore[valid-type]
+def get_logger(name: str) -> Logger:
     """Get a logger instance bound to a name.
 
     Args:
@@ -210,7 +221,7 @@ def bind_context(**kwargs: Any) -> None:
     Example:
         bind_context(request_id="abc-123", user_id="user-456")
     """
-    current = _log_context.get().copy()
+    current = (_log_context.get() or {}).copy()
     current.update(kwargs)
     _log_context.set(current)
 
@@ -230,7 +241,7 @@ def unbind_context(*keys: str) -> None:
     Args:
         *keys: Keys to remove from the logging context
     """
-    current = _log_context.get().copy()
+    current = (_log_context.get() or {}).copy()
     for key in keys:
         current.pop(key, None)
     _log_context.set(current)
@@ -242,16 +253,16 @@ def get_context() -> dict[str, Any]:
     Returns:
         Dictionary of current context variables
     """
-    return _log_context.get().copy()
+    return (_log_context.get() or {}).copy()
 
 
 # Re-export the main logger for convenience
 __all__ = [
-    "logger",
-    "get_logger",
-    "setup_logging",
     "bind_context",
     "clear_context",
-    "unbind_context",
     "get_context",
+    "get_logger",
+    "logger",
+    "setup_logging",
+    "unbind_context",
 ]

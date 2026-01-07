@@ -1,0 +1,199 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+# Run all hooks even if one fails
+fail_fast: false
+
+# Default stages for all hooks
+default_stages: [pre-commit]
+
+repos:
+  # =============================================================================
+  # General Housekeeping
+  # =============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Whitespace & file fixers (auto-fix)
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+      # File format validators
+      - id: check-yaml
+        args: [--unsafe] # Allow custom tags (for K8s/Helm)
+      - id: check-json
+      - id: check-toml
+
+      # Git safety
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-case-conflict
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+
+      # Script checks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # =============================================================================
+  # Python - Ruff (Linting & Formatting)
+  # =============================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      # Linter with auto-fix
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      # Formatter
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # =============================================================================
+  # Python - mypy (Type Checking)
+  # =============================================================================
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        args: [--config-file=pyproject.toml]
+        additional_dependencies:
+          - pydantic>=2.10.0
+          - pydantic-settings>=2.7.0
+          - fastapi>=0.115.0
+          - python-jose[cryptography]>=3.3.0
+          - orjson>=3.10.0
+          - loguru>=0.7.3
+          - uvicorn>=0.32.0
+          - types-redis>=4.6.0
+          - types-python-jose>=3.3.0
+          - types-passlib>=1.7.0
+        pass_filenames: false
+        entry: mypy src
+
+  # =============================================================================
+  # Shell Scripts - shellcheck & shfmt
+  # =============================================================================
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        args: [-w, -i, "2", -ci, -bn] # Auto-fix: 2-space indent, case indent, binary newline
+
+  # =============================================================================
+  # Markdown - markdownlint
+  # =============================================================================
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.20.0
+    hooks:
+      - id: markdownlint-cli2
+        args: [--fix]
+
+  # =============================================================================
+  # YAML - yamllint
+  # =============================================================================
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yaml]
+
+  # =============================================================================
+  # JSON & YAML - Prettier (Formatting)
+  # =============================================================================
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [json, yaml]
+        additional_dependencies:
+          - prettier@3.4.2
+
+  # =============================================================================
+  # TOML - taplo (Formatting)
+  # =============================================================================
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-format
+
+  # =============================================================================
+  # Docker - hadolint (Python wrapper - no Docker required)
+  # =============================================================================
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.14.0
+    hooks:
+      - id: hadolint
+        args: [--failure-threshold=warning]
+
+  # =============================================================================
+  # Kubernetes - kubeconform (local - no remote hook available)
+  # Requires: kubeconform CLI installed
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: kubeconform
+        name: kubeconform
+        description: Validate Kubernetes manifests against schemas
+        entry: kubeconform
+        args: [-strict, -ignore-missing-schemas, -kubernetes-version, "1.29.0", -summary]
+        language: system
+        files: (k8s|kubernetes|manifests|deploy)/.*\.(yaml|yml)$
+        pass_filenames: true
+
+  # =============================================================================
+  # Helm - lint charts (local - no remote hook available)
+  # Requires: helm CLI installed
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: helm-lint
+        name: helm-lint
+        description: Lint Helm charts
+        entry: bash -c 'for chart in "$@"; do helm lint "$(dirname "$chart")"; done'
+        language: system
+        files: Chart\.yaml$
+        pass_filenames: true
+
+  # =============================================================================
+  # OpenAPI - Spectral (local - no remote hook available)
+  # Requires: Node.js installed
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: spectral
+        name: spectral
+        description: Lint OpenAPI specifications
+        entry: npx --yes @stoplight/spectral-cli lint --fail-severity=warn
+        language: system
+        files: (openapi|swagger|api).*\.(yaml|yml|json)$
+        pass_filenames: true
+
+  # =============================================================================
+  # Secrets - gitleaks
+  # =============================================================================
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  # =============================================================================
+  # Commit Messages - commitlint
+  # =============================================================================
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.23.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies:
+          - "@commitlint/cli@19.6.1"
+          - "@commitlint/config-conventional@19.6.0"

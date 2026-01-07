@@ -8,7 +8,7 @@ This module provides OAuth2 security schemes for FastAPI:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import (
@@ -18,6 +18,7 @@ from fastapi.security import (
 
 from app.auth.jwt import TokenExpiredError, TokenInvalidError, decode_token
 from app.core.config import get_settings
+
 
 # OAuth2 password bearer scheme
 # Token URL is relative to the API prefix
@@ -46,7 +47,7 @@ api_key_header = APIKeyHeader(
 
 async def validate_token(
     token: Annotated[str, Depends(oauth2_scheme)],
-) -> dict:
+) -> dict[str, Any]:
     """Validate JWT token and return payload.
 
     This is the main token validation dependency used in protected routes.
@@ -68,18 +69,18 @@ async def validate_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except TokenInvalidError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
 
 async def validate_token_optional(
     token: Annotated[str | None, Depends(oauth2_scheme_optional)],
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Optionally validate JWT token.
 
     Use this for routes that work differently for authenticated vs anonymous users.
@@ -131,9 +132,9 @@ async def validate_api_key(
 
 
 async def validate_token_or_api_key(
-    token_payload: Annotated[dict | None, Depends(validate_token_optional)],
+    token_payload: Annotated[dict[str, Any] | None, Depends(validate_token_optional)],
     api_key: Annotated[str | None, Depends(validate_api_key)],
-) -> dict:
+) -> dict[str, Any]:
     """Validate either JWT token or API key.
 
     Useful for endpoints that accept both user and service authentication.

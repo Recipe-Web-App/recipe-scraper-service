@@ -1,0 +1,53 @@
+# Spectral OpenAPI Linting Configuration
+# See https://docs.stoplight.io/docs/spectral/
+
+extends:
+  - spectral:oas
+  - spectral:asyncapi
+
+# Severity levels: error, warn, info, hint, off
+rules:
+  # OpenAPI rules
+  info-contact: warn
+  info-description: warn
+  info-license: warn
+  operation-description: warn
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-parameters: error
+  operation-success-response: error
+  operation-tags: warn
+  path-params: error
+  path-keys-no-trailing-slash: error
+  path-not-include-query: error
+
+  # Disable overly strict rules
+  oas3-api-servers: warn
+  oas3-examples-value-or-externalValue: warn
+  oas3-valid-media-example: warn
+  oas3-valid-schema-example: warn
+
+  # Custom rule severity adjustments
+  no-$ref-siblings: error
+  typed-enum: warn
+  duplicated-entry-in-enum: error
+
+# Function options
+functionsDir: ""
+
+# Formats to lint
+formats:
+  - oas2
+  - oas3
+  - oas3.0
+  - oas3.1
+  - asyncapi2
+
+# Override rules for specific paths
+overrides:
+  - files:
+      - "**/examples/**"
+      - "**/test/**"
+    rules:
+      info-contact: off
+      info-license: off

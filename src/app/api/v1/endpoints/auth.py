@@ -9,7 +9,7 @@ Provides OAuth2 password flow authentication:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -24,6 +24,15 @@ from app.auth.jwt import (
 )
 from app.core.config import Settings, get_settings
 from app.schemas.auth import RefreshTokenRequest, TokenInfo, TokenResponse
+
+
+# OAuth2 bearer token type (standard value per RFC 6749)
+BEARER: Final[str] = "bearer"
+
+# Demo credentials (REMOVE IN PRODUCTION - use proper auth service)
+_DEMO_EMAIL: Final[str] = "demo@example.com"
+_DEMO_PASSWORD: Final[str] = "demo1234"  # noqa: S105
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -43,7 +52,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     description="OAuth2 compatible token login, get an access token for future requests.",
 )
 async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TokenResponse:
     """Authenticate user and return access/refresh tokens.
@@ -60,7 +69,7 @@ async def login(
     # 4. Get user's roles and permissions
 
     # Placeholder authentication (REMOVE IN PRODUCTION)
-    if form_data.username != "demo@example.com" or form_data.password != "demo1234":
+    if form_data.username != _DEMO_EMAIL or form_data.password != _DEMO_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -83,7 +92,7 @@ async def login(
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        token_type="bearer",
+        token_type=BEARER,
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -109,13 +118,13 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except TokenInvalidError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     # TODO: Check if refresh token is revoked (requires Redis)
     # TODO: Look up current user roles/permissions from database
@@ -132,7 +141,7 @@ async def refresh_token(
     return TokenResponse(
         access_token=access_token,
         refresh_token=new_refresh_token,
-        token_type="bearer",
+        token_type=BEARER,
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -170,7 +179,7 @@ async def get_current_user_info(
     description="Revoke the current access and refresh tokens.",
 )
 async def logout(
-    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    _current_user: Annotated[CurrentUser, Depends(get_current_user)],
 ) -> None:
     """Logout the current user by revoking their tokens.
 
@@ -185,4 +194,4 @@ async def logout(
 
     # For now, logout is a no-op on the server side
     # Clients should discard their tokens
-    return None
+    return

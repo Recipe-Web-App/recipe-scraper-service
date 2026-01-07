@@ -13,13 +13,14 @@ import uuid
 from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.types import ASGIApp
 
 from app.observability.logging import bind_context, clear_context
+
 
 if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import Response
+    from starlette.types import ASGIApp
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):

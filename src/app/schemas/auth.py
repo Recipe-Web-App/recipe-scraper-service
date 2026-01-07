@@ -35,7 +35,9 @@ class TokenInfo(BaseModel):
     iat: int = Field(..., description="Issued at timestamp")
     type: str = Field(..., description="Token type (access/refresh)")
     roles: list[str] = Field(default_factory=list, description="User roles")
-    permissions: list[str] = Field(default_factory=list, description="Direct permissions")
+    permissions: list[str] = Field(
+        default_factory=list, description="Direct permissions"
+    )
 
 
 class UserCreate(BaseModel):

@@ -6,7 +6,7 @@ in FastAPI route handlers.
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Final
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
@@ -21,6 +21,10 @@ from app.auth.permissions import (
 )
 
 
+# Default JWT type for access tokens
+DEFAULT_JWT_TYPE: Final[str] = "access"
+
+
 class CurrentUser(BaseModel):
     """Representation of the current authenticated user.
 
@@ -30,7 +34,7 @@ class CurrentUser(BaseModel):
     id: str  # User ID from token subject
     roles: list[str] = []
     permissions: list[str] = []
-    token_type: str = "access"
+    token_type: str = DEFAULT_JWT_TYPE
 
     @classmethod
     def from_token_payload(cls, payload: dict[str, Any]) -> CurrentUser:
@@ -63,7 +67,7 @@ class CurrentUser(BaseModel):
 
 
 async def get_current_user(
-    payload: Annotated[dict, Depends(validate_token)],
+    payload: Annotated[dict[str, Any], Depends(validate_token)],
 ) -> CurrentUser:
     """Get the current authenticated user.
 
@@ -89,7 +93,7 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    payload: Annotated[dict | None, Depends(validate_token_optional)],
+    payload: Annotated[dict[str, Any] | None, Depends(validate_token_optional)],
 ) -> CurrentUser | None:
     """Optionally get the current authenticated user.
 

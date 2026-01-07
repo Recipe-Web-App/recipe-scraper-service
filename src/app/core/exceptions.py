@@ -16,6 +16,9 @@ from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.observability.logging import get_logger
+
+
 if TYPE_CHECKING:
     from fastapi import Request
 
@@ -37,7 +40,7 @@ class ErrorResponse(BaseModel):
     request_id: str | None = None
 
 
-class AppException(Exception):
+class AppError(Exception):
     """Base application exception.
 
     All custom exceptions should inherit from this class
@@ -58,7 +61,7 @@ class AppException(Exception):
         super().__init__(message)
 
 
-class NotFoundException(AppException):
+class NotFoundError(AppError):
     """Resource not found exception."""
 
     def __init__(self, resource: str, identifier: Any) -> None:
@@ -69,7 +72,7 @@ class NotFoundException(AppException):
         )
 
 
-class UnauthorizedException(AppException):
+class UnauthorizedError(AppError):
     """Unauthorized access exception."""
 
     def __init__(self, message: str = "Could not validate credentials") -> None:
@@ -80,7 +83,7 @@ class UnauthorizedException(AppException):
         )
 
 
-class ForbiddenException(AppException):
+class ForbiddenError(AppError):
     """Forbidden access exception."""
 
     def __init__(self, message: str = "Insufficient permissions") -> None:
@@ -91,7 +94,7 @@ class ForbiddenException(AppException):
         )
 
 
-class ConflictException(AppException):
+class ConflictError(AppError):
     """Resource conflict exception."""
 
     def __init__(self, message: str) -> None:
@@ -102,7 +105,7 @@ class ConflictException(AppException):
         )
 
 
-class BadRequestException(AppException):
+class BadRequestError(AppError):
     """Bad request exception."""
 
     def __init__(self, message: str) -> None:
@@ -113,7 +116,7 @@ class BadRequestException(AppException):
         )
 
 
-class RateLimitException(AppException):
+class RateLimitError(AppError):
     """Rate limit exceeded exception."""
 
     def __init__(self, message: str = "Rate limit exceeded") -> None:
@@ -124,7 +127,7 @@ class RateLimitException(AppException):
         )
 
 
-class ServiceUnavailableException(AppException):
+class ServiceUnavailableError(AppError):
     """Service unavailable exception."""
 
     def __init__(self, message: str = "Service temporarily unavailable") -> None:
@@ -143,10 +146,10 @@ def _get_request_id(request: Request) -> str | None:
 def setup_exception_handlers(app: FastAPI) -> None:
     """Register exception handlers with the FastAPI application."""
 
-    @app.exception_handler(AppException)
+    @app.exception_handler(AppError)
     async def app_exception_handler(
         request: Request,
-        exc: AppException,
+        exc: AppError,
     ) -> ORJSONResponse:
         """Handle custom application exceptions."""
         return ORJSONResponse(
@@ -204,8 +207,6 @@ def setup_exception_handlers(app: FastAPI) -> None:
         exc: Exception,
     ) -> ORJSONResponse:
         """Handle unexpected exceptions."""
-        from app.observability.logging import get_logger
-
         logger = get_logger(__name__)
         logger.exception("Unhandled exception", exc_info=exc)
 
