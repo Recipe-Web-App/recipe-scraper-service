@@ -276,6 +276,10 @@ module = [
   "arq.*",
   "slowapi.*",
   "prometheus_fastapi_instrumentator.*",
+  "opentelemetry",
+  "opentelemetry.*",
+  "opentelemetry_sdk.*",
+  "opentelemetry_api.*",
 ]
 ignore_missing_imports = true
 

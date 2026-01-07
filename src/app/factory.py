@@ -25,6 +25,8 @@ from app.core.middleware.logging import LoggingMiddleware
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.security_headers import SecurityHeadersMiddleware
 from app.core.middleware.timing import TimingMiddleware
+from app.observability.metrics import setup_metrics
+from app.observability.tracing import setup_tracing
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -66,6 +68,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Mount API routers
     _setup_routers(app, settings)
+
+    # Setup observability (after routes are mounted)
+    setup_tracing(app)
+    setup_metrics(app)
 
     return app
 

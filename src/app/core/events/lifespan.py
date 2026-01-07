@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from app.cache.redis import close_redis_pools, init_redis_pools
 from app.core.config import get_settings
 from app.observability.logging import get_logger, setup_logging
+from app.observability.tracing import shutdown_tracing
 from app.workers.jobs import close_arq_pool, get_arq_pool
 
 
@@ -72,6 +73,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     # === SHUTDOWN ===
     logger.info("Shutting down application")
+
+    # Shutdown tracing (flush pending spans)
+    shutdown_tracing()
 
     # Close ARQ connection pool
     await close_arq_pool()
