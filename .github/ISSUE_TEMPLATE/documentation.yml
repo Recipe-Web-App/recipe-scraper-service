@@ -1,0 +1,63 @@
+---
+name: Documentation
+description: Report documentation issues or request improvements
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+assignees:
+  - jsamuelsen11
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve our documentation! Report issues or suggest improvements.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation change is needed?
+      options:
+        - Missing documentation
+        - Incorrect information
+        - Unclear explanation
+        - Outdated content
+        - Typo/grammar fix
+        - New example needed
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue?
+      placeholder: "e.g., README.md, CLAUDE.md, API docs, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the documentation issue or improvement
+      placeholder: Describe what's wrong or what could be improved
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Change
+      description: How would you improve this documentation?
+      placeholder: Provide your suggested improvement
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked if this documentation issue already exists
+          required: true
+        - label: I am willing to submit a PR with this change
+          required: false

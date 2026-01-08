@@ -1,0 +1,37 @@
+---
+title: "[Q&A] "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Welcome! This is a place to ask questions about the Recipe Scraper Service.
+
+        **Before asking:**
+        - Search existing discussions and issues
+        - Check the [README.md](../README.md) and [CLAUDE.md](../CLAUDE.md)
+        - Review the [API documentation](../README.md#api-documentation)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: Ask your question here...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to accomplish?
+      placeholder: Provide context about your use case
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What Have You Tried?
+      description: What have you already attempted?
+      placeholder: Describe what you've already tried

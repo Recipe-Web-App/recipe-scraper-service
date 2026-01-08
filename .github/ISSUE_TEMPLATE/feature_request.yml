@@ -1,0 +1,127 @@
+---
+name: Feature Request
+description: Suggest a new feature or enhancement for the recipe scraper service
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees:
+  - jsamuelsen11
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide as much detail as possible to help us
+        understand and evaluate your request.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: A clear description of what the problem is. Ex. I'm always frustrated when [...]
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like
+      placeholder: A clear description of what you want to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: What other approaches could solve this problem?
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component Area
+      description: Which area does this feature relate to?
+      options:
+        - Recipe Scraping
+        - API Endpoints
+        - Authentication/Authorization
+        - Caching
+        - Rate Limiting
+        - Background Jobs
+        - Monitoring/Metrics
+        - Configuration
+        - Documentation
+        - CLI Tools
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical (Blocking my use case)
+        - High (Would significantly improve my workflow)
+        - Medium (Nice to have)
+        - Low (Minor improvement)
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe your specific use case for this feature
+      placeholder: |
+        I need this feature because...
+        My application does...
+        This would help me...
+    validations:
+      required: true
+
+  - type: textarea
+    id: api-example
+    attributes:
+      label: API Design (Optional)
+      description: If applicable, show what the API might look like
+      render: python
+      placeholder: |
+        # Example API usage
+        response = client.scrape_recipe(url="https://example.com/recipe")
+
+  - type: textarea
+    id: breaking-changes
+    attributes:
+      label: Breaking Changes
+      description: Would this feature require breaking changes to existing APIs?
+      placeholder: Describe any potential breaking changes
+
+  - type: textarea
+    id: security
+    attributes:
+      label: Security Considerations
+      description: Are there any security implications to consider?
+      placeholder: Describe security aspects of this feature
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or examples about the feature request
+      placeholder: Links to similar implementations, diagrams, etc.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: This feature aligns with the project's goals
+          required: true
+        - label: I am willing to help implement or test this feature
+          required: false

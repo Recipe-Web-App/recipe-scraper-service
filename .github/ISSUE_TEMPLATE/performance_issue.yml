@@ -1,0 +1,107 @@
+---
+name: Performance Issue
+description: Report a performance problem or slowdown
+title: "[Performance]: "
+labels: ["performance", "needs-triage"]
+assignees:
+  - jsamuelsen11
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Please provide details to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: A clear description of the performance problem
+      placeholder: Describe the performance issue you're experiencing
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What performance did you expect?
+      placeholder: "e.g., Response time should be under 500ms"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Performance
+      description: What performance are you seeing?
+      placeholder: "e.g., Response time is 5+ seconds"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which component has the performance issue?
+      options:
+        - Recipe Scraping
+        - API Response Time
+        - Redis Cache
+        - Background Jobs
+        - Memory Usage
+        - CPU Usage
+        - Startup Time
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Include any metrics or measurements
+      placeholder: |
+        - Average response time: X ms
+        - P95 response time: X ms
+        - Memory usage: X MB
+        - CPU usage: X%
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Make request to endpoint X
+        2. With payload Y
+        3. Observe slow response
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your deployment environment
+      value: |
+        - Deployment: (Docker/Kubernetes/Local)
+        - Resources: (CPU/Memory allocated)
+        - Concurrent users/requests:
+        - Redis configuration:
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling Data (if available)
+      description: Include any profiling or tracing data
+      render: text
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues for similar performance problems
+          required: true
+        - label: I have provided metrics or measurements
+          required: true

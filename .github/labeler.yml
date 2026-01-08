@@ -1,0 +1,83 @@
+---
+# PR Labeler Configuration
+# Automatically labels PRs based on changed files
+
+# Dependencies
+dependencies:
+  - pyproject.toml
+  - uv.lock
+
+# Documentation
+documentation:
+  - "**/*.md"
+  - docs/**/*
+  - CLAUDE.md
+  - README.md
+
+# GitHub configuration
+github:
+  - .github/**/*
+
+# Workflows
+github-actions:
+  - .github/workflows/**/*
+
+# Docker
+docker:
+  - Dockerfile
+  - docker-compose*.yml
+  - .dockerignore
+  - docker/**/*
+
+# Configuration
+configuration:
+  - "**/*.yml"
+  - "**/*.yaml"
+  - "**/*.json"
+  - "**/*.toml"
+  - .env.example
+
+# Source code
+python:
+  - "**/*.py"
+  - src/**/*
+
+# Tests
+tests:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - tests/**/*
+  - conftest.py
+
+# API/Endpoints
+api:
+  - src/app/api/**/*
+  - src/app/routes/**/*
+
+# Authentication
+auth:
+  - src/app/auth/**/*
+  - src/app/core/security/**/*
+
+# Core/Middleware
+core:
+  - src/app/core/**/*
+  - src/app/middleware/**/*
+
+# Background Jobs
+background-jobs:
+  - src/app/worker/**/*
+  - src/app/jobs/**/*
+
+# Observability
+observability:
+  - src/app/observability/**/*
+
+# Scripts
+scripts:
+  - scripts/**/*
+  - "**/*.sh"
+
+# Kubernetes
+kubernetes:
+  - k8s/**/*

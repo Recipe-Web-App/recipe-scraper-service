@@ -1,0 +1,44 @@
+---
+title: "[Show & Tell] "
+labels:
+  - show-and-tell
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share what you've built with the Recipe Scraper Service!
+
+        We love seeing how people use this project.
+
+  - type: textarea
+    id: project
+    attributes:
+      label: Your Project
+      description: Tell us about what you built
+      placeholder: Describe your project
+    validations:
+      required: true
+
+  - type: textarea
+    id: how
+    attributes:
+      label: How You Used Recipe Scraper Service
+      description: How did you integrate or use this service?
+      placeholder: Describe your integration
+
+  - type: textarea
+    id: lessons
+    attributes:
+      label: Lessons Learned
+      description: What did you learn? Any tips for others?
+      placeholder: Share your experiences
+
+  - type: textarea
+    id: links
+    attributes:
+      label: Links
+      description: Share links to your project (if public)
+      placeholder: |
+        - Website:
+        - Repository:
+        - Demo:

@@ -1,0 +1,92 @@
+name: Code Coverage
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: "3.14"
+  UV_VERSION: "0.5"
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  coverage:
+    name: Check Code Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=${{ env.COVERAGE_THRESHOLD }} -v
+        env:
+          REDIS_URL: redis://localhost:6379
+          ENVIRONMENT: testing
+
+      - name: Calculate coverage percentage
+        id: coverage
+        run: |
+          COVERAGE=$(uv run coverage report --format=total 2>/dev/null || echo "0")
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "Coverage: $COVERAGE%"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          message: |
+            ## Code Coverage Report
+
+            **Coverage:** ${{ steps.coverage.outputs.percentage }}%
+            **Threshold:** ${{ env.COVERAGE_THRESHOLD }}%
+            **Status:** ${{ steps.coverage.outputs.percentage >= env.COVERAGE_THRESHOLD && 'Passed' || 'Failed' }}
+
+            <details>
+            <summary>View detailed coverage</summary>
+
+            Run `uv run pytest --cov=src --cov-report=term-missing` locally to see detailed coverage.
+
+            </details>

@@ -1,0 +1,52 @@
+---
+name: Task
+description: Create a task for maintainers (internal use)
+title: "[Task]: "
+labels: ["task"]
+assignees:
+  - jsamuelsen11
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for internal tasks and maintenance work.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task Description
+      description: Describe the task to be completed
+      placeholder: What needs to be done?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know when this task is complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: Any additional context or notes
+      placeholder: Additional information
