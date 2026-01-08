@@ -1,0 +1,15 @@
+# ==============================================================================
+# Namespace - Production
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recipe-scraper-prod
+  labels:
+    app.kubernetes.io/name: recipe-scraper-service
+    environment: production
+  annotations:
+    # Enable pod security standards
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

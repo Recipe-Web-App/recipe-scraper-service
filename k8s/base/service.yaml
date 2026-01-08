@@ -1,0 +1,20 @@
+# ==============================================================================
+# Service - ClusterIP for internal access
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: recipe-scraper-service
+  labels:
+    app.kubernetes.io/name: recipe-scraper-service
+    app.kubernetes.io/component: service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: recipe-scraper-service
+    app.kubernetes.io/component: api

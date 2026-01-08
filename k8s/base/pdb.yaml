@@ -1,0 +1,17 @@
+# ==============================================================================
+# PodDisruptionBudget - Ensure availability during disruptions
+# ==============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: recipe-scraper-service
+  labels:
+    app.kubernetes.io/name: recipe-scraper-service
+    app.kubernetes.io/component: pdb
+spec:
+  # Ensure at least 1 pod is always available
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: recipe-scraper-service
+      app.kubernetes.io/component: api

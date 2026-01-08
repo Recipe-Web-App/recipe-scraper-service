@@ -1,0 +1,118 @@
+# ==============================================================================
+# Kustomization - Development Environment
+# ==============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: recipe-scraper-service-development
+
+# Reference base configuration
+resources:
+  - ../../base
+  - namespace.yaml
+
+# Namespace for this environment
+namespace: recipe-scraper-dev
+
+# Common labels for this environment
+labels:
+  - pairs:
+      environment: development
+    includeSelectors: true
+
+# Image configuration
+images:
+  - name: ghcr.io/recipe-web-app/recipe-scraper-service
+    newTag: develop
+
+# Patches for development-specific changes
+patches:
+  # Reduce replicas for development
+  - target:
+      kind: Deployment
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # Reduce worker replicas
+  - target:
+      kind: Deployment
+      name: recipe-scraper-worker
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # Reduce resource limits for development
+  - target:
+      kind: Deployment
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+  # Disable HPA in development
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+
+  # Use local images (no pull from registry)
+  - target:
+      kind: Deployment
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+  - target:
+      kind: Deployment
+      name: recipe-scraper-worker
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+  # Update ingress host for development
+  - target:
+      kind: Ingress
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: recipe-scraper-dev.example.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: recipe-scraper-dev.example.com
+
+# ConfigMap - environment configuration
+configMapGenerator:
+  - name: recipe-scraper-config
+    envs:
+      - ../../config/development.env
+
+# Secret - sensitive values (copy secrets.env.example to secrets.env)
+secretGenerator:
+  - name: recipe-scraper-secrets
+    envs:
+      - ../../config/secrets.env
+
+generatorOptions:
+  disableNameSuffixHash: true

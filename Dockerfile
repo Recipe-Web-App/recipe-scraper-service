@@ -94,15 +94,18 @@ FROM base AS development
 # Copy UV from official image
 COPY --from=uv /uv /usr/local/bin/uv
 
-# Install development dependencies
+# Install development dependencies and create non-root user
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 appgroup \
+    && useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser \
+    && chown -R appuser:appgroup $APP_HOME
 
 # Copy all project files
-COPY . .
+COPY --chown=appuser:appgroup . .
 
 # Install all dependencies including dev
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -110,6 +113,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Add venv to PATH
 ENV PATH="$APP_HOME/.venv/bin:$PATH"
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8000
