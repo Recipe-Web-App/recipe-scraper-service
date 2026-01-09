@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from arq.jobs import JobStatus
 
 import app.workers.jobs as jobs_module
 from app.workers.jobs import (
@@ -201,47 +202,51 @@ class TestGetJobStatus:
     async def test_returns_status_for_existing_job(self) -> None:
         """Should return status dict for existing job."""
         mock_info = MagicMock()
-        mock_info.status = "complete"
         mock_info.function = "test_function"
         mock_info.enqueue_time = MagicMock()
         mock_info.enqueue_time.isoformat.return_value = "2024-01-01T00:00:00"
-        mock_info.start_time = None
-        mock_info.finish_time = None
-        mock_info.success = True
-        mock_info.result = "done"
+        mock_info.job_try = 1
+
+        mock_status = JobStatus.complete
 
         mock_job = AsyncMock()
         mock_job.info = AsyncMock(return_value=mock_info)
+        mock_job.status = AsyncMock(return_value=mock_status)
+        mock_job.result = AsyncMock(return_value="done")
 
         mock_pool = AsyncMock()
-        mock_pool.job = AsyncMock(return_value=mock_job)
         jobs_module._arq_pool = mock_pool
 
-        result = await get_job_status("job-123")
+        with patch("app.workers.jobs.Job", return_value=mock_job):
+            result = await get_job_status("job-123")
 
         assert result is not None
         assert result["job_id"] == "job-123"
         assert result["status"] == "complete"
-        assert result["success"] is True
+        assert result["function"] == "test_function"
 
     @pytest.mark.asyncio
-    async def test_returns_none_for_missing_job(self) -> None:
-        """Should return None for non-existent job."""
+    async def test_returns_unknown_for_missing_job(self) -> None:
+        """Should return unknown status for non-existent job."""
+        mock_job = AsyncMock()
+        mock_job.info = AsyncMock(return_value=None)
+
         mock_pool = AsyncMock()
-        mock_pool.job = AsyncMock(return_value=None)
         jobs_module._arq_pool = mock_pool
 
-        result = await get_job_status("nonexistent-job")
+        with patch("app.workers.jobs.Job", return_value=mock_job):
+            result = await get_job_status("nonexistent-job")
 
-        assert result is None
+        assert result is not None
+        assert result["status"] == "unknown"
 
     @pytest.mark.asyncio
     async def test_returns_none_on_error(self) -> None:
         """Should return None on error."""
         mock_pool = AsyncMock()
-        mock_pool.job = AsyncMock(side_effect=Exception("Redis error"))
         jobs_module._arq_pool = mock_pool
 
-        result = await get_job_status("job-123")
+        with patch("app.workers.jobs.Job", side_effect=Exception("Redis error")):
+            result = await get_job_status("job-123")
 
         assert result is None
