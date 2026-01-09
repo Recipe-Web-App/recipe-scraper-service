@@ -26,6 +26,11 @@ def run_e2e() -> int:
     return pytest.main(["-m", "e2e", "-v", *sys.argv[1:]])
 
 
+def run_performance() -> int:
+    """Run performance/benchmark tests only."""
+    return pytest.main(["-m", "performance", "-v", *sys.argv[1:]])
+
+
 def run_all() -> int:
     """Run all tests."""
     return pytest.main(["-v", *sys.argv[1:]])

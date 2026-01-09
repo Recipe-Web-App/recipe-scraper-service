@@ -107,6 +107,7 @@ app = "app.main:main"
 test-unit = "scripts.python.test_runner:run_unit"
 test-integration = "scripts.python.test_runner:run_integration"
 test-e2e = "scripts.python.test_runner:run_e2e"
+test-performance = "scripts.python.test_runner:run_performance"
 test-all = "scripts.python.test_runner:run_all"
 test-coverage = "scripts.python.test_runner:run_coverage"
 
