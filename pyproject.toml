@@ -1,3 +1,6 @@
+[tool.poetry]
+packages = [{ include = "app", from = "src" }, { include = "scripts" }]
+
 [build-system]
 requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
@@ -8,7 +11,7 @@ version = "0.1.0"
 description = "Enterprise-grade FastAPI recipe scraping service"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.14"
+requires-python = ">=3.14,<4.0"
 authors = [{ name = "jsamuelsen" }]
 keywords = ["fastapi", "async", "api", "recipes", "scraping"]
 classifiers = [
@@ -101,16 +104,21 @@ Changelog = "https://github.com/jsamuelsen/recipe-scraper-service/blob/main/CHAN
 
 [project.scripts]
 app = "app.main:main"
+test-unit = "scripts.python.test_runner:run_unit"
+test-integration = "scripts.python.test_runner:run_integration"
+test-e2e = "scripts.python.test_runner:run_e2e"
+test-all = "scripts.python.test_runner:run_all"
+test-coverage = "scripts.python.test_runner:run_coverage"
 
 # =============================================================================
 # Tool Configurations
 # =============================================================================
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/app"]
+packages = ["src/app", "scripts"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/docs"]
+include = ["/src", "/tests", "/docs", "/scripts"]
 
 # =============================================================================
 # Ruff - Linting & Formatting
@@ -191,8 +199,8 @@ fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101", "ANN", "ARG", "PLR2004"]
-"scripts/**/*" = ["T20"]
+"tests/**/*" = ["S101", "S105", "S106", "ANN", "ARG", "PLR2004", "SLF001"]
+"scripts/**/*" = ["T20", "S603", "S607"]
 "src/app/core/config.py" = [
   "N802", # Pydantic computed fields use UPPER_CASE
   "S105", # Settings contain placeholder secrets for development
@@ -302,6 +310,7 @@ warn_untyped_fields = true
 minversion = "8.0"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
