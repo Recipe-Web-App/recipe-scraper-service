@@ -70,7 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _setup_routers(app, settings)
 
     # Setup observability (after routes are mounted)
-    setup_tracing(app)
+    setup_tracing(app, settings)
     setup_metrics(app)
 
     return app

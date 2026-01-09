@@ -26,10 +26,12 @@ from app.observability.logging import get_logger
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
+    from app.core.config import Settings
+
 logger = get_logger(__name__)
 
 
-def setup_tracing(app: FastAPI) -> None:
+def setup_tracing(app: FastAPI, settings: Settings | None = None) -> None:
     """Configure OpenTelemetry tracing.
 
     Sets up trace collection, instrumentation, and export
@@ -37,8 +39,10 @@ def setup_tracing(app: FastAPI) -> None:
 
     Args:
         app: The FastAPI application instance.
+        settings: Optional settings override. If not provided, uses get_settings().
     """
-    settings = get_settings()
+    if settings is None:
+        settings = get_settings()
 
     if not settings.ENABLE_TRACING:
         logger.info("Tracing disabled")

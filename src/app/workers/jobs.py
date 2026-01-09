@@ -6,16 +6,15 @@ from the main application.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import contextlib
+from typing import Any
 
 from arq.connections import ArqRedis, create_pool
+from arq.jobs import Job
 
 from app.observability.logging import get_logger
 from app.workers.arq import get_redis_settings
 
-
-if TYPE_CHECKING:
-    from arq.jobs import Job
 
 logger = get_logger(__name__)
 
@@ -162,26 +161,31 @@ async def get_job_status(job_id: str) -> dict[str, Any] | None:
     """
     try:
         pool = await get_arq_pool()
-        job = await pool.job(job_id)
+        job = Job(job_id, pool)
 
-        if job is None:
-            return None
-
+        # Get job definition (enqueue info)
         info = await job.info()
         if info is None:
             return {"job_id": job_id, "status": "unknown"}
 
+        # Get job status separately
+        status = await job.status()
+
+        # Get result if job is complete
+        result = None
+        if status.name in ("complete", "not_found"):
+            with contextlib.suppress(Exception):
+                result = await job.result(timeout=0)
+
         return {
             "job_id": job_id,
-            "status": info.status,
+            "status": status.name,
             "function": info.function,
             "enqueue_time": info.enqueue_time.isoformat()
             if info.enqueue_time
             else None,
-            "start_time": info.start_time.isoformat() if info.start_time else None,
-            "finish_time": info.finish_time.isoformat() if info.finish_time else None,
-            "success": info.success,
-            "result": info.result,
+            "job_try": info.job_try,
+            "result": result,
         }
     except Exception:
         logger.exception("Failed to get job status", job_id=job_id)
