@@ -243,6 +243,7 @@ Fixes #456
    ```
 
 2. **Update documentation** if needed:
+
    - README.md
    - CLAUDE.md
    - API documentation

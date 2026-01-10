@@ -53,8 +53,9 @@ MD048:
   style: backtick
 
 # MD049/emphasis-style - Emphasis style
+# Using underscore to match prettier's default behavior
 MD049:
-  style: asterisk
+  style: underscore
 
 # MD050/strong-style - Strong style
 MD050:

@@ -120,7 +120,7 @@ repos:
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
-        types_or: [json, yaml]
+        types_or: [json, yaml, markdown]
         additional_dependencies:
           - prettier@3.4.2
 
