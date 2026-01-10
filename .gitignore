@@ -173,3 +173,6 @@ docs/api/
 *.generated.*
 openapi.json
 openapi.yaml
+
+# Serena
+.serena/
