@@ -3762,6 +3762,19 @@ files = [
 types-pyasn1 = "*"
 
 [[package]]
+name = "types-pyyaml"
+version = "6.0.12.20250915"
+description = "Typing stubs for PyYAML"
+optional = true
+python-versions = ">=3.9"
+groups = ["main"]
+markers = "extra == \"dev\""
+files = [
+    {file = "types_pyyaml-6.0.12.20250915-py3-none-any.whl", hash = "sha256:e7d4d9e064e89a3b3cae120b4990cd370874d2bf12fa5f46c97018dd5d3c9ab6"},
+    {file = "types_pyyaml-6.0.12.20250915.tar.gz", hash = "sha256:0f8b54a528c303f0e6f7165687dd33fafa81c807fcac23f632b63aa624ced1d3"},
+]
+
+[[package]]
 name = "types-redis"
 version = "4.6.0.20241004"
 description = "Typing stubs for redis"
@@ -4335,10 +4348,10 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more_it
 type = ["pytest-mypy"]
 
 [extras]
-dev = ["bandit", "freezegun", "httpx", "hypothesis", "mypy", "pip-audit", "polyfactory", "pre-commit", "pytest", "pytest-asyncio", "pytest-benchmark", "pytest-cov", "pytest-timeout", "pytest-xdist", "respx", "ruff", "testcontainers", "types-passlib", "types-python-jose", "types-redis"]
+dev = ["bandit", "freezegun", "httpx", "hypothesis", "mypy", "pip-audit", "polyfactory", "pre-commit", "pytest", "pytest-asyncio", "pytest-benchmark", "pytest-cov", "pytest-timeout", "pytest-xdist", "respx", "ruff", "testcontainers", "types-PyYAML", "types-passlib", "types-python-jose", "types-redis"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14,<4.0"
-content-hash = "b9a9c1a5784b7fb26d6fdda36067732b71d43bc1e2ce1a9aec1db6a83d31fed4"
+content-hash = "e1ed2e0b3a06aecff80e0089a7c751ace5b9294c4093eb9068735d057c2013ba"

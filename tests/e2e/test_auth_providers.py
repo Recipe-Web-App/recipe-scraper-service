@@ -33,6 +33,19 @@ from app.auth.providers.introspection import IntrospectionAuthProvider
 from app.auth.providers.local_jwt import LocalJWTAuthProvider
 from app.auth.providers.models import IntrospectionResponse
 from app.core.config import Settings
+from app.core.config.settings import (
+    ApiSettings,
+    AppSettings,
+    AuthJwtValidationSettings,
+    AuthServiceSettings,
+    AuthSettings,
+    JwtSettings,
+    LoggingSettings,
+    ObservabilitySettings,
+    RateLimitingSettings,
+    RedisSettings,
+    ServerSettings,
+)
 
 
 if TYPE_CHECKING:
@@ -196,27 +209,45 @@ class TestLocalJWTAuthMode:
     def jwt_settings(self) -> Settings:
         """Create settings for JWT testing."""
         return Settings(
-            APP_NAME="jwt-test-app",
-            APP_VERSION="0.0.1",
-            ENVIRONMENT="test",
-            DEBUG=True,
-            HOST="0.0.0.0",
-            PORT=8000,
+            APP_ENV="test",
             JWT_SECRET_KEY="test-secret-key-for-jwt-validation",
-            JWT_ALGORITHM="HS256",
-            JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30,
-            JWT_REFRESH_TOKEN_EXPIRE_DAYS=7,
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
             REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-            REDIS_QUEUE_DB=1,
-            REDIS_RATE_LIMIT_DB=2,
-            CORS_ORIGINS=["http://localhost:3000"],
-            RATE_LIMIT_DEFAULT="100/minute",
-            RATE_LIMIT_AUTH="10/minute",
-            AUTH_MODE="local_jwt",
-            AUTH_JWT_ISSUER="test-issuer",
+            app=AppSettings(
+                name="jwt-test-app",
+                version="0.0.1",
+                debug=True,
+            ),
+            server=ServerSettings(
+                host="0.0.0.0",
+                port=8000,
+            ),
+            api=ApiSettings(
+                cors_origins=["http://localhost:3000"],
+            ),
+            auth=AuthSettings(
+                mode="local_jwt",
+                jwt=JwtSettings(
+                    algorithm="HS256",
+                    access_token_expire_minutes=30,
+                    refresh_token_expire_days=7,
+                ),
+                jwt_validation=AuthJwtValidationSettings(
+                    issuer="test-issuer",
+                ),
+            ),
+            redis=RedisSettings(
+                host="localhost",
+                port=6379,
+                cache_db=0,
+                queue_db=1,
+                rate_limit_db=2,
+            ),
+            rate_limiting=RateLimitingSettings(
+                default="100/minute",
+                auth="10/minute",
+            ),
+            logging=LoggingSettings(),
+            observability=ObservabilitySettings(),
         )
 
     @pytest.fixture
@@ -228,7 +259,7 @@ class TestLocalJWTAuthMode:
         # create_access_token doesn't add issuer claim by default)
         provider = LocalJWTAuthProvider(
             secret_key=jwt_settings.JWT_SECRET_KEY,
-            algorithm=jwt_settings.JWT_ALGORITHM,
+            algorithm=jwt_settings.auth.jwt.algorithm,
             issuer=None,  # Don't validate issuer
         )
         await provider.initialize()
@@ -365,29 +396,47 @@ class TestIntrospectionAuthMode:
     def introspection_settings(self) -> Settings:
         """Create settings for introspection testing."""
         return Settings(
-            APP_NAME="introspection-test-app",
-            APP_VERSION="0.0.1",
-            ENVIRONMENT="test",
-            DEBUG=True,
-            HOST="0.0.0.0",
-            PORT=8000,
+            APP_ENV="test",
             JWT_SECRET_KEY="fallback-secret-for-introspection",
-            JWT_ALGORITHM="HS256",
-            JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30,
-            JWT_REFRESH_TOKEN_EXPIRE_DAYS=7,
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
             REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-            REDIS_QUEUE_DB=1,
-            REDIS_RATE_LIMIT_DB=2,
-            CORS_ORIGINS=["http://localhost:3000"],
-            RATE_LIMIT_DEFAULT="100/minute",
-            RATE_LIMIT_AUTH="10/minute",
-            AUTH_MODE="introspection",
-            AUTH_SERVICE_URL="http://auth-service:8080/api/v1/auth",
-            AUTH_SERVICE_CLIENT_ID="recipe-scraper",
             AUTH_SERVICE_CLIENT_SECRET="client-secret",
+            app=AppSettings(
+                name="introspection-test-app",
+                version="0.0.1",
+                debug=True,
+            ),
+            server=ServerSettings(
+                host="0.0.0.0",
+                port=8000,
+            ),
+            api=ApiSettings(
+                cors_origins=["http://localhost:3000"],
+            ),
+            auth=AuthSettings(
+                mode="introspection",
+                jwt=JwtSettings(
+                    algorithm="HS256",
+                    access_token_expire_minutes=30,
+                    refresh_token_expire_days=7,
+                ),
+                service=AuthServiceSettings(
+                    url="http://auth-service:8080/api/v1/auth",
+                    client_id="recipe-scraper",
+                ),
+            ),
+            redis=RedisSettings(
+                host="localhost",
+                port=6379,
+                cache_db=0,
+                queue_db=1,
+                rate_limit_db=2,
+            ),
+            rate_limiting=RateLimitingSettings(
+                default="100/minute",
+                auth="10/minute",
+            ),
+            logging=LoggingSettings(),
+            observability=ObservabilitySettings(),
         )
 
     @pytest.fixture
@@ -398,14 +447,14 @@ class TestIntrospectionAuthMode:
         app = create_test_app_with_protected_endpoint()
 
         # These are guaranteed to be set in introspection_settings fixture
-        assert introspection_settings.AUTH_SERVICE_URL is not None
-        assert introspection_settings.AUTH_SERVICE_CLIENT_ID is not None
+        assert introspection_settings.auth.service.url is not None
+        assert introspection_settings.auth.service.client_id is not None
         assert introspection_settings.AUTH_SERVICE_CLIENT_SECRET is not None
 
         # Set up introspection auth provider (without actually calling external service)
         provider = IntrospectionAuthProvider(
-            base_url=introspection_settings.AUTH_SERVICE_URL,
-            client_id=introspection_settings.AUTH_SERVICE_CLIENT_ID,
+            base_url=introspection_settings.auth.service.url,
+            client_id=introspection_settings.auth.service.client_id,
             client_secret=introspection_settings.AUTH_SERVICE_CLIENT_SECRET,
             timeout=5.0,
         )
@@ -512,17 +561,17 @@ class TestIntrospectionAuthMode:
         # Create provider with fallback enabled
         fallback_provider = LocalJWTAuthProvider(
             secret_key=introspection_settings.JWT_SECRET_KEY,
-            algorithm=introspection_settings.JWT_ALGORITHM,
+            algorithm=introspection_settings.auth.jwt.algorithm,
         )
 
         # These are guaranteed to be set in introspection_settings fixture
-        assert introspection_settings.AUTH_SERVICE_URL is not None
-        assert introspection_settings.AUTH_SERVICE_CLIENT_ID is not None
+        assert introspection_settings.auth.service.url is not None
+        assert introspection_settings.auth.service.client_id is not None
         assert introspection_settings.AUTH_SERVICE_CLIENT_SECRET is not None
 
         provider = IntrospectionAuthProvider(
-            base_url=introspection_settings.AUTH_SERVICE_URL,
-            client_id=introspection_settings.AUTH_SERVICE_CLIENT_ID,
+            base_url=introspection_settings.auth.service.url,
+            client_id=introspection_settings.auth.service.client_id,
             client_secret=introspection_settings.AUTH_SERVICE_CLIENT_SECRET,
             fallback_provider=fallback_provider,
         )
@@ -595,23 +644,19 @@ class TestAuthModeFactory:
     async def test_factory_creates_header_provider(self) -> None:
         """Should create HeaderAuthProvider for header mode."""
         settings = Settings(
-            APP_NAME="test",
-            APP_VERSION="0.0.1",
-            ENVIRONMENT="test",
-            DEBUG=True,
-            HOST="0.0.0.0",
-            PORT=8000,
+            APP_ENV="test",
             JWT_SECRET_KEY="test-secret",
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
             REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-            REDIS_QUEUE_DB=1,
-            REDIS_RATE_LIMIT_DB=2,
-            CORS_ORIGINS=[],
-            RATE_LIMIT_DEFAULT="100/minute",
-            RATE_LIMIT_AUTH="10/minute",
-            AUTH_MODE="header",
+            app=AppSettings(name="test", version="0.0.1", debug=True),
+            server=ServerSettings(host="0.0.0.0", port=8000),
+            api=ApiSettings(cors_origins=[]),
+            auth=AuthSettings(mode="header"),
+            redis=RedisSettings(
+                host="localhost", port=6379, cache_db=0, queue_db=1, rate_limit_db=2
+            ),
+            rate_limiting=RateLimitingSettings(default="100/minute", auth="10/minute"),
+            logging=LoggingSettings(),
+            observability=ObservabilitySettings(),
         )
 
         provider = create_auth_provider(settings)
@@ -622,23 +667,19 @@ class TestAuthModeFactory:
     async def test_factory_creates_local_jwt_provider(self) -> None:
         """Should create LocalJWTAuthProvider for local_jwt mode."""
         settings = Settings(
-            APP_NAME="test",
-            APP_VERSION="0.0.1",
-            ENVIRONMENT="test",
-            DEBUG=True,
-            HOST="0.0.0.0",
-            PORT=8000,
+            APP_ENV="test",
             JWT_SECRET_KEY="test-secret",
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
             REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-            REDIS_QUEUE_DB=1,
-            REDIS_RATE_LIMIT_DB=2,
-            CORS_ORIGINS=[],
-            RATE_LIMIT_DEFAULT="100/minute",
-            RATE_LIMIT_AUTH="10/minute",
-            AUTH_MODE="local_jwt",
+            app=AppSettings(name="test", version="0.0.1", debug=True),
+            server=ServerSettings(host="0.0.0.0", port=8000),
+            api=ApiSettings(cors_origins=[]),
+            auth=AuthSettings(mode="local_jwt"),
+            redis=RedisSettings(
+                host="localhost", port=6379, cache_db=0, queue_db=1, rate_limit_db=2
+            ),
+            rate_limiting=RateLimitingSettings(default="100/minute", auth="10/minute"),
+            logging=LoggingSettings(),
+            observability=ObservabilitySettings(),
         )
 
         provider = create_auth_provider(settings)
@@ -649,26 +690,25 @@ class TestAuthModeFactory:
     async def test_factory_creates_introspection_provider(self) -> None:
         """Should create IntrospectionAuthProvider for introspection mode."""
         settings = Settings(
-            APP_NAME="test",
-            APP_VERSION="0.0.1",
-            ENVIRONMENT="test",
-            DEBUG=True,
-            HOST="0.0.0.0",
-            PORT=8000,
+            APP_ENV="test",
             JWT_SECRET_KEY="test-secret",
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
             REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-            REDIS_QUEUE_DB=1,
-            REDIS_RATE_LIMIT_DB=2,
-            CORS_ORIGINS=[],
-            RATE_LIMIT_DEFAULT="100/minute",
-            RATE_LIMIT_AUTH="10/minute",
-            AUTH_MODE="introspection",
-            AUTH_SERVICE_URL="http://auth:8080",
-            AUTH_SERVICE_CLIENT_ID="test-client",
             AUTH_SERVICE_CLIENT_SECRET="test-secret",
+            app=AppSettings(name="test", version="0.0.1", debug=True),
+            server=ServerSettings(host="0.0.0.0", port=8000),
+            api=ApiSettings(cors_origins=[]),
+            auth=AuthSettings(
+                mode="introspection",
+                service=AuthServiceSettings(
+                    url="http://auth:8080", client_id="test-client"
+                ),
+            ),
+            redis=RedisSettings(
+                host="localhost", port=6379, cache_db=0, queue_db=1, rate_limit_db=2
+            ),
+            rate_limiting=RateLimitingSettings(default="100/minute", auth="10/minute"),
+            logging=LoggingSettings(),
+            observability=ObservabilitySettings(),
         )
 
         provider = create_auth_provider(settings)
@@ -679,24 +719,20 @@ class TestAuthModeFactory:
     async def test_factory_raises_for_missing_introspection_config(self) -> None:
         """Should raise ConfigurationError when introspection config is missing."""
         settings = Settings(
-            APP_NAME="test",
-            APP_VERSION="0.0.1",
-            ENVIRONMENT="test",
-            DEBUG=True,
-            HOST="0.0.0.0",
-            PORT=8000,
+            APP_ENV="test",
             JWT_SECRET_KEY="test-secret",
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
             REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-            REDIS_QUEUE_DB=1,
-            REDIS_RATE_LIMIT_DB=2,
-            CORS_ORIGINS=[],
-            RATE_LIMIT_DEFAULT="100/minute",
-            RATE_LIMIT_AUTH="10/minute",
-            AUTH_MODE="introspection",
-            # Missing AUTH_SERVICE_URL, CLIENT_ID, CLIENT_SECRET
+            app=AppSettings(name="test", version="0.0.1", debug=True),
+            server=ServerSettings(host="0.0.0.0", port=8000),
+            api=ApiSettings(cors_origins=[]),
+            auth=AuthSettings(mode="introspection"),
+            redis=RedisSettings(
+                host="localhost", port=6379, cache_db=0, queue_db=1, rate_limit_db=2
+            ),
+            rate_limiting=RateLimitingSettings(default="100/minute", auth="10/minute"),
+            logging=LoggingSettings(),
+            observability=ObservabilitySettings(),
+            # Missing AUTH_SERVICE_CLIENT_SECRET and auth.service.url/client_id
         )
 
         with pytest.raises(ConfigurationError):

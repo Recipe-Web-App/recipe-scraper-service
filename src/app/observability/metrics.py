@@ -39,7 +39,7 @@ def setup_metrics(app: FastAPI) -> Instrumentator:
     """
     settings = get_settings()
 
-    if not settings.METRICS_ENABLED:
+    if not settings.observability.metrics.enabled:
         logger.info("Metrics collection disabled")
         return Instrumentator()
 

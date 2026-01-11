@@ -19,6 +19,14 @@ from httpx import ASGITransport, AsyncClient
 
 from app.auth.jwt import create_access_token
 from app.core.config import Settings
+from app.core.config.settings import (
+    ApiSettings,
+    AppSettings,
+    AuthSettings,
+    LoggingSettings,
+    ObservabilitySettings,
+    RedisSettings,
+)
 from app.factory import create_app
 
 
@@ -51,25 +59,33 @@ def test_settings() -> Settings:
     """Create test settings with safe defaults.
 
     Returns settings configured for testing:
-    - ENVIRONMENT set to 'testing'
+    - APP_ENV set to 'test'
     - Test JWT secret
     - Local Redis (for integration tests)
     """
     return Settings(
-        ENVIRONMENT="testing",
-        DEBUG=True,
+        APP_ENV="test",
         JWT_SECRET_KEY="test-secret-key-for-testing-only-32chars",
-        JWT_ACCESS_TOKEN_EXPIRE_MINUTES=5,
-        JWT_REFRESH_TOKEN_EXPIRE_DAYS=1,
-        REDIS_HOST="localhost",
-        REDIS_PORT=6379,
         REDIS_PASSWORD="",
-        LOG_LEVEL="DEBUG",
-        LOG_FORMAT="text",
-        ENABLE_TRACING=False,
-        METRICS_ENABLED=False,
-        CORS_ORIGINS=["http://localhost:3000"],
         SERVICE_API_KEYS=["test-api-key-12345"],
+        app=AppSettings(
+            debug=True,
+        ),
+        api=ApiSettings(
+            cors_origins=["http://localhost:3000"],
+        ),
+        auth=AuthSettings(
+            mode="disabled",
+        ),
+        redis=RedisSettings(
+            host="localhost",
+            port=6379,
+        ),
+        logging=LoggingSettings(
+            level="DEBUG",
+            format="text",
+        ),
+        observability=ObservabilitySettings(),
     )
 
 

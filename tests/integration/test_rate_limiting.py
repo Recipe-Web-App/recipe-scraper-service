@@ -48,13 +48,8 @@ async def clean_redis(redis_url: str) -> AsyncGenerator[aioredis.Redis]:
 @pytest.fixture
 def rate_limited_app(
     test_settings: Settings,
-    redis_url: str,
 ) -> FastAPI:
     """Create a minimal FastAPI app with rate limiting."""
-    parts = redis_url.replace("redis://", "").split(":")
-    test_settings.REDIS_HOST = parts[0]
-    test_settings.REDIS_PORT = int(parts[1])
-
     # Use a unique key per test to avoid counter collision
     test_id = str(uuid.uuid4())[:8]
 
@@ -65,7 +60,7 @@ def rate_limited_app(
     test_limiter = Limiter(
         key_func=unique_key_func,
         default_limits=["5/minute"],
-        storage_uri=f"redis://{parts[0]}:{parts[1]}",
+        storage_uri=f"redis://{test_settings.redis.host}:{test_settings.redis.port}",
         strategy="fixed-window",
         headers_enabled=True,
     )

@@ -25,14 +25,29 @@ from app.observability.tracing import (
 pytestmark = pytest.mark.unit
 
 
+def _create_mock_settings(
+    tracing_enabled: bool = True,
+    otlp_endpoint: str | None = None,
+    is_development: bool = False,
+) -> MagicMock:
+    """Create mock settings with nested structure for tracing tests."""
+    mock_settings = MagicMock()
+    mock_settings.observability.tracing.enabled = tracing_enabled
+    mock_settings.observability.tracing.otlp_endpoint = otlp_endpoint
+    mock_settings.app.name = "test-app"
+    mock_settings.app.version = "1.0.0"
+    mock_settings.APP_ENV = "test"
+    mock_settings.is_development = is_development
+    return mock_settings
+
+
 class TestSetupTracing:
     """Tests for setup_tracing function."""
 
     def test_returns_early_when_disabled(self) -> None:
         """Should return early when tracing is disabled."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.ENABLE_TRACING = False
+        mock_settings = _create_mock_settings(tracing_enabled=False)
 
         with patch(
             "app.observability.tracing.get_settings", return_value=mock_settings
@@ -45,13 +60,7 @@ class TestSetupTracing:
     def test_configures_otlp_exporter_when_endpoint_set(self) -> None:
         """Should configure OTLP exporter when endpoint is set."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.ENABLE_TRACING = True
-        mock_settings.APP_NAME = "test-app"
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
-        mock_settings.OTLP_ENDPOINT = "http://localhost:4317"
-        mock_settings.is_development = False
+        mock_settings = _create_mock_settings(otlp_endpoint="http://localhost:4317")
 
         with (
             patch("app.observability.tracing.get_settings", return_value=mock_settings),
@@ -76,13 +85,8 @@ class TestSetupTracing:
     def test_configures_console_exporter_in_development(self) -> None:
         """Should configure console exporter in development without OTLP."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.ENABLE_TRACING = True
-        mock_settings.APP_NAME = "test-app"
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "development"
-        mock_settings.OTLP_ENDPOINT = None
-        mock_settings.is_development = True
+        mock_settings = _create_mock_settings(is_development=True)
+        mock_settings.APP_ENV = "development"
 
         with (
             patch("app.observability.tracing.get_settings", return_value=mock_settings),
@@ -104,13 +108,7 @@ class TestSetupTracing:
     def test_instruments_fastapi(self) -> None:
         """Should instrument FastAPI application."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.ENABLE_TRACING = True
-        mock_settings.APP_NAME = "test-app"
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
-        mock_settings.OTLP_ENDPOINT = None
-        mock_settings.is_development = False
+        mock_settings = _create_mock_settings()
 
         with (
             patch("app.observability.tracing.get_settings", return_value=mock_settings),
@@ -129,13 +127,7 @@ class TestSetupTracing:
     def test_instruments_redis(self) -> None:
         """Should instrument Redis."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.ENABLE_TRACING = True
-        mock_settings.APP_NAME = "test-app"
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
-        mock_settings.OTLP_ENDPOINT = None
-        mock_settings.is_development = False
+        mock_settings = _create_mock_settings()
 
         with (
             patch("app.observability.tracing.get_settings", return_value=mock_settings),

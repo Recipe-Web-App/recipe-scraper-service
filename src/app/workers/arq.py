@@ -46,14 +46,14 @@ async def startup(ctx: dict[str, Any]) -> None:
 
     # Setup logging
     setup_logging(
-        log_level=settings.LOG_LEVEL,
-        log_format=settings.LOG_FORMAT,
+        log_level=settings.logging.level,
+        log_format=settings.logging.format,
         is_development=settings.is_development,
     )
 
     logger.info(
         "ARQ worker starting",
-        environment=settings.ENVIRONMENT,
+        environment=settings.APP_ENV,
     )
 
     # Store settings in context for tasks
@@ -80,10 +80,10 @@ def get_redis_settings() -> RedisSettings:
     settings = get_settings()
 
     return RedisSettings(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
+        host=settings.redis.host,
+        port=settings.redis.port,
         password=settings.REDIS_PASSWORD or None,
-        database=settings.REDIS_QUEUE_DB,
+        database=settings.redis.queue_db,
     )
 
 

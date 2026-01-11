@@ -1,0 +1,349 @@
+"""Application configuration using Pydantic Settings with YAML support.
+
+This module provides centralized configuration management with:
+- YAML-based configuration files organized by domain
+- Environment-specific overrides (local, test, development, staging, production)
+- Environment variable loading for secrets
+- Type validation and coercion
+- Computed properties for derived values
+- Caching for performance
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
+from functools import lru_cache
+from typing import TYPE_CHECKING, Annotated
+
+from pydantic import BaseModel, BeforeValidator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from .yaml_source import MultiYamlConfigSettingsSource
+
+
+if TYPE_CHECKING:
+    from pydantic_settings import PydanticBaseSettingsSource
+
+
+class AuthMode(StrEnum):
+    """Authentication mode configuration.
+
+    Determines how tokens are validated:
+    - INTROSPECTION: Validate via external auth-service /oauth2/introspect
+    - LOCAL_JWT: Validate JWTs locally using shared secret
+    - HEADER: Extract user from X-User-ID header (testing/development only)
+    - DISABLED: No authentication required
+    """
+
+    INTROSPECTION = "introspection"
+    LOCAL_JWT = "local_jwt"
+    HEADER = "header"
+    DISABLED = "disabled"
+
+
+def parse_list(v: str | list[str]) -> list[str]:
+    """Parse comma-separated string or list into list of strings."""
+    if isinstance(v, str):
+        return [x.strip() for x in v.split(",") if x.strip()]
+    return v
+
+
+# =============================================================================
+# Nested Configuration Models (from YAML)
+# =============================================================================
+
+
+class AppSettings(BaseModel):
+    """Application identity settings."""
+
+    name: str = "Recipe Scraper Service"
+    version: str = "0.1.0"
+    debug: bool = False
+
+
+class ServerSettings(BaseModel):
+    """Server configuration settings."""
+
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+
+class ApiSettings(BaseModel):
+    """API configuration settings."""
+
+    v1_prefix: str = "/api/v1"
+    cors_origins: list[str] = []
+
+
+class JwtSettings(BaseModel):
+    """JWT token settings."""
+
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+
+
+class AuthIntrospectionSettings(BaseModel):
+    """Token introspection settings."""
+
+    cache_ttl: int = 60
+    timeout: float = 5.0
+    fallback_local: bool = False
+
+
+class AuthHeaderSettings(BaseModel):
+    """Header-based auth settings."""
+
+    user_id: str = "X-User-ID"
+    roles: str = "X-User-Roles"
+    permissions: str = "X-User-Permissions"
+
+
+class AuthServiceSettings(BaseModel):
+    """External auth service settings."""
+
+    url: str | None = None
+    client_id: str | None = None
+
+
+class AuthJwtValidationSettings(BaseModel):
+    """JWT validation settings."""
+
+    issuer: str | None = None
+    audience: list[str] = []
+
+
+class AuthSettings(BaseModel):
+    """Authentication configuration settings."""
+
+    mode: str = "local_jwt"
+    jwt: JwtSettings = JwtSettings()
+    introspection: AuthIntrospectionSettings = AuthIntrospectionSettings()
+    headers: AuthHeaderSettings = AuthHeaderSettings()
+    service: AuthServiceSettings = AuthServiceSettings()
+    jwt_validation: AuthJwtValidationSettings = AuthJwtValidationSettings()
+
+
+class RedisSettings(BaseModel):
+    """Redis configuration settings."""
+
+    host: str = "localhost"
+    port: int = 6379
+    cache_db: int = 0
+    queue_db: int = 1
+    rate_limit_db: int = 2
+    client_cache_max_age: int = 30
+
+
+class RateLimitingSettings(BaseModel):
+    """Rate limiting configuration."""
+
+    default: str = "100/minute"
+    auth: str = "5/minute"
+
+
+class LoggingSettings(BaseModel):
+    """Logging configuration settings."""
+
+    level: str = "INFO"
+    format: str = "json"
+
+
+class TracingSettings(BaseModel):
+    """Tracing configuration settings."""
+
+    enabled: bool = True
+    otlp_endpoint: str | None = None
+
+
+class MetricsSettings(BaseModel):
+    """Metrics configuration settings."""
+
+    enabled: bool = True
+
+
+class ObservabilitySettings(BaseModel):
+    """Observability configuration settings."""
+
+    tracing: TracingSettings = TracingSettings()
+    metrics: MetricsSettings = MetricsSettings()
+
+
+class FeaturesSettings(BaseModel):
+    """Feature flags configuration."""
+
+    flags_enabled: bool = True
+
+
+# =============================================================================
+# Main Settings Class
+# =============================================================================
+
+
+class Settings(BaseSettings):
+    """Application settings with YAML + environment variable support.
+
+    Configuration is loaded from multiple sources with the following priority
+    (highest to lowest):
+    1. Environment variables
+    2. .env file (secrets only)
+    3. Environment-specific YAML files (config/environments/{APP_ENV}/)
+    4. Base YAML files (config/base/)
+    5. Default values in code
+
+    Environment variables can override any setting using the nested delimiter '__'.
+    For example: REDIS__HOST=prod-redis overrides redis.host.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_ignore_empty=True,
+        extra="ignore",
+        case_sensitive=False,
+        env_nested_delimiter="__",
+    )
+
+    # =========================================================================
+    # Environment Selection (from .env)
+    # =========================================================================
+    APP_ENV: str = "development"
+
+    # =========================================================================
+    # Nested Configuration Sections (from YAML)
+    # =========================================================================
+    app: AppSettings = AppSettings()
+    server: ServerSettings = ServerSettings()
+    api: ApiSettings = ApiSettings()
+    auth: AuthSettings = AuthSettings()
+    redis: RedisSettings = RedisSettings()
+    rate_limiting: RateLimitingSettings = RateLimitingSettings()
+    logging: LoggingSettings = LoggingSettings()
+    observability: ObservabilitySettings = ObservabilitySettings()
+    features: FeaturesSettings = FeaturesSettings()
+
+    # =========================================================================
+    # Secrets (from .env only - never in YAML)
+    # =========================================================================
+    JWT_SECRET_KEY: str = ""
+    REDIS_PASSWORD: str = ""
+    AUTH_SERVICE_CLIENT_SECRET: str | None = None
+    SENTRY_DSN: str | None = None
+
+    # Service API Keys for service-to-service auth (comma-separated in .env)
+    SERVICE_API_KEYS: Annotated[list[str], BeforeValidator(parse_list)] = []
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Customize settings loading order.
+
+        Priority (highest to lowest):
+        1. init_settings - Values passed to Settings()
+        2. env_settings - Environment variables
+        3. dotenv_settings - .env file (secrets)
+        4. yaml_settings - YAML files (base + environment)
+        5. file_secret_settings - Docker secrets
+        """
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            MultiYamlConfigSettingsSource(settings_cls),
+            file_secret_settings,
+        )
+
+    # =========================================================================
+    # Computed Fields
+    # =========================================================================
+
+    @property
+    def auth_mode_enum(self) -> AuthMode:
+        """Get auth mode as enum with validation."""
+        try:
+            return AuthMode(self.auth.mode.lower())
+        except ValueError:
+            msg = (
+                f"Invalid auth mode: {self.auth.mode}. "
+                f"Must be one of: {', '.join(m.value for m in AuthMode)}"
+            )
+            raise ValueError(msg) from None
+
+    @property
+    def auth_service_introspection_url(self) -> str | None:
+        """Full introspection endpoint URL."""
+        if self.auth.service.url:
+            return f"{self.auth.service.url.rstrip('/')}/oauth2/introspect"
+        return None
+
+    @property
+    def auth_service_userinfo_url(self) -> str | None:
+        """Full userinfo endpoint URL."""
+        if self.auth.service.url:
+            return f"{self.auth.service.url.rstrip('/')}/oauth2/userinfo"
+        return None
+
+    @property
+    def redis_cache_url(self) -> str:
+        """Build Redis cache connection URL."""
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.redis.host}:{self.redis.port}/{self.redis.cache_db}"
+        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.cache_db}"
+
+    @property
+    def redis_queue_url(self) -> str:
+        """Build Redis queue connection URL for ARQ."""
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.redis.host}:{self.redis.port}/{self.redis.queue_db}"
+        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.queue_db}"
+
+    @property
+    def redis_rate_limit_url(self) -> str:
+        """Build Redis rate limit connection URL."""
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.redis.host}:{self.redis.port}/{self.redis.rate_limit_db}"
+        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.rate_limit_db}"
+
+    # =========================================================================
+    # Environment Helpers
+    # =========================================================================
+
+    @property
+    def is_development(self) -> bool:
+        """Check if running in development environment."""
+        return self.APP_ENV == "development"
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.APP_ENV == "production"
+
+    @property
+    def is_testing(self) -> bool:
+        """Check if running in test environment."""
+        return self.APP_ENV == "test"
+
+    @property
+    def is_local(self) -> bool:
+        """Check if running in local environment."""
+        return self.APP_ENV == "local"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance.
+
+    Using lru_cache ensures settings are only loaded once,
+    improving performance and consistency.
+    """
+    return Settings()
+
+
+# Global settings instance for convenient imports
+settings = get_settings()

@@ -68,7 +68,7 @@ def create_access_token(
     settings = get_settings()
 
     if expires_delta is None:
-        expires_delta = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta = timedelta(minutes=settings.auth.jwt.access_token_expire_minutes)
 
     now = datetime.now(UTC)
     expire = now + expires_delta
@@ -88,7 +88,7 @@ def create_access_token(
     return jwt.encode(
         payload,
         settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM,
+        algorithm=settings.auth.jwt.algorithm,
     )
 
 
@@ -113,7 +113,7 @@ def create_refresh_token(
     settings = get_settings()
 
     if expires_delta is None:
-        expires_delta = timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+        expires_delta = timedelta(days=settings.auth.jwt.refresh_token_expire_days)
 
     now = datetime.now(UTC)
     expire = now + expires_delta
@@ -131,7 +131,7 @@ def create_refresh_token(
     return jwt.encode(
         payload,
         settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM,
+        algorithm=settings.auth.jwt.algorithm,
     )
 
 
@@ -155,7 +155,7 @@ def decode_token(token: str, *, verify_type: str | None = None) -> TokenPayload:
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
+            algorithms=[settings.auth.jwt.algorithm],
         )
 
         # Verify token type if specified

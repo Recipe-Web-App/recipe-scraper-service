@@ -45,13 +45,13 @@ async def init_redis_pools() -> None:
 
     logger.info(
         "Initializing Redis connections",
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
+        host=settings.redis.host,
+        port=settings.redis.port,
     )
 
     # Cache pool
     _cache_pool = ConnectionPool.from_url(
-        settings.REDIS_CACHE_URL,
+        settings.redis_cache_url,
         max_connections=20,
         decode_responses=True,
     )
@@ -59,7 +59,7 @@ async def init_redis_pools() -> None:
 
     # Queue pool (for ARQ)
     _queue_pool = ConnectionPool.from_url(
-        settings.REDIS_QUEUE_URL,
+        settings.redis_queue_url,
         max_connections=10,
         decode_responses=False,  # ARQ needs bytes
     )
@@ -67,7 +67,7 @@ async def init_redis_pools() -> None:
 
     # Rate limit pool
     _rate_limit_pool = ConnectionPool.from_url(
-        settings.REDIS_RATE_LIMIT_URL,
+        settings.redis_rate_limit_url,
         max_connections=10,
         decode_responses=True,
     )

@@ -69,8 +69,8 @@ def create_limiter() -> Limiter:
 
     return Limiter(
         key_func=_get_rate_limit_key,
-        default_limits=[settings.RATE_LIMIT_DEFAULT],
-        storage_uri=settings.REDIS_RATE_LIMIT_URL,
+        default_limits=[settings.rate_limiting.default],
+        storage_uri=settings.redis_rate_limit_url,
         strategy="fixed-window",
         headers_enabled=True,
     )
@@ -163,4 +163,4 @@ def rate_limit_auth() -> Any:
             ...
     """
     settings = get_settings()
-    return limiter.limit(settings.RATE_LIMIT_AUTH, key_func=_get_auth_rate_limit_key)
+    return limiter.limit(settings.rate_limiting.auth, key_func=_get_auth_rate_limit_key)

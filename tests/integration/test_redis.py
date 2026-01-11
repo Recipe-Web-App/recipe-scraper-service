@@ -40,11 +40,6 @@ class TestRedisPoolInitialization:
         redis_url: str,
     ) -> None:
         """Should initialize all Redis pools successfully."""
-        # Parse redis URL
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
 
@@ -67,9 +62,6 @@ class TestRedisPoolInitialization:
         redis_url: str,
     ) -> None:
         """Should be able to ping Redis after initialization."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -92,9 +84,6 @@ class TestRedisHealthCheck:
         redis_url: str,
     ) -> None:
         """Should return healthy status when Redis is connected."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -127,9 +116,6 @@ class TestRedisBasicOperations:
         redis_url: str,
     ) -> None:
         """Should be able to set and get values."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -155,9 +141,6 @@ class TestRedisBasicOperations:
         redis_url: str,
     ) -> None:
         """Should be able to set values with TTL."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -184,9 +167,6 @@ class TestRedisBasicOperations:
         redis_url: str,
     ) -> None:
         """Should be able to delete values."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()

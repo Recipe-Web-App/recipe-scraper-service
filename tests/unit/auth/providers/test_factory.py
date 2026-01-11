@@ -27,15 +27,16 @@ class TestCreateAuthProvider:
     def mock_settings(self) -> MagicMock:
         """Create mock settings with defaults."""
         settings = MagicMock()
-        settings.AUTH_MODE = "local_jwt"
         settings.auth_mode_enum = AuthMode.LOCAL_JWT
         settings.JWT_SECRET_KEY = "test-secret-key-for-testing-32chars"
-        settings.JWT_ALGORITHM = "HS256"
-        settings.AUTH_JWT_ISSUER = None
-        settings.AUTH_JWT_AUDIENCE = []
-        settings.AUTH_HEADER_USER_ID = "X-User-ID"
-        settings.AUTH_HEADER_ROLES = "X-User-Roles"
-        settings.AUTH_HEADER_PERMISSIONS = "X-User-Permissions"
+        settings.is_production = False
+        # Nested auth settings
+        settings.auth.jwt.algorithm = "HS256"
+        settings.auth.jwt_validation.issuer = None
+        settings.auth.jwt_validation.audience = []
+        settings.auth.headers.user_id = "X-User-ID"
+        settings.auth.headers.roles = "X-User-Roles"
+        settings.auth.headers.permissions = "X-User-Permissions"
         return settings
 
     def test_creates_local_jwt_provider(self, mock_settings: MagicMock) -> None:
@@ -65,35 +66,35 @@ class TestCreateAuthProvider:
     def test_creates_introspection_provider(self, mock_settings: MagicMock) -> None:
         """Should create IntrospectionAuthProvider for introspection mode."""
         mock_settings.auth_mode_enum = AuthMode.INTROSPECTION
-        mock_settings.AUTH_SERVICE_URL = "http://auth:8080"
-        mock_settings.AUTH_SERVICE_CLIENT_ID = "client-id"
+        mock_settings.auth.service.url = "http://auth:8080"
+        mock_settings.auth.service.client_id = "client-id"
         mock_settings.AUTH_SERVICE_CLIENT_SECRET = "client-secret"
-        mock_settings.AUTH_INTROSPECTION_TIMEOUT = 5.0
-        mock_settings.AUTH_INTROSPECTION_CACHE_TTL = 60
-        mock_settings.AUTH_INTROSPECTION_FALLBACK_LOCAL = False
+        mock_settings.auth.introspection.timeout = 5.0
+        mock_settings.auth.introspection.cache_ttl = 60
+        mock_settings.auth.introspection.fallback_local = False
 
         provider = create_auth_provider(settings=mock_settings)
 
         assert isinstance(provider, IntrospectionAuthProvider)
 
     def test_introspection_requires_url(self, mock_settings: MagicMock) -> None:
-        """Should raise ConfigurationError if AUTH_SERVICE_URL is missing."""
+        """Should raise ConfigurationError if auth.service.url is missing."""
         mock_settings.auth_mode_enum = AuthMode.INTROSPECTION
-        mock_settings.AUTH_SERVICE_URL = None
-        mock_settings.AUTH_SERVICE_CLIENT_ID = "client-id"
+        mock_settings.auth.service.url = None
+        mock_settings.auth.service.client_id = "client-id"
         mock_settings.AUTH_SERVICE_CLIENT_SECRET = "client-secret"
 
-        with pytest.raises(ConfigurationError, match="AUTH_SERVICE_URL"):
+        with pytest.raises(ConfigurationError, match=r"auth\.service\.url"):
             create_auth_provider(settings=mock_settings)
 
     def test_introspection_requires_client_id(self, mock_settings: MagicMock) -> None:
-        """Should raise ConfigurationError if AUTH_SERVICE_CLIENT_ID is missing."""
+        """Should raise ConfigurationError if auth.service.client_id is missing."""
         mock_settings.auth_mode_enum = AuthMode.INTROSPECTION
-        mock_settings.AUTH_SERVICE_URL = "http://auth:8080"
-        mock_settings.AUTH_SERVICE_CLIENT_ID = None
+        mock_settings.auth.service.url = "http://auth:8080"
+        mock_settings.auth.service.client_id = None
         mock_settings.AUTH_SERVICE_CLIENT_SECRET = "client-secret"
 
-        with pytest.raises(ConfigurationError, match="AUTH_SERVICE_CLIENT_ID"):
+        with pytest.raises(ConfigurationError, match=r"auth\.service\.client_id"):
             create_auth_provider(settings=mock_settings)
 
     def test_introspection_requires_client_secret(
@@ -101,8 +102,8 @@ class TestCreateAuthProvider:
     ) -> None:
         """Should raise ConfigurationError if AUTH_SERVICE_CLIENT_SECRET is missing."""
         mock_settings.auth_mode_enum = AuthMode.INTROSPECTION
-        mock_settings.AUTH_SERVICE_URL = "http://auth:8080"
-        mock_settings.AUTH_SERVICE_CLIENT_ID = "client-id"
+        mock_settings.auth.service.url = "http://auth:8080"
+        mock_settings.auth.service.client_id = "client-id"
         mock_settings.AUTH_SERVICE_CLIENT_SECRET = None
 
         with pytest.raises(ConfigurationError, match="AUTH_SERVICE_CLIENT_SECRET"):
@@ -111,12 +112,12 @@ class TestCreateAuthProvider:
     def test_introspection_with_fallback(self, mock_settings: MagicMock) -> None:
         """Should create IntrospectionAuthProvider with fallback when configured."""
         mock_settings.auth_mode_enum = AuthMode.INTROSPECTION
-        mock_settings.AUTH_SERVICE_URL = "http://auth:8080"
-        mock_settings.AUTH_SERVICE_CLIENT_ID = "client-id"
+        mock_settings.auth.service.url = "http://auth:8080"
+        mock_settings.auth.service.client_id = "client-id"
         mock_settings.AUTH_SERVICE_CLIENT_SECRET = "client-secret"
-        mock_settings.AUTH_INTROSPECTION_TIMEOUT = 5.0
-        mock_settings.AUTH_INTROSPECTION_CACHE_TTL = 60
-        mock_settings.AUTH_INTROSPECTION_FALLBACK_LOCAL = True
+        mock_settings.auth.introspection.timeout = 5.0
+        mock_settings.auth.introspection.cache_ttl = 60
+        mock_settings.auth.introspection.fallback_local = True
 
         provider = create_auth_provider(settings=mock_settings)
 
@@ -127,7 +128,7 @@ class TestCreateAuthProvider:
     def test_local_jwt_with_issuer(self, mock_settings: MagicMock) -> None:
         """Should configure LocalJWTAuthProvider with issuer."""
         mock_settings.auth_mode_enum = AuthMode.LOCAL_JWT
-        mock_settings.AUTH_JWT_ISSUER = "https://auth.example.com"
+        mock_settings.auth.jwt_validation.issuer = "https://auth.example.com"
 
         provider = create_auth_provider(settings=mock_settings)
 
@@ -137,7 +138,7 @@ class TestCreateAuthProvider:
     def test_local_jwt_with_audience(self, mock_settings: MagicMock) -> None:
         """Should configure LocalJWTAuthProvider with audience."""
         mock_settings.auth_mode_enum = AuthMode.LOCAL_JWT
-        mock_settings.AUTH_JWT_AUDIENCE = ["api", "web"]
+        mock_settings.auth.jwt_validation.audience = ["api", "web"]
 
         provider = create_auth_provider(settings=mock_settings)
 
@@ -149,9 +150,9 @@ class TestCreateAuthProvider:
     ) -> None:
         """Should configure HeaderAuthProvider with custom header names."""
         mock_settings.auth_mode_enum = AuthMode.HEADER
-        mock_settings.AUTH_HEADER_USER_ID = "X-Custom-User"
-        mock_settings.AUTH_HEADER_ROLES = "X-Custom-Roles"
-        mock_settings.AUTH_HEADER_PERMISSIONS = "X-Custom-Perms"
+        mock_settings.auth.headers.user_id = "X-Custom-User"
+        mock_settings.auth.headers.roles = "X-Custom-Roles"
+        mock_settings.auth.headers.permissions = "X-Custom-Perms"
 
         provider = create_auth_provider(settings=mock_settings)
 

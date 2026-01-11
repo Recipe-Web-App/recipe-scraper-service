@@ -38,9 +38,6 @@ class TestCacheTTL:
         redis_url: str,
     ) -> AsyncGenerator[CacheManager]:
         """Create CacheManager with initialized Redis."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -156,9 +153,6 @@ class TestCachedDecoratorTTL:
         redis_url: str,
     ) -> AsyncGenerator[None]:
         """Initialize Redis for decorator tests."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -270,9 +264,6 @@ class TestCacheTTLEdgeCases:
         redis_url: str,
     ) -> AsyncGenerator[CacheManager]:
         """Create CacheManager with initialized Redis."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -435,9 +426,6 @@ class TestCacheTTLConcurrency:
         redis_url: str,
     ) -> AsyncGenerator[None]:
         """Initialize Redis for concurrency tests."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()

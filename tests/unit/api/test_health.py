@@ -24,8 +24,8 @@ class TestHealthCheck:
     async def test_returns_healthy_status(self) -> None:
         """Should return healthy status."""
         mock_settings = MagicMock()
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
+        mock_settings.app.version = "1.0.0"
+        mock_settings.APP_ENV = "test"
 
         result = await health_check(mock_settings)
 
@@ -37,8 +37,8 @@ class TestHealthCheck:
     async def test_includes_timestamp(self) -> None:
         """Should include timestamp in response."""
         mock_settings = MagicMock()
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
+        mock_settings.app.version = "1.0.0"
+        mock_settings.APP_ENV = "test"
 
         result = await health_check(mock_settings)
 
@@ -52,8 +52,8 @@ class TestReadinessCheck:
     async def test_returns_ready_when_all_healthy(self) -> None:
         """Should return ready status when all dependencies healthy."""
         mock_settings = MagicMock()
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
+        mock_settings.app.version = "1.0.0"
+        mock_settings.APP_ENV = "test"
 
         with patch(
             "app.api.v1.endpoints.health.check_redis_health",
@@ -68,8 +68,8 @@ class TestReadinessCheck:
     async def test_returns_ready_when_not_initialized(self) -> None:
         """Should return ready status when dependencies not initialized."""
         mock_settings = MagicMock()
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
+        mock_settings.app.version = "1.0.0"
+        mock_settings.APP_ENV = "test"
 
         with patch(
             "app.api.v1.endpoints.health.check_redis_health",
@@ -83,8 +83,8 @@ class TestReadinessCheck:
     async def test_returns_degraded_when_unhealthy(self) -> None:
         """Should return degraded status when dependencies unhealthy."""
         mock_settings = MagicMock()
-        mock_settings.APP_VERSION = "1.0.0"
-        mock_settings.ENVIRONMENT = "test"
+        mock_settings.app.version = "1.0.0"
+        mock_settings.APP_ENV = "test"
 
         with patch(
             "app.api.v1.endpoints.health.check_redis_health",

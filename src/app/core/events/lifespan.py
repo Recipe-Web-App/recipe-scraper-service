@@ -44,15 +44,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # === STARTUP ===
     logger.info(
         "Starting application",
-        app_name=settings.APP_NAME,
-        environment=settings.ENVIRONMENT,
-        debug=settings.DEBUG,
+        app_name=settings.app.name,
+        environment=settings.APP_ENV,
+        debug=settings.app.debug,
     )
 
     # Initialize logging
     setup_logging(
-        log_level=settings.LOG_LEVEL,
-        log_format=settings.LOG_FORMAT,
+        log_level=settings.logging.level,
+        log_format=settings.logging.format,
         is_development=settings.is_development,
     )
 
@@ -82,7 +82,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                 )
 
         await initialize_auth_provider(cache_client=cache_client)
-        logger.info("Auth provider initialized", mode=settings.AUTH_MODE)
+        logger.info("Auth provider initialized", mode=settings.auth.mode)
     except Exception:
         logger.exception("Failed to initialize auth provider")
         raise  # Auth is critical - don't continue without it

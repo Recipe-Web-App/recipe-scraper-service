@@ -25,6 +25,33 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Fixed development secret - safe for local dev, blocked in production
+_DEV_JWT_SECRET = "insecure-dev-key-do-not-use-in-production"  # noqa: S105
+
+
+def _get_jwt_secret(settings: Settings) -> str:
+    """Get JWT secret, validating it's set in production.
+
+    Args:
+        settings: Application settings.
+
+    Returns:
+        JWT secret key to use.
+
+    Raises:
+        ConfigurationError: If secret is not set in production.
+    """
+    if settings.JWT_SECRET_KEY:
+        return settings.JWT_SECRET_KEY
+
+    if settings.is_production:
+        msg = "JWT_SECRET_KEY must be set in production for local_jwt auth mode"
+        raise ConfigurationError(msg)
+
+    logger.warning("Using insecure development JWT secret - do not use in production")
+    return _DEV_JWT_SECRET
+
+
 # Provider state container (avoids global statement for mutation)
 _state: dict[str, AuthProvider | None] = {"provider": None}
 
@@ -99,26 +126,27 @@ def create_auth_provider(
 
     if mode == AuthMode.HEADER:
         return HeaderAuthProvider(
-            user_id_header=settings.AUTH_HEADER_USER_ID,
-            roles_header=settings.AUTH_HEADER_ROLES,
-            permissions_header=settings.AUTH_HEADER_PERMISSIONS,
+            user_id_header=settings.auth.headers.user_id,
+            roles_header=settings.auth.headers.roles,
+            permissions_header=settings.auth.headers.permissions,
         )
 
     if mode == AuthMode.LOCAL_JWT:
+        secret_key = _get_jwt_secret(settings)
         return LocalJWTAuthProvider(
-            secret_key=settings.JWT_SECRET_KEY,
-            algorithm=settings.JWT_ALGORITHM,
-            issuer=settings.AUTH_JWT_ISSUER,
-            audience=settings.AUTH_JWT_AUDIENCE or None,
+            secret_key=secret_key,
+            algorithm=settings.auth.jwt.algorithm,
+            issuer=settings.auth.jwt_validation.issuer,
+            audience=settings.auth.jwt_validation.audience or None,
         )
 
     if mode == AuthMode.INTROSPECTION:
         # Validate required settings
-        if not settings.AUTH_SERVICE_URL:
-            msg = "AUTH_SERVICE_URL is required for introspection mode"
+        if not settings.auth.service.url:
+            msg = "auth.service.url is required for introspection mode"
             raise ConfigurationError(msg)
-        if not settings.AUTH_SERVICE_CLIENT_ID:
-            msg = "AUTH_SERVICE_CLIENT_ID is required for introspection mode"
+        if not settings.auth.service.client_id:
+            msg = "auth.service.client_id is required for introspection mode"
             raise ConfigurationError(msg)
         if not settings.AUTH_SERVICE_CLIENT_SECRET:
             msg = "AUTH_SERVICE_CLIENT_SECRET is required for introspection mode"
@@ -126,22 +154,22 @@ def create_auth_provider(
 
         # Create fallback provider if configured
         fallback: AuthProvider | None = None
-        if settings.AUTH_INTROSPECTION_FALLBACK_LOCAL:
+        if settings.auth.introspection.fallback_local:
             logger.info("Configuring local JWT fallback for introspection")
             fallback = LocalJWTAuthProvider(
-                secret_key=settings.JWT_SECRET_KEY,
-                algorithm=settings.JWT_ALGORITHM,
-                issuer=settings.AUTH_JWT_ISSUER,
-                audience=settings.AUTH_JWT_AUDIENCE or None,
+                secret_key=_get_jwt_secret(settings),
+                algorithm=settings.auth.jwt.algorithm,
+                issuer=settings.auth.jwt_validation.issuer,
+                audience=settings.auth.jwt_validation.audience or None,
             )
 
         return IntrospectionAuthProvider(
-            base_url=settings.AUTH_SERVICE_URL,
-            client_id=settings.AUTH_SERVICE_CLIENT_ID,
+            base_url=settings.auth.service.url,
+            client_id=settings.auth.service.client_id,
             client_secret=settings.AUTH_SERVICE_CLIENT_SECRET,
-            timeout=settings.AUTH_INTROSPECTION_TIMEOUT,
+            timeout=settings.auth.introspection.timeout,
             cache_client=cache_client,
-            cache_ttl=settings.AUTH_INTROSPECTION_CACHE_TTL,
+            cache_ttl=settings.auth.introspection.cache_ttl,
             fallback_provider=fallback,
         )
 

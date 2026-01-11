@@ -53,10 +53,6 @@ class TestARQPoolManagement:
         redis_url: str,
     ) -> AsyncGenerator[ArqRedis]:
         """Create ARQ pool connected to test Redis."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         # Reset global pool state
         jobs_module._arq_pool = None
 
@@ -74,10 +70,6 @@ class TestARQPoolManagement:
         redis_url: str,
     ) -> None:
         """Should create ARQ pool on first call."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         # Reset global state
         jobs_module._arq_pool = None
 
@@ -103,10 +95,6 @@ class TestARQPoolManagement:
         redis_url: str,
     ) -> None:
         """Should return same pool instance on subsequent calls."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         # Reset global state
         jobs_module._arq_pool = None
 
@@ -131,10 +119,6 @@ class TestARQPoolManagement:
         redis_url: str,
     ) -> None:
         """Should close pool and reset global state."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         # Reset global state
         jobs_module._arq_pool = None
 
@@ -162,10 +146,6 @@ class TestJobEnqueuing:
         redis_url: str,
     ) -> AsyncGenerator[None]:
         """Setup ARQ with test Redis."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         # Reset global state
         jobs_module._arq_pool = None
 
@@ -241,18 +221,13 @@ class TestJobStatus:
     async def arq_pool_direct(
         self,
         test_settings: Settings,
-        redis_url: str,
     ) -> AsyncGenerator[ArqRedis]:
         """Create ARQ pool directly with test Redis settings."""
-        parts = redis_url.replace("redis://", "").split(":")
-        redis_host = parts[0]
-        redis_port = int(parts[1])
-
         # Create pool directly with test Redis settings
         redis_settings = RedisSettings(
-            host=redis_host,
-            port=redis_port,
-            database=test_settings.REDIS_QUEUE_DB,
+            host=test_settings.redis.host,
+            port=test_settings.redis.port,
+            database=test_settings.redis.queue_db,
         )
 
         pool = await create_pool(redis_settings)
@@ -411,17 +386,12 @@ class TestARQEdgeCases:
     async def arq_pool_direct(
         self,
         test_settings: Settings,
-        redis_url: str,
     ) -> AsyncGenerator[ArqRedis]:
         """Create ARQ pool directly with test Redis settings."""
-        parts = redis_url.replace("redis://", "").split(":")
-        redis_host = parts[0]
-        redis_port = int(parts[1])
-
         redis_settings = RedisSettings(
-            host=redis_host,
-            port=redis_port,
-            database=test_settings.REDIS_QUEUE_DB,
+            host=test_settings.redis.host,
+            port=test_settings.redis.port,
+            database=test_settings.redis.queue_db,
         )
 
         pool = await create_pool(redis_settings)
@@ -601,13 +571,8 @@ class TestARQEdgeCases:
     async def test_close_pool_multiple_times(
         self,
         test_settings: Settings,
-        redis_url: str,
     ) -> None:
         """Should handle closing pool multiple times safely."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
-
         jobs_module._arq_pool = None
 
         with (

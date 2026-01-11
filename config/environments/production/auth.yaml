@@ -1,0 +1,4 @@
+auth:
+  mode: introspection
+  introspection:
+    fallback_local: true

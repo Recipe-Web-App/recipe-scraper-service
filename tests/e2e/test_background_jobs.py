@@ -54,9 +54,9 @@ class TestJobEnqueuing:
         """Create ARQ pool with test settings."""
         pool = await create_pool(
             RedisSettings(
-                host=test_settings.REDIS_HOST,
-                port=test_settings.REDIS_PORT,
-                database=test_settings.REDIS_QUEUE_DB,
+                host=test_settings.redis.host,
+                port=test_settings.redis.port,
+                database=test_settings.redis.queue_db,
             ),
         )
         yield pool
@@ -198,9 +198,9 @@ class TestJobExecution:
         """Create ARQ pool with test settings."""
         pool = await create_pool(
             RedisSettings(
-                host=test_settings.REDIS_HOST,
-                port=test_settings.REDIS_PORT,
-                database=test_settings.REDIS_QUEUE_DB,
+                host=test_settings.redis.host,
+                port=test_settings.redis.port,
+                database=test_settings.redis.queue_db,
             ),
         )
         yield pool
@@ -268,9 +268,9 @@ class TestJobLifecycle:
         """Create ARQ pool with test settings."""
         pool = await create_pool(
             RedisSettings(
-                host=test_settings.REDIS_HOST,
-                port=test_settings.REDIS_PORT,
-                database=test_settings.REDIS_QUEUE_DB,
+                host=test_settings.redis.host,
+                port=test_settings.redis.port,
+                database=test_settings.redis.queue_db,
             ),
         )
         yield pool

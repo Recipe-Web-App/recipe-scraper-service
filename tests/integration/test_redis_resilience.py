@@ -20,6 +20,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.cache.decorators import CacheManager
 from app.cache.redis import close_redis_pools, get_cache_client, init_redis_pools
+from app.core.config.settings import RedisSettings
 from app.factory import create_app
 
 
@@ -41,11 +42,16 @@ class TestRedisUnavailable:
         test_settings: Settings,
     ) -> None:
         """Should start application even when Redis is unavailable."""
-        # Use invalid Redis host
-        test_settings.REDIS_HOST = "invalid-host-that-does-not-exist"
-        test_settings.REDIS_PORT = 9999
+        # Create settings with invalid Redis host
+        invalid_redis_settings = test_settings.model_copy(
+            update={
+                "redis": RedisSettings(
+                    host="invalid-host-that-does-not-exist", port=9999
+                )
+            }
+        )
 
-        app = create_app(test_settings)
+        app = create_app(invalid_redis_settings)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -61,10 +67,11 @@ class TestRedisUnavailable:
         test_settings: Settings,
     ) -> None:
         """Should return health status even when Redis is down."""
-        test_settings.REDIS_HOST = "invalid-host"
-        test_settings.REDIS_PORT = 9999
+        invalid_redis_settings = test_settings.model_copy(
+            update={"redis": RedisSettings(host="invalid-host", port=9999)}
+        )
 
-        app = create_app(test_settings)
+        app = create_app(invalid_redis_settings)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -79,10 +86,11 @@ class TestRedisUnavailable:
         test_settings: Settings,
     ) -> None:
         """Should show degraded status when Redis is unavailable."""
-        test_settings.REDIS_HOST = "invalid-host"
-        test_settings.REDIS_PORT = 9999
+        invalid_redis_settings = test_settings.model_copy(
+            update={"redis": RedisSettings(host="invalid-host", port=9999)}
+        )
 
-        app = create_app(test_settings)
+        app = create_app(invalid_redis_settings)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -104,13 +112,14 @@ class TestCacheGracefulDegradation:
         test_settings: Settings,
     ) -> AsyncGenerator[CacheManager]:
         """Create CacheManager with disconnected Redis."""
-        test_settings.REDIS_HOST = "invalid-host"
-        test_settings.REDIS_PORT = 9999
+        invalid_redis_settings = test_settings.model_copy(
+            update={"redis": RedisSettings(host="invalid-host", port=9999)}
+        )
 
         # Try to initialize but expect failure
         with (
             contextlib.suppress(Exception),
-            patch("app.cache.redis.get_settings", return_value=test_settings),
+            patch("app.cache.redis.get_settings", return_value=invalid_redis_settings),
         ):
             await init_redis_pools()
 
@@ -126,9 +135,6 @@ class TestCacheGracefulDegradation:
         redis_url: str,
     ) -> None:
         """Should handle connection errors gracefully on get."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -158,9 +164,6 @@ class TestConnectionPoolBehavior:
         redis_url: str,
     ) -> AsyncGenerator[None]:
         """Initialize Redis pools."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         with patch("app.cache.redis.get_settings", return_value=test_settings):
             await init_redis_pools()
@@ -198,9 +201,6 @@ class TestConnectionPoolBehavior:
         redis_url: str,
     ) -> None:
         """Should handle rapid connect/disconnect cycles."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         for _ in range(5):
             with patch("app.cache.redis.get_settings", return_value=test_settings):
@@ -246,9 +246,6 @@ class TestRedisReconnection:
         redis_url: str,
     ) -> None:
         """Should work after pool is reset."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         # Initial connection
         with patch("app.cache.redis.get_settings", return_value=test_settings):

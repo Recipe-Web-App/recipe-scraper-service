@@ -44,7 +44,7 @@ def setup_tracing(app: FastAPI, settings: Settings | None = None) -> None:
     if settings is None:
         settings = get_settings()
 
-    if not settings.ENABLE_TRACING:
+    if not settings.observability.tracing.enabled:
         logger.info("Tracing disabled")
         return
 
@@ -53,9 +53,9 @@ def setup_tracing(app: FastAPI, settings: Settings | None = None) -> None:
     # Create resource with service information
     resource = Resource.create(
         {
-            "service.name": settings.APP_NAME.lower().replace(" ", "-"),
-            "service.version": settings.APP_VERSION,
-            "deployment.environment": settings.ENVIRONMENT,
+            "service.name": settings.app.name.lower().replace(" ", "-"),
+            "service.version": settings.app.version,
+            "deployment.environment": settings.APP_ENV,
         }
     )
 
@@ -63,16 +63,16 @@ def setup_tracing(app: FastAPI, settings: Settings | None = None) -> None:
     provider = TracerProvider(resource=resource)
 
     # Configure exporter based on environment
-    if settings.OTLP_ENDPOINT:
+    if settings.observability.tracing.otlp_endpoint:
         # Production: Send traces to OTLP collector (Jaeger, Tempo, etc.)
         otlp_exporter = OTLPSpanExporter(
-            endpoint=settings.OTLP_ENDPOINT,
+            endpoint=settings.observability.tracing.otlp_endpoint,
             insecure=True,  # Configure TLS in production
         )
         provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
         logger.info(
             "OTLP trace exporter configured",
-            endpoint=settings.OTLP_ENDPOINT,
+            endpoint=settings.observability.tracing.otlp_endpoint,
         )
     elif settings.is_development:
         # Development: Log traces to console

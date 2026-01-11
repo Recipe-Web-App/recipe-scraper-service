@@ -55,8 +55,8 @@ async def health_check(
     """
     return HealthResponse(
         status="healthy",
-        version=settings.APP_VERSION,
-        environment=settings.ENVIRONMENT,
+        version=settings.app.version,
+        environment=settings.APP_ENV,
     )
 
 
@@ -84,7 +84,7 @@ async def readiness_check(
 
     return ReadinessResponse(
         status="ready" if all_healthy else "degraded",
-        version=settings.APP_VERSION,
-        environment=settings.ENVIRONMENT,
+        version=settings.app.version,
+        environment=settings.APP_ENV,
         dependencies=dependencies,
     )

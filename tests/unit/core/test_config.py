@@ -4,51 +4,52 @@ Tests cover:
 - Settings class
 - Environment detection
 - Computed properties
-- CORS/API key parsing
+- List parsing
 """
 
 from __future__ import annotations
 
 import pytest
 
-from app.core.config import Settings, get_settings, parse_cors
+from app.core.config import Settings, get_settings
+from app.core.config.settings import parse_list
 
 
 pytestmark = pytest.mark.unit
 
 
 # =============================================================================
-# parse_cors Tests
+# parse_list Tests
 # =============================================================================
 
 
-class TestParseCors:
-    """Tests for parse_cors helper function."""
+class TestParseList:
+    """Tests for parse_list helper function."""
 
     def test_parses_comma_separated_string(self):
-        """Should parse comma-separated origins string."""
-        result = parse_cors("http://localhost:3000,http://localhost:8080")
+        """Should parse comma-separated string."""
+        result = parse_list("http://localhost:3000,http://localhost:8080")
         assert result == ["http://localhost:3000", "http://localhost:8080"]
 
     def test_handles_whitespace(self):
-        """Should strip whitespace from origins."""
-        result = parse_cors("http://localhost:3000 , http://localhost:8080 ")
+        """Should strip whitespace from values."""
+        result = parse_list("http://localhost:3000 , http://localhost:8080 ")
         assert result == ["http://localhost:3000", "http://localhost:8080"]
 
     def test_handles_empty_string(self):
         """Should return empty list for empty string."""
-        result = parse_cors("")
+        result = parse_list("")
         assert result == []
 
     def test_passes_through_list(self):
         """Should return list as-is."""
         origins = ["http://localhost:3000", "http://localhost:8080"]
-        result = parse_cors(origins)
+        result = parse_list(origins)
         assert result == origins
 
     def test_filters_empty_values(self):
         """Should filter out empty values from string."""
-        result = parse_cors("http://localhost:3000,,http://localhost:8080")
+        result = parse_list("http://localhost:3000,,http://localhost:8080")
         assert result == ["http://localhost:3000", "http://localhost:8080"]
 
 
@@ -60,88 +61,79 @@ class TestParseCors:
 class TestSettings:
     """Tests for Settings class."""
 
-    def test_default_values(self):
-        """Should have sensible default values."""
+    def test_default_values(self, monkeypatch: pytest.MonkeyPatch):
+        """Should have sensible default values from base YAML."""
+        # Set APP_ENV before Settings loads YAML files
+        monkeypatch.setenv("APP_ENV", "development")
         settings = Settings()
 
-        assert settings.APP_NAME == "Recipe Scraper Service"
-        assert settings.ENVIRONMENT == "development"
-        assert settings.DEBUG is False
-        assert settings.HOST == "0.0.0.0"
-        assert settings.PORT == 8000
+        assert settings.app.name == "Recipe Scraper Service"
+        assert settings.APP_ENV == "development"
+        assert settings.app.debug is False
+        assert settings.server.host == "0.0.0.0"  # From base YAML
+        assert settings.server.port == 8000
 
-    def test_environment_override(self):
+    def test_environment_override(self, monkeypatch: pytest.MonkeyPatch):
         """Should allow environment variable overrides."""
-        settings = Settings(ENVIRONMENT="production", DEBUG=True)
+        monkeypatch.setenv("APP_ENV", "production")
+        settings = Settings()
 
-        assert settings.ENVIRONMENT == "production"
-        assert settings.DEBUG is True
+        assert settings.APP_ENV == "production"
 
-    def test_jwt_defaults(self):
+    def test_jwt_defaults(self, monkeypatch: pytest.MonkeyPatch):
         """Should have JWT settings with defaults."""
+        monkeypatch.setenv("APP_ENV", "development")
         settings = Settings()
 
-        assert settings.JWT_ALGORITHM == "HS256"
-        assert settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES == 30
-        assert settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS == 7
+        assert settings.auth.jwt.algorithm == "HS256"
+        assert settings.auth.jwt.access_token_expire_minutes == 30
+        assert settings.auth.jwt.refresh_token_expire_days == 7
 
-    def test_redis_defaults(self):
-        """Should have Redis settings with defaults."""
+    def test_redis_defaults(self, monkeypatch: pytest.MonkeyPatch):
+        """Should have Redis settings with base defaults."""
+        # Set APP_ENV to development so YAML loads base defaults
+        # (test environment uses DBs 10, 11, 12)
+        monkeypatch.setenv("APP_ENV", "development")
         settings = Settings()
 
-        assert settings.REDIS_HOST == "localhost"
-        assert settings.REDIS_PORT == 6379
-        assert settings.REDIS_CACHE_DB == 0
-        assert settings.REDIS_QUEUE_DB == 1
-        assert settings.REDIS_RATE_LIMIT_DB == 2
+        assert settings.redis.host == "localhost"
+        assert settings.redis.port == 6379
+        assert settings.redis.cache_db == 0
+        assert settings.redis.queue_db == 1
+        assert settings.redis.rate_limit_db == 2
 
 
 class TestSettingsComputedProperties:
     """Tests for Settings computed properties."""
 
-    def test_redis_cache_url_without_password(self):
+    def test_redis_cache_url_without_password(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis URL without password."""
-        settings = Settings(
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
-            REDIS_PASSWORD="",
-            REDIS_CACHE_DB=0,
-        )
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(REDIS_PASSWORD="")
 
-        assert settings.REDIS_CACHE_URL == "redis://localhost:6379/0"
+        assert settings.redis_cache_url == "redis://localhost:6379/0"
 
-    def test_redis_cache_url_with_password(self):
+    def test_redis_cache_url_with_password(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis URL with password."""
-        settings = Settings(
-            REDIS_HOST="redis.example.com",
-            REDIS_PORT=6380,
-            REDIS_PASSWORD="secret123",
-            REDIS_CACHE_DB=2,
-        )
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(REDIS_PASSWORD="secret123")
 
-        assert settings.REDIS_CACHE_URL == "redis://:secret123@redis.example.com:6380/2"
+        assert "secret123" in settings.redis_cache_url
+        assert settings.redis_cache_url == "redis://:secret123@localhost:6379/0"
 
-    def test_redis_queue_url(self):
+    def test_redis_queue_url(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis queue URL."""
-        settings = Settings(
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
-            REDIS_PASSWORD="",
-            REDIS_QUEUE_DB=1,
-        )
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(REDIS_PASSWORD="")
 
-        assert settings.REDIS_QUEUE_URL == "redis://localhost:6379/1"
+        assert settings.redis_queue_url == "redis://localhost:6379/1"
 
-    def test_redis_rate_limit_url(self):
+    def test_redis_rate_limit_url(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis rate limit URL."""
-        settings = Settings(
-            REDIS_HOST="localhost",
-            REDIS_PORT=6379,
-            REDIS_PASSWORD="",
-            REDIS_RATE_LIMIT_DB=2,
-        )
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(REDIS_PASSWORD="")
 
-        assert settings.REDIS_RATE_LIMIT_URL == "redis://localhost:6379/2"
+        assert settings.redis_rate_limit_url == "redis://localhost:6379/2"
 
 
 class TestSettingsEnvironmentDetection:
@@ -149,49 +141,42 @@ class TestSettingsEnvironmentDetection:
 
     def test_is_development(self):
         """Should detect development environment."""
-        settings = Settings(ENVIRONMENT="development")
+        settings = Settings(APP_ENV="development")
         assert settings.is_development is True
         assert settings.is_production is False
         assert settings.is_testing is False
 
     def test_is_production(self):
         """Should detect production environment."""
-        settings = Settings(ENVIRONMENT="production")
+        settings = Settings(APP_ENV="production")
         assert settings.is_development is False
         assert settings.is_production is True
         assert settings.is_testing is False
 
     def test_is_testing(self):
-        """Should detect testing environment."""
-        settings = Settings(ENVIRONMENT="testing")
+        """Should detect test environment."""
+        settings = Settings(APP_ENV="test")
         assert settings.is_development is False
         assert settings.is_production is False
         assert settings.is_testing is True
+
+    def test_is_local(self):
+        """Should detect local environment."""
+        settings = Settings(APP_ENV="local")
+        assert settings.is_local is True
+        assert settings.is_development is False
 
 
 class TestSettingsCorsOrigins:
     """Tests for CORS origins configuration."""
 
-    def test_parses_cors_from_string(self):
-        """Should parse CORS origins from comma-separated string."""
-        settings = Settings(CORS_ORIGINS="http://localhost:3000,http://localhost:8080")
-
-        assert settings.CORS_ORIGINS == [
-            "http://localhost:3000",
-            "http://localhost:8080",
-        ]
-
-    def test_accepts_cors_as_list(self):
-        """Should accept CORS origins as list."""
-        settings = Settings(CORS_ORIGINS=["http://localhost:3000"])
-
-        assert settings.CORS_ORIGINS == ["http://localhost:3000"]
-
-    def test_empty_cors_default(self):
-        """Should default to empty CORS origins."""
+    def test_cors_origins_from_yaml(self):
+        """Should load CORS origins from base YAML."""
         settings = Settings()
 
-        assert settings.CORS_ORIGINS == []
+        # Base YAML defines development origins
+        assert "http://localhost:3000" in settings.api.cors_origins
+        assert "http://localhost:8080" in settings.api.cors_origins
 
 
 class TestSettingsServiceApiKeys:

@@ -1,0 +1,6 @@
+observability:
+  tracing:
+    enabled: true
+    otlp_endpoint: null
+  metrics:
+    enabled: true

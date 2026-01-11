@@ -1,0 +1,20 @@
+auth:
+  mode: local_jwt
+  jwt:
+    algorithm: HS256
+    access_token_expire_minutes: 30
+    refresh_token_expire_days: 7
+  introspection:
+    cache_ttl: 60
+    timeout: 5.0
+    fallback_local: false
+  headers:
+    user_id: X-User-ID
+    roles: X-User-Roles
+    permissions: X-User-Permissions
+  service:
+    url: null
+    client_id: recipe-scraper-service
+  jwt_validation:
+    issuer: null
+    audience: []

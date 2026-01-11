@@ -58,6 +58,8 @@ dependencies = [
   "orjson>=3.10.0",
   "email-validator>=2.2.0",
   "tenacity>=9.0.0",
+  # Configuration
+  "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -87,6 +89,7 @@ dev = [
   "types-redis>=4.6.0",
   "types-python-jose>=3.3.0",
   "types-passlib>=1.7.0",
+  "types-PyYAML>=6.0",
 ]
 
 docs = [
@@ -202,9 +205,8 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101", "S105", "S106", "ANN", "ARG", "PLR2004", "SLF001"]
 "scripts/**/*" = ["T20", "S603", "S607"]
-"src/app/core/config.py" = [
+"src/app/core/config/*.py" = [
   "N802", # Pydantic computed fields use UPPER_CASE
-  "S105", # Settings contain placeholder secrets for development
 ]
 
 [tool.ruff.lint.isort]

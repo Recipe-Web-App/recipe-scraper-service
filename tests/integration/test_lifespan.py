@@ -15,6 +15,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 import app.cache.redis as redis_module
+from app.core.config.settings import RedisSettings
 from app.factory import create_app
 
 
@@ -35,9 +36,6 @@ class TestApplicationStartup:
         redis_url: str,
     ) -> None:
         """Should start application and respond to requests."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         app = create_app(test_settings)
 
@@ -55,9 +53,6 @@ class TestApplicationStartup:
         redis_url: str,
     ) -> None:
         """Should return dependency status in ready endpoint."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         app = create_app(test_settings)
 
@@ -79,11 +74,12 @@ class TestApplicationStartup:
         test_settings: Settings,
     ) -> None:
         """Should start even if Redis is unavailable."""
-        # Use invalid Redis host
-        test_settings.REDIS_HOST = "invalid-host"
-        test_settings.REDIS_PORT = 9999
+        # Create settings with invalid Redis host
+        invalid_redis_settings = test_settings.model_copy(
+            update={"redis": RedisSettings(host="invalid-host", port=9999)}
+        )
 
-        app = create_app(test_settings)
+        app = create_app(invalid_redis_settings)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -110,9 +106,6 @@ class TestApplicationShutdown:
         redis_url: str,
     ) -> None:
         """Should handle multiple startup/shutdown cycles cleanly."""
-        parts = redis_url.replace("redis://", "").split(":")
-        test_settings.REDIS_HOST = parts[0]
-        test_settings.REDIS_PORT = int(parts[1])
 
         # Run multiple cycles
         for _ in range(3):
@@ -143,11 +136,12 @@ class TestLifespanGracefulDegradation:
         test_settings: Settings,
     ) -> None:
         """Should respond to requests even when dependencies unavailable."""
-        # Use invalid Redis to force degraded state
-        test_settings.REDIS_HOST = "invalid-host"
-        test_settings.REDIS_PORT = 9999
+        # Create settings with invalid Redis to force degraded state
+        invalid_redis_settings = test_settings.model_copy(
+            update={"redis": RedisSettings(host="invalid-host", port=9999)}
+        )
 
-        app = create_app(test_settings)
+        app = create_app(invalid_redis_settings)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),

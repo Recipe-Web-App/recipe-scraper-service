@@ -14,6 +14,16 @@ from testcontainers.redis import RedisContainer
 import app.cache.redis as redis_module
 from app.cache.redis import close_redis_pools, init_redis_pools
 from app.core.config import Settings
+from app.core.config.settings import (
+    ApiSettings,
+    AppSettings,
+    AuthSettings,
+    LoggingSettings,
+    ObservabilitySettings,
+    RateLimitingSettings,
+    RedisSettings,
+    ServerSettings,
+)
 
 
 if TYPE_CHECKING:
@@ -46,28 +56,40 @@ def test_settings(redis_url: str) -> Settings:
     redis_port = int(parts[1])
 
     return Settings(
-        APP_NAME="perf-test-app",
-        APP_VERSION="0.0.1-perf",
-        ENVIRONMENT="test",
-        DEBUG=False,  # Disable debug for realistic benchmarks
-        HOST="0.0.0.0",
-        PORT=8000,
+        APP_ENV="test",
         JWT_SECRET_KEY="perf-test-jwt-secret-key",
-        JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30,
-        JWT_REFRESH_TOKEN_EXPIRE_DAYS=7,
-        REDIS_HOST=redis_host,
-        REDIS_PORT=redis_port,
         REDIS_PASSWORD="",
-        REDIS_CACHE_DB=0,
-        REDIS_QUEUE_DB=1,
-        REDIS_RATE_LIMIT_DB=2,
-        CORS_ORIGINS=["http://localhost:3000"],
-        RATE_LIMIT_DEFAULT="1000/minute",
-        RATE_LIMIT_AUTH="100/minute",
-        METRICS_ENABLED=False,
-        ENABLE_TRACING=False,
-        LOG_LEVEL="WARNING",  # Reduce logging for benchmarks
-        LOG_FORMAT="json",
+        app=AppSettings(
+            name="perf-test-app",
+            version="0.0.1-perf",
+            debug=False,  # Disable debug for realistic benchmarks
+        ),
+        server=ServerSettings(
+            host="0.0.0.0",
+            port=8000,
+        ),
+        api=ApiSettings(
+            cors_origins=["http://localhost:3000"],
+        ),
+        auth=AuthSettings(
+            mode="disabled",
+        ),
+        redis=RedisSettings(
+            host=redis_host,
+            port=redis_port,
+            cache_db=0,
+            queue_db=1,
+            rate_limit_db=2,
+        ),
+        rate_limiting=RateLimitingSettings(
+            default="1000/minute",
+            auth="100/minute",
+        ),
+        logging=LoggingSettings(
+            level="WARNING",  # Reduce logging for benchmarks
+            format="json",
+        ),
+        observability=ObservabilitySettings(),
     )
 
 

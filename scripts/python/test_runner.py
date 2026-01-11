@@ -6,9 +6,14 @@ Provides entry points for running different test suites.
 
 from __future__ import annotations
 
+import os
 import sys
 
 import pytest
+
+
+# Ensure APP_ENV is set to 'test' for all test runs
+os.environ.setdefault("APP_ENV", "test")
 
 
 def run_unit() -> int:

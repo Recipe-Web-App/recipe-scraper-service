@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
+        host=settings.server.host,
+        port=settings.server.port,
         reload=settings.is_development,
-        log_level=settings.LOG_LEVEL.lower(),
+        log_level=settings.logging.level.lower(),
     )
