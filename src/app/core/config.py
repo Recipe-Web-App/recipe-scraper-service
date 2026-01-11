@@ -7,11 +7,28 @@ This module provides centralized configuration management with:
 - Caching for performance
 """
 
+from enum import StrEnum
 from functools import lru_cache
 from typing import Annotated
 
 from pydantic import BeforeValidator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AuthMode(StrEnum):
+    """Authentication mode configuration.
+
+    Determines how tokens are validated:
+    - INTROSPECTION: Validate via external auth-service /oauth2/introspect
+    - LOCAL_JWT: Validate JWTs locally using shared secret
+    - HEADER: Extract user from X-User-ID header (testing/development only)
+    - DISABLED: No authentication required
+    """
+
+    INTROSPECTION = "introspection"
+    LOCAL_JWT = "local_jwt"
+    HEADER = "header"
+    DISABLED = "disabled"
 
 
 def parse_cors(v: str | list[str]) -> list[str]:
@@ -66,6 +83,63 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: Annotated[list[str], BeforeValidator(parse_cors)] = []
+
+    # =========================================================================
+    # External Auth Service Configuration
+    # =========================================================================
+    # Auth mode: introspection, local_jwt, header, disabled
+    AUTH_MODE: str = "local_jwt"
+
+    # External auth service base URL (required for introspection mode)
+    AUTH_SERVICE_URL: str | None = None
+
+    # OAuth2 client credentials for token introspection
+    AUTH_SERVICE_CLIENT_ID: str | None = None
+    AUTH_SERVICE_CLIENT_SECRET: str | None = None
+
+    # Token introspection settings
+    AUTH_INTROSPECTION_CACHE_TTL: int = 60  # seconds to cache introspection results
+    AUTH_INTROSPECTION_TIMEOUT: float = 5.0  # HTTP timeout in seconds
+
+    # Fallback to local JWT validation when introspection fails
+    AUTH_INTROSPECTION_FALLBACK_LOCAL: bool = False
+
+    # Header-based auth settings (for testing/development)
+    AUTH_HEADER_USER_ID: str = "X-User-ID"
+    AUTH_HEADER_ROLES: str = "X-User-Roles"
+    AUTH_HEADER_PERMISSIONS: str = "X-User-Permissions"
+
+    # JWT validation settings (for local_jwt mode and introspection fallback)
+    AUTH_JWT_ISSUER: str | None = None  # Expected issuer claim
+    AUTH_JWT_AUDIENCE: Annotated[list[str], BeforeValidator(parse_cors)] = []
+
+    @property
+    def auth_mode_enum(self) -> AuthMode:
+        """Get auth mode as enum with validation."""
+        try:
+            return AuthMode(self.AUTH_MODE.lower())
+        except ValueError:
+            msg = (
+                f"Invalid AUTH_MODE: {self.AUTH_MODE}. "
+                f"Must be one of: {', '.join(m.value for m in AuthMode)}"
+            )
+            raise ValueError(msg) from None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def AUTH_SERVICE_INTROSPECTION_URL(self) -> str | None:
+        """Full introspection endpoint URL."""
+        if self.AUTH_SERVICE_URL:
+            return f"{self.AUTH_SERVICE_URL.rstrip('/')}/oauth2/introspect"
+        return None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def AUTH_SERVICE_USERINFO_URL(self) -> str | None:
+        """Full userinfo endpoint URL."""
+        if self.AUTH_SERVICE_URL:
+            return f"{self.AUTH_SERVICE_URL.rstrip('/')}/oauth2/userinfo"
+        return None
 
     # =========================================================================
     # Redis Cache

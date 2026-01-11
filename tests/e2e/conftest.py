@@ -15,6 +15,7 @@ from httpx import ASGITransport, AsyncClient
 from testcontainers.redis import RedisContainer
 
 import app.cache.redis as redis_module
+from app.auth.jwt import create_access_token
 from app.cache.redis import close_redis_pools, init_redis_pools
 from app.core.config import Settings
 from app.factory import create_app
@@ -97,20 +98,20 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient]:
 @pytest.fixture
 async def authenticated_client(
     client: AsyncClient,
+    test_settings: Settings,
 ) -> AsyncGenerator[AsyncClient]:
-    """Create authenticated client with valid access token."""
-    response = await client.post(
-        "/api/v1/auth/login",
-        data={
-            "username": "demo@example.com",
-            "password": "demo1234",
-        },
-    )
+    """Create authenticated client with valid access token.
 
-    if response.status_code == 200:
-        token = response.json()["access_token"]
-        client.headers["Authorization"] = f"Bearer {token}"
-
+    Since auth endpoints are now handled by the external auth-service,
+    we create tokens directly using the JWT module.
+    """
+    with patch("app.auth.jwt.get_settings", return_value=test_settings):
+        token = create_access_token(
+            subject="e2e-test-user",
+            roles=["user"],
+            permissions=["recipe:read", "recipe:write"],
+        )
+    client.headers["Authorization"] = f"Bearer {token}"
     return client
 
 

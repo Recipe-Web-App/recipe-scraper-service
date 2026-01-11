@@ -71,71 +71,103 @@ flowchart LR
 
 ### Authentication Flow
 
-JWT-based authentication with access and refresh token pattern:
+The service uses a pluggable authentication provider pattern that supports multiple modes:
+
+```mermaid
+flowchart TB
+    subgraph Modes["Authentication Modes"]
+        Introspection["Introspection Mode\n(Production)"]
+        LocalJWT["Local JWT Mode\n(Distributed)"]
+        Header["Header Mode\n(Development)"]
+    end
+
+    subgraph Providers["Auth Providers"]
+        IntrospectionProvider[IntrospectionAuthProvider]
+        LocalProvider[LocalJWTAuthProvider]
+        HeaderProvider[HeaderAuthProvider]
+    end
+
+    Introspection --> IntrospectionProvider
+    LocalJWT --> LocalProvider
+    Header --> HeaderProvider
+
+    IntrospectionProvider -->|HTTP POST| AuthService[(External Auth Service)]
+    LocalProvider -->|Decode| JWT[JWT Library]
+    HeaderProvider -->|Read| Headers[Request Headers]
+```
+
+#### Mode Selection
+
+| Mode            | Use Case                                | Configuration                               |
+| --------------- | --------------------------------------- | ------------------------------------------- |
+| `introspection` | Production with centralized auth        | `AUTH_SERVICE_URL`, client credentials      |
+| `local_jwt`     | Distributed systems, offline validation | `JWT_SECRET_KEY` (shared with auth-service) |
+| `header`        | Local development, testing              | Header names (`X-User-ID`, etc.)            |
+| `disabled`      | Internal services, testing              | None                                        |
+
+#### Introspection Mode Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant C as Client
-    participant A as Auth Endpoint
-    participant J as JWT Module
-    participant R as Redis
+    participant API as Recipe API
+    participant Cache as Redis Cache
+    participant Auth as Auth Service
 
-    Note over C,R: Initial Login
-    C->>A: POST /auth/login (credentials)
-    A->>A: Validate credentials
-    A->>J: Create access token (30m TTL)
-    A->>J: Create refresh token (7d TTL)
-    J-->>A: Signed tokens
-    A-->>C: {access_token, refresh_token}
+    C->>API: GET /api/v1/recipes + Bearer token
+    API->>Cache: Check token cache
 
-    Note over C,R: Using Access Token
-    C->>A: GET /api/resource + Bearer token
-    A->>J: Decode & validate token
-    J->>J: Check expiry, signature
-    J-->>A: Token payload (user_id, roles)
-    A-->>C: Resource data
+    alt Token Cached
+        Cache-->>API: Cached AuthResult
+    else Not Cached
+        API->>Auth: POST /oauth2/introspect
+        Auth-->>API: {active: true, sub, scope, ...}
+        API->>Cache: Cache result (TTL: 60s)
+    end
 
-    Note over C,R: Token Refresh
-    C->>A: POST /auth/refresh (refresh_token)
-    A->>J: Validate refresh token
-    J-->>A: Payload
-    A->>J: Create new access token
-    A->>J: Create new refresh token
-    A-->>C: {new_access_token, new_refresh_token}
+    API->>API: Check permissions
+    API-->>C: Recipe data
 ```
 
-#### Token Structure
+#### AuthResult Model
 
 ```mermaid
 classDiagram
-    class AccessToken {
-        +sub: str
-        +type: "access"
+    class AuthResult {
+        +user_id: str
         +roles: list~str~
         +permissions: list~str~
-        +iat: datetime
-        +exp: datetime
+        +scopes: list~str~
+        +token_type: str
+        +issuer: str | None
+        +audience: list~str~
+        +expires_at: int | None
+        +issued_at: int | None
+        +raw_claims: dict
     }
 
-    class RefreshToken {
-        +sub: str
-        +type: "refresh"
-        +iat: datetime
-        +exp: datetime
+    class AuthProvider {
+        <<protocol>>
+        +provider_name: str
+        +validate_token(token, request): AuthResult
+        +initialize(): None
+        +shutdown(): None
     }
 
-    class TokenPayload {
-        +sub: str
-        +type: str
-        +roles: list~str~
-        +permissions: list~str~
-        +iat: int
-        +exp: int
-    }
+    AuthProvider ..> AuthResult : returns
+```
 
-    AccessToken --|> TokenPayload
-    RefreshToken --|> TokenPayload
+#### Provider Factory
+
+The factory creates the appropriate provider based on `AUTH_MODE`:
+
+```python
+# Configuration determines which provider is used
+AUTH_MODE=introspection  # Uses IntrospectionAuthProvider
+AUTH_MODE=local_jwt      # Uses LocalJWTAuthProvider
+AUTH_MODE=header         # Uses HeaderAuthProvider
+AUTH_MODE=disabled       # Uses DisabledAuthProvider
 ```
 
 ### Permission System

@@ -75,6 +75,9 @@ async def init_redis_pools() -> None:
 
     # Verify connections
     try:
+        assert _cache_client is not None
+        assert _queue_client is not None
+        assert _rate_limit_client is not None
         await _cache_client.ping()
         await _queue_client.ping()
         await _rate_limit_client.ping()

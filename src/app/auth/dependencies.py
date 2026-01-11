@@ -2,16 +2,19 @@
 
 This module provides reusable dependencies for authentication and authorization
 in FastAPI route handlers.
+
+The dependencies use the configured auth provider (introspection, local_jwt,
+header, or disabled) to validate tokens and extract user information.
 """
 
 from __future__ import annotations
 
 from typing import Annotated, Any, Final
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 
-from app.auth.oauth2 import validate_token, validate_token_optional
 from app.auth.permissions import (
     Permission,
     Role,
@@ -19,10 +22,33 @@ from app.auth.permissions import (
     has_any_role,
     has_permission,
 )
+from app.auth.providers import (
+    AuthenticationError,
+    AuthResult,
+    AuthServiceUnavailableError,
+    TokenExpiredError,
+    TokenInvalidError,
+    get_auth_provider,
+)
+from app.core.config import AuthMode, get_settings
 
 
 # Default JWT type for access tokens
 DEFAULT_JWT_TYPE: Final[str] = "access"
+
+# OAuth2 password bearer scheme (used for token extraction, not validation)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login",  # Legacy URL, kept for OpenAPI docs
+    scheme_name="JWT",
+    description="JWT Bearer token authentication",
+    auto_error=True,
+)
+
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login",
+    scheme_name="JWT",
+    auto_error=False,
+)
 
 
 class CurrentUser(BaseModel):
@@ -53,6 +79,23 @@ class CurrentUser(BaseModel):
             token_type=payload.get("type", "access"),
         )
 
+    @classmethod
+    def from_auth_result(cls, result: AuthResult) -> CurrentUser:
+        """Create CurrentUser from AuthResult.
+
+        Args:
+            result: Authentication result from provider.
+
+        Returns:
+            CurrentUser instance.
+        """
+        return cls(
+            id=result.user_id,
+            roles=result.roles,
+            permissions=result.permissions,
+            token_type=result.token_type,
+        )
+
     def has_permission(self, permission: Permission | str) -> bool:
         """Check if user has a specific permission."""
         return has_permission(self.roles, self.permissions, permission)
@@ -66,49 +109,137 @@ class CurrentUser(BaseModel):
         return self.has_role(Role.ADMIN)
 
 
+async def get_auth_result(
+    request: Request,
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> AuthResult:
+    """Validate token using the configured auth provider.
+
+    This is the core authentication dependency. It delegates to the
+    configured auth provider (introspection, local_jwt, header, or disabled).
+
+    Args:
+        request: The incoming request (needed for header-based auth).
+        token: Bearer token from Authorization header.
+
+    Returns:
+        AuthResult with validated user information.
+
+    Raises:
+        HTTPException: 401 if authentication fails, 503 if auth service unavailable.
+    """
+    settings = get_settings()
+
+    # In header mode, token may be empty - that's OK
+    if settings.auth_mode_enum == AuthMode.HEADER:
+        token = ""  # Header provider ignores token
+
+    try:
+        provider = get_auth_provider()
+        return await provider.validate_token(token, request)
+
+    except TokenExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+    except TokenInvalidError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e) or "Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+    except AuthenticationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e) or "Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+    except AuthServiceUnavailableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Authentication service unavailable: {e}",
+        ) from None
+
+
+async def get_auth_result_optional(
+    request: Request,
+    token: Annotated[str | None, Depends(oauth2_scheme_optional)],
+) -> AuthResult | None:
+    """Optionally validate token using the configured auth provider.
+
+    Returns None if no token is provided instead of raising an error.
+
+    Args:
+        request: The incoming request.
+        token: Optional bearer token.
+
+    Returns:
+        AuthResult if token is valid, None if no token provided.
+
+    Raises:
+        HTTPException: 401 if token is provided but invalid.
+    """
+    settings = get_settings()
+
+    # In header mode, always try to authenticate (token is ignored)
+    if settings.auth_mode_enum == AuthMode.HEADER:
+        try:
+            provider = get_auth_provider()
+            return await provider.validate_token("", request)
+        except AuthenticationError:
+            return None  # No X-User-ID header is OK for optional auth
+
+    # For other modes, no token means no auth
+    if not token:
+        return None
+
+    try:
+        provider = get_auth_provider()
+        return await provider.validate_token(token, request)
+    except (TokenExpiredError, TokenInvalidError, AuthenticationError):
+        return None
+
+
 async def get_current_user(
-    payload: Annotated[dict[str, Any], Depends(validate_token)],
+    auth_result: Annotated[AuthResult, Depends(get_auth_result)],
 ) -> CurrentUser:
     """Get the current authenticated user.
 
-    This is the primary dependency for protected routes.
+    This is the primary dependency for protected routes. It uses the
+    configured auth provider to validate the token and returns a
+    CurrentUser instance.
 
     Args:
-        payload: Validated JWT token payload.
+        auth_result: Validated authentication result.
 
     Returns:
         CurrentUser instance.
-
-    Raises:
-        HTTPException: 401 if user cannot be identified.
     """
-    if not payload.get("sub"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return CurrentUser.from_token_payload(payload)
+    return CurrentUser.from_auth_result(auth_result)
 
 
 async def get_current_user_optional(
-    payload: Annotated[dict[str, Any] | None, Depends(validate_token_optional)],
+    auth_result: Annotated[AuthResult | None, Depends(get_auth_result_optional)],
 ) -> CurrentUser | None:
     """Optionally get the current authenticated user.
 
     Use this for routes that work for both authenticated and anonymous users.
 
     Args:
-        payload: Optional JWT token payload.
+        auth_result: Optional authentication result.
 
     Returns:
         CurrentUser instance if authenticated, None otherwise.
     """
-    if not payload or not payload.get("sub"):
+    if auth_result is None:
         return None
 
-    return CurrentUser.from_token_payload(payload)
+    return CurrentUser.from_auth_result(auth_result)
 
 
 class RequirePermissions:

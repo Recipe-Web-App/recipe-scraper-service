@@ -82,6 +82,68 @@ flowchart LR
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS`   | integer | `7`                  | Refresh token TTL in days                                                                     |
 | `SERVICE_API_KEYS`                | string  | _(empty)_            | Comma-separated list of API keys for service-to-service auth                                  |
 
+### Authentication Provider
+
+The service supports multiple authentication modes via pluggable providers:
+
+```mermaid
+flowchart LR
+    subgraph Modes["Auth Modes"]
+        Introspection["introspection\n(external auth-service)"]
+        LocalJWT["local_jwt\n(shared secret)"]
+        Header["header\n(development)"]
+        Disabled["disabled\n(no auth)"]
+    end
+
+    Config[AUTH_MODE] --> Introspection
+    Config --> LocalJWT
+    Config --> Header
+    Config --> Disabled
+```
+
+| Variable                            | Type    | Default              | Description                                                   |
+| ----------------------------------- | ------- | -------------------- | ------------------------------------------------------------- |
+| `AUTH_MODE`                         | string  | `local_jwt`          | Auth mode: `introspection`, `local_jwt`, `header`, `disabled` |
+| `AUTH_SERVICE_URL`                  | string  | _(empty)_            | External auth service base URL (required for introspection)   |
+| `AUTH_SERVICE_CLIENT_ID`            | string  | _(empty)_            | OAuth2 client ID for introspection                            |
+| `AUTH_SERVICE_CLIENT_SECRET`        | string  | _(empty)_            | OAuth2 client secret for introspection                        |
+| `AUTH_INTROSPECTION_CACHE_TTL`      | integer | `60`                 | Seconds to cache introspection results                        |
+| `AUTH_INTROSPECTION_TIMEOUT`        | float   | `5.0`                | HTTP timeout for introspection calls                          |
+| `AUTH_INTROSPECTION_FALLBACK_LOCAL` | boolean | `false`              | Fall back to local JWT if introspection fails                 |
+| `AUTH_HEADER_USER_ID`               | string  | `X-User-ID`          | Header name for user ID (header mode)                         |
+| `AUTH_HEADER_ROLES`                 | string  | `X-User-Roles`       | Header name for roles (header mode)                           |
+| `AUTH_HEADER_PERMISSIONS`           | string  | `X-User-Permissions` | Header name for permissions (header mode)                     |
+| `AUTH_JWT_ISSUER`                   | string  | _(empty)_            | Expected JWT issuer (optional validation)                     |
+| `AUTH_JWT_AUDIENCE`                 | string  | _(empty)_            | Expected JWT audience (comma-separated, optional)             |
+
+#### Mode Usage
+
+**Introspection Mode** (Production with external auth-service):
+
+```bash
+AUTH_MODE=introspection
+AUTH_SERVICE_URL=http://auth-service:8080/api/v1/auth
+AUTH_SERVICE_CLIENT_ID=recipe-scraper-service
+AUTH_SERVICE_CLIENT_SECRET=${AUTH_CLIENT_SECRET}
+AUTH_INTROSPECTION_CACHE_TTL=60
+```
+
+**Local JWT Mode** (Default - validates tokens locally):
+
+```bash
+AUTH_MODE=local_jwt
+JWT_SECRET_KEY=shared-secret-with-auth-service
+AUTH_JWT_ISSUER=https://auth.example.com  # Optional
+```
+
+**Header Mode** (Development/Testing only):
+
+```bash
+AUTH_MODE=header
+AUTH_HEADER_USER_ID=X-User-ID
+AUTH_HEADER_ROLES=X-User-Roles
+```
+
 ### CORS
 
 | Variable       | Type   | Default   | Description                                                                                       |

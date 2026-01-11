@@ -13,11 +13,10 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.api.v1.router import router as v1_router
-from app.cache.rate_limit import limiter
+from app.cache.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.config import Settings, get_settings
 from app.core.events import lifespan
 from app.core.exceptions import setup_exception_handlers
@@ -58,7 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Setup rate limiting
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
     # Setup exception handlers
     setup_exception_handlers(app)

@@ -289,6 +289,8 @@ module = [
   "opentelemetry.*",
   "opentelemetry_sdk.*",
   "opentelemetry_api.*",
+  "httpx",
+  "httpx.*",
 ]
 ignore_missing_imports = true
 

@@ -10,7 +10,7 @@ This module provides:
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from arq import cron
 from arq.connections import RedisSettings
@@ -22,6 +22,10 @@ from app.workers.tasks.example import (
     process_recipe_scrape,
     send_notification,
 )
+
+
+if TYPE_CHECKING:
+    from arq.cron import CronJob
 
 
 logger = get_logger(__name__)
@@ -117,7 +121,7 @@ class WorkerSettings:
     ]
 
     # Cron jobs (scheduled tasks)
-    cron_jobs: ClassVar[list[cron]] = [
+    cron_jobs: ClassVar[list[CronJob]] = [
         # Run cache cleanup every hour at minute 0
-        cron(cleanup_expired_cache, hour=None, minute=0),
+        cron("app.workers.tasks.example.cleanup_expired_cache", hour=None, minute=0),
     ]

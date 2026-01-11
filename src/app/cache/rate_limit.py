@@ -8,7 +8,7 @@ This module provides:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -20,8 +20,6 @@ from app.observability.logging import get_logger
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from fastapi import FastAPI
     from starlette.requests import Request
 
@@ -84,7 +82,7 @@ limiter = create_limiter()
 
 async def rate_limit_exceeded_handler(
     request: Request,
-    exc: RateLimitExceeded,
+    exc: Exception,
 ) -> JSONResponse:
     """Handle rate limit exceeded exceptions.
 
@@ -95,6 +93,7 @@ async def rate_limit_exceeded_handler(
     Returns:
         JSON response with rate limit error details.
     """
+    assert isinstance(exc, RateLimitExceeded)
     logger.warning(
         "Rate limit exceeded",
         path=request.url.path,
@@ -133,14 +132,14 @@ def setup_rate_limiting(app: FastAPI) -> None:
     logger.info("Rate limiting configured")
 
 
-def rate_limit(limit: str) -> Callable[..., Any]:
+def rate_limit(limit: str) -> Any:
     """Apply a custom rate limit to an endpoint.
 
     Args:
         limit: Rate limit string (e.g., "10/minute", "100/hour").
 
     Returns:
-        Rate limit decorator.
+        Rate limit decorator (slowapi Limiter.limit return type).
 
     Example:
         @router.get("/resource")
@@ -148,14 +147,14 @@ def rate_limit(limit: str) -> Callable[..., Any]:
         async def get_resource():
             ...
     """
-    return cast("Callable[..., Any]", limiter.limit(limit))
+    return limiter.limit(limit)
 
 
-def rate_limit_auth() -> Callable[..., Any]:
+def rate_limit_auth() -> Any:
     """Apply auth-specific rate limit (stricter, IP-based).
 
     Returns:
-        Rate limit decorator for auth endpoints.
+        Rate limit decorator for auth endpoints (slowapi Limiter.limit return type).
 
     Example:
         @router.post("/login")
@@ -164,7 +163,4 @@ def rate_limit_auth() -> Callable[..., Any]:
             ...
     """
     settings = get_settings()
-    return cast(
-        "Callable[..., Any]",
-        limiter.limit(settings.RATE_LIMIT_AUTH, key_func=_get_auth_rate_limit_key),
-    )
+    return limiter.limit(settings.RATE_LIMIT_AUTH, key_func=_get_auth_rate_limit_key)

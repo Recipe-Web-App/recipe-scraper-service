@@ -73,8 +73,8 @@ flowchart TB
     end
 
     subgraph Auth["Authentication Layer"]
-        OAuth2[OAuth2 Scheme]
-        JWT[JWT Decoder]
+        AuthProvider[Auth Provider]
+        JWT[JWT / Introspection]
         Permissions[Permission Checker]
         Dependencies[Auth Dependencies]
     end
@@ -83,7 +83,6 @@ flowchart TB
         Router[API Router v1]
         subgraph Endpoints["Endpoints"]
             Health[Health Routes]
-            AuthRoutes[Auth Routes]
             Future[Future Routes...]
         end
     end
@@ -126,11 +125,9 @@ flowchart TB
     RateLimiter --> Router
 
     Router --> Health
-    Router --> AuthRoutes
     Router --> Future
 
-    AuthRoutes --> OAuth2 --> JWT --> Permissions --> Dependencies
-    Future --> Dependencies
+    Future --> AuthProvider --> JWT --> Permissions --> Dependencies
 
     Dependencies --> ServiceLayer
     ServiceLayer --> CacheDecorator --> RedisClient
@@ -316,18 +313,18 @@ recipe-scraper-service/
 
 ## API Endpoints
 
-| Endpoint               | Method | Description        | Auth |
-| ---------------------- | ------ | ------------------ | ---- |
-| `/`                    | GET    | Service info       | No   |
-| `/api/v1/health`       | GET    | Liveness probe     | No   |
-| `/api/v1/ready`        | GET    | Readiness probe    | No   |
-| `/api/v1/auth/login`   | POST   | Get access token   | No   |
-| `/api/v1/auth/refresh` | POST   | Refresh tokens     | No   |
-| `/api/v1/auth/me`      | GET    | Current user info  | Yes  |
-| `/api/v1/auth/logout`  | POST   | Revoke tokens      | Yes  |
-| `/metrics`             | GET    | Prometheus metrics | No   |
-| `/docs`                | GET    | OpenAPI Swagger UI | No   |
-| `/redoc`               | GET    | OpenAPI ReDoc      | No   |
+| Endpoint         | Method | Description        | Auth |
+| ---------------- | ------ | ------------------ | ---- |
+| `/`              | GET    | Service info       | No   |
+| `/api/v1/health` | GET    | Liveness probe     | No   |
+| `/api/v1/ready`  | GET    | Readiness probe    | No   |
+| `/metrics`       | GET    | Prometheus metrics | No   |
+| `/docs`          | GET    | OpenAPI Swagger UI | No   |
+| `/redoc`         | GET    | OpenAPI ReDoc      | No   |
+
+> **Note**: Authentication is handled by an external auth-service. This service validates
+> tokens via configurable providers (introspection, local JWT, or header-based for
+> development).
 
 ## Configuration
 
