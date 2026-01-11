@@ -167,7 +167,7 @@ alembic/versions/*.pyc
 
 # Documentation builds
 docs/_build/
-docs/api/
+!docs/api/recipe-scraper-openapi.yaml
 
 # Generated files
 *.generated.*
