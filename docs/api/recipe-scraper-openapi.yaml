@@ -238,8 +238,8 @@ paths:
                 invalid_url:
                   summary: Invalid recipe URL
                   value:
-                    detail: Unable to scrape recipe from the provided URL
-                    errorCode: INVALID_RECIPE_URL
+                    error: INVALID_RECIPE_URL
+                    message: Unable to scrape recipe from the provided URL
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "422":
@@ -362,8 +362,8 @@ paths:
                 missing_flags:
                   summary: Missing required flags
                   value:
-                    detail: At least one of 'includeTotal' or 'includeIngredients'
-                      must be true.
+                    error: BAD_REQUEST
+                    message: At least one of 'includeTotal' or 'includeIngredients' must be true.
         "404":
           $ref: "#/components/responses/NotFoundError"
         "422":
@@ -415,8 +415,8 @@ paths:
                 incomplete_quantity:
                   summary: Incomplete quantity specification
                   value:
-                    detail: Both 'amount' and 'measurement' must be provided together
-                      when used.
+                    error: BAD_REQUEST
+                    message: Both 'amount' and 'measurement' must be provided together when used.
         "404":
           $ref: "#/components/responses/NotFoundError"
         "422":
@@ -492,7 +492,8 @@ paths:
                 incomplete_quantity:
                   summary: Incomplete quantity specification
                   value:
-                    detail: Both amount and measurement must be provided together.
+                    error: BAD_REQUEST
+                    message: Both amount and measurement must be provided together.
         "404":
           $ref: "#/components/responses/NotFoundError"
         "422":
@@ -605,8 +606,8 @@ paths:
                 incomplete_quantity:
                   summary: Incomplete quantity specification
                   value:
-                    detail: Both 'amount' and 'measurement' must be provided together
-                      when used.
+                    error: BAD_REQUEST
+                    message: Both 'amount' and 'measurement' must be provided together when used.
         "404":
           $ref: "#/components/responses/NotFoundError"
         "422":
@@ -1411,23 +1412,51 @@ components:
           type: string
           description: Status message
       description: Individual health check item schema.
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code for this specific error
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+          example: Field is required
+        field:
+          type: string
+          nullable: true
+          description: Field path that caused the error (for validation errors)
+          example: body.recipeUrl
+      description: Individual error detail for structured error responses.
     ErrorResponse:
       type: object
       required:
-        - detail
+        - error
+        - message
       properties:
-        detail:
-          type: string
-          description: Error message
-          example: Resource not found
-        errorCode:
+        error:
           type: string
           description: Error code for programmatic handling
           example: NOT_FOUND
-        errorType:
+        message:
           type: string
-          description: Error type classification
-          example: validation_error
+          description: Human-readable error message
+          example: Recipe with identifier '123' not found
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+          nullable: true
+          description: Detailed error information (for validation errors)
+        requestId:
+          type: string
+          nullable: true
+          description: Request ID for tracing and support
+          example: req_abc123xyz
       description: Standard error response schema.
     ValidationError:
       type: object
@@ -1469,13 +1498,13 @@ components:
             missing_token:
               summary: Missing authentication token
               value:
-                detail: Authentication required
-                errorType: authentication_required
+                error: UNAUTHORIZED
+                message: Authentication required
             invalid_token:
               summary: Invalid authentication token
               value:
-                detail: Invalid or expired authentication token
-                errorType: invalid_token
+                error: UNAUTHORIZED
+                message: Invalid or expired authentication token
     ForbiddenError:
       description: Insufficient permissions
       content:
@@ -1486,8 +1515,8 @@ components:
             insufficient_permissions:
               summary: Insufficient permissions
               value:
-                detail: Insufficient permissions for this operation
-                errorType: insufficient_permissions
+                error: FORBIDDEN
+                message: Insufficient permissions for this operation
     NotFoundError:
       description: Resource not found
       content:
@@ -1498,13 +1527,13 @@ components:
             recipe_not_found:
               summary: Recipe not found
               value:
-                detail: Recipe with ID 123 not found
-                errorCode: RECIPE_NOT_FOUND
+                error: NOT_FOUND
+                message: Recipe with identifier '123' not found
             ingredient_not_found:
               summary: Ingredient not found
               value:
-                detail: Ingredient with ID 456 not found
-                errorCode: INGREDIENT_NOT_FOUND
+                error: NOT_FOUND
+                message: Ingredient with identifier '456' not found
     ValidationError:
       description: Request validation error
       content:

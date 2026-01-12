@@ -231,6 +231,10 @@ max-statements = 50
 runtime-evaluated-base-classes = [
   "pydantic.BaseModel",
   "pydantic_settings.BaseSettings",
+  "app.schemas.base.APIRequest",
+  "app.schemas.base.APIResponse",
+  "app.schemas.base.DownstreamRequest",
+  "app.schemas.base.DownstreamResponse",
 ]
 # FastAPI uses get_type_hints() to resolve dependency annotations at runtime
 runtime-evaluated-decorators = [
@@ -369,3 +373,19 @@ skip_covered = true
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv"]
 skips = ["B101"]
+
+# =============================================================================
+# pyright - Static Type Checking (IDE)
+# =============================================================================
+
+[tool.pyright]
+pythonVersion = "3.14"
+pythonPlatform = "Linux"
+venvPath = "."
+venv = ".venv"
+root = "."
+include = ["src", "tests"]
+exclude = ["**/__pycache__", ".venv", "venv", "build", "dist"]
+typeCheckingMode = "standard"
+reportMissingImports = true
+reportMissingTypeStubs = false
