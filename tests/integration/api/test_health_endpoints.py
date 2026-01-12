@@ -25,7 +25,7 @@ class TestHealthEndpoint:
     @pytest.mark.asyncio
     async def test_health_returns_healthy(self, client: AsyncClient) -> None:
         """Should return healthy status."""
-        response = await client.get("/api/v1/health")
+        response = await client.get("/api/v1/recipe-scraper/health")
 
         assert response.status_code == 200
 
@@ -42,7 +42,7 @@ class TestReadinessEndpoint:
     @pytest.mark.asyncio
     async def test_ready_returns_status(self, client: AsyncClient) -> None:
         """Should return readiness status with dependencies."""
-        response = await client.get("/api/v1/ready")
+        response = await client.get("/api/v1/recipe-scraper/ready")
 
         assert response.status_code == 200
 
@@ -54,7 +54,7 @@ class TestReadinessEndpoint:
     @pytest.mark.asyncio
     async def test_ready_includes_redis_status(self, client: AsyncClient) -> None:
         """Should include Redis status in dependencies."""
-        response = await client.get("/api/v1/ready")
+        response = await client.get("/api/v1/recipe-scraper/ready")
 
         data = response.json()
         dependencies = data["dependencies"]

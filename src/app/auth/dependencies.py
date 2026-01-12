@@ -38,14 +38,14 @@ DEFAULT_JWT_TYPE: Final[str] = "access"
 
 # OAuth2 password bearer scheme (used for token extraction, not validation)
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",  # Legacy URL, kept for OpenAPI docs
+    tokenUrl="/oauth/token",  # External auth service OAuth2 endpoint
     scheme_name="JWT",
     description="JWT Bearer token authentication",
     auto_error=True,
 )
 
 oauth2_scheme_optional = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
+    tokenUrl="/oauth/token",
     scheme_name="JWT",
     auto_error=False,
 )

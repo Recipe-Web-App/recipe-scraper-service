@@ -12,15 +12,18 @@ Complete API documentation for the Recipe Scraper Service.
 
 ## API Versioning
 
-All API endpoints are versioned under `/api/v1/`. The version is included in the URL path.
+All API endpoints are versioned under `/api/v1/recipe-scraper/`. The version and service name are included in the URL path.
+
+- **Health/monitoring endpoints**: `/api/v1/recipe-scraper/health`, `/api/v1/recipe-scraper/liveness`, `/api/v1/recipe-scraper/readiness`
+- **Recipe business endpoints**: `/api/v1/recipe-scraper/recipes`, `/api/v1/recipe-scraper/ingredients`, etc.
 
 ```mermaid
 flowchart LR
     Client([Client]) --> LB[Load Balancer]
-    LB --> API["/api/v1/*"]
-    API --> Health["/health"]
-    API --> Auth["/auth/*"]
-    API --> Future["/recipes/*"]
+    LB --> API["/api/v1/recipe-scraper/*"]
+    API --> Health["/health, /liveness, /readiness"]
+    API --> Recipes["/recipes"]
+    API --> Ingredients["/ingredients"]
 ```
 
 ## Authentication
@@ -98,7 +101,7 @@ Service information and status.
 
 ---
 
-#### `GET /api/v1/health`
+#### `GET /api/v1/recipe-scraper/health`
 
 Liveness probe for Kubernetes. Returns healthy if the service is running.
 
@@ -117,7 +120,7 @@ Liveness probe for Kubernetes. Returns healthy if the service is running.
 
 ---
 
-#### `GET /api/v1/ready`
+#### `GET /api/v1/recipe-scraper/ready`
 
 Readiness probe checking all dependencies (Redis, etc.).
 
@@ -157,139 +160,19 @@ Readiness probe checking all dependencies (Redis, etc.).
 
 ---
 
-### Authentication
+### Authentication (External Auth Service)
 
-#### `POST /api/v1/auth/login`
+> **Note**: Authentication is handled by an external auth-service. This service validates
+> tokens via configurable providers (introspection, local JWT, or header-based for development).
+> See `docs/architecture.md` for details on the auth provider pattern.
 
-Authenticate and receive access/refresh tokens.
+**OAuth2 Token Endpoint**: `POST /oauth/token`
 
-**Authentication**: None
+**Authentication Flow**:
 
-**Content-Type**: `application/x-www-form-urlencoded`
-
-**Request Body**:
-
-| Field      | Type   | Required | Description       |
-| ---------- | ------ | -------- | ----------------- |
-| `username` | string | Yes      | Email or username |
-| `password` | string | Yes      | User password     |
-
-**Example Request**:
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/auth/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=user@example.com&password=secret123"
-```
-
-**Response** `200 OK`:
-
-```json
-{
-  "access_token": "<your_token_here>",
-  "refresh_token": "<your_token_here>",
-  "token_type": "bearer",
-  "expires_in": 1800
-}
-```
-
-**Response** `401 Unauthorized`:
-
-```json
-{
-  "detail": "Incorrect email or password"
-}
-```
-
----
-
-#### `POST /api/v1/auth/refresh`
-
-Exchange refresh token for new access/refresh tokens.
-
-**Authentication**: None
-
-**Content-Type**: `application/json`
-
-**Request Body**:
-
-```json
-{
-  "refresh_token": "<your_token_here>"
-}
-```
-
-**Response** `200 OK`:
-
-```json
-{
-  "access_token": "<your_token_here>",
-  "refresh_token": "<your_token_here>",
-  "token_type": "bearer",
-  "expires_in": 1800
-}
-```
-
-**Response** `401 Unauthorized`:
-
-```json
-{
-  "detail": "Refresh token has expired"
-}
-```
-
----
-
-#### `GET /api/v1/auth/me`
-
-Get current user information from token.
-
-**Authentication**: Required
-
-**Example Request**:
-
-```bash
-curl "http://localhost:8000/api/v1/auth/me" \
-  -H "Authorization: Bearer <your_token_here>"
-```
-
-**Response** `200 OK`:
-
-```json
-{
-  "sub": "user-123",
-  "exp": 1705312200,
-  "iat": 1705310400,
-  "type": "access",
-  "roles": ["user"],
-  "permissions": ["read", "write"]
-}
-```
-
-**Response** `401 Unauthorized`:
-
-```json
-{
-  "detail": "Could not validate credentials"
-}
-```
-
----
-
-#### `POST /api/v1/auth/logout`
-
-Logout and invalidate tokens.
-
-**Authentication**: Required
-
-**Example Request**:
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/auth/logout" \
-  -H "Authorization: Bearer <your_token_here>"
-```
-
-**Response** `204 No Content`
+1. Client obtains tokens from the external auth-service
+2. Client includes access token in `Authorization: Bearer <token>` header
+3. This service validates tokens using the configured auth provider
 
 ---
 
@@ -306,9 +189,9 @@ Prometheus metrics endpoint.
 ```text
 # HELP http_requests_total Total HTTP requests
 # TYPE http_requests_total counter
-http_requests_total{method="GET",path="/api/v1/health",status="200"} 1547
-http_requests_total{method="POST",path="/api/v1/auth/login",status="200"} 89
-http_requests_total{method="POST",path="/api/v1/auth/login",status="401"} 12
+http_requests_total{method="GET",path="/api/v1/recipe-scraper/health",status="200"} 1547
+http_requests_total{method="POST",path="/api/v1/recipe-scraper/recipes",status="201"} 89
+http_requests_total{method="GET",path="/api/v1/recipe-scraper/recipes/popular",status="200"} 156
 
 # HELP http_request_duration_seconds HTTP request duration
 # TYPE http_request_duration_seconds histogram
@@ -379,10 +262,10 @@ flowchart TB
 
 Endpoints are rate-limited to prevent abuse:
 
-| Endpoint Pattern    | Limit      |
-| ------------------- | ---------- |
-| `/api/v1/auth/*`    | 5/minute   |
-| All other endpoints | 100/minute |
+| Endpoint Pattern           | Limit      |
+| -------------------------- | ---------- |
+| `/api/v1/recipe-scraper/*` | 100/minute |
+| All other endpoints        | 100/minute |
 
 **Rate Limit Headers**:
 

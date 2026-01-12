@@ -48,7 +48,7 @@ paths:
                     example: /docs
                   health:
                     type: string
-                    example: /api/v1/health
+                    example: /api/v1/recipe-scraper/health
   /metrics:
     get:
       tags:
@@ -68,7 +68,7 @@ paths:
                 # TYPE http_requests_total counter
 
                 http_requests_total{method="GET",endpoint="/api/health"} 42'
-  /api/v1/liveness:
+  /api/v1/recipe-scraper/liveness:
     get:
       tags:
         - Health
@@ -94,7 +94,7 @@ paths:
                   service:
                     type: string
                     example: recipe-scraper-service
-  /api/v1/readiness:
+  /api/v1/recipe-scraper/readiness:
     get:
       tags:
         - Health
@@ -138,7 +138,7 @@ paths:
                   message:
                     type: string
                     example: Service ready
-  /api/v1/health:
+  /api/v1/recipe-scraper/health:
     get:
       tags:
         - Health

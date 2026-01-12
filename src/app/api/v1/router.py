@@ -1,4 +1,7 @@
-"""API v1 router aggregating all endpoint routers."""
+"""API v1 router aggregating all endpoint routers.
+
+All endpoints are mounted under /api/v1/recipe-scraper/ via the v1_prefix configuration.
+"""
 
 from __future__ import annotations
 
@@ -8,13 +11,18 @@ from app.api.v1.endpoints import health
 
 
 # Create the main v1 router
+# All routes here are prefixed with /api/v1/recipe-scraper/ (configured via v1_prefix)
 router = APIRouter()
 
-# Include endpoint routers
+# Include health endpoints
 router.include_router(health.router)
 
-# NOTE: Auth endpoints (/api/v1/auth/*) have been removed.
-# Authentication is now handled by the external auth-service.
+# NOTE: Auth endpoints have been removed from this service.
+# Authentication is handled by the external auth-service via OAuth2.
+# Token URL: /oauth/token (see OpenAPI spec)
 # See docs/architecture.md for the auth provider pattern.
 
-# TODO: Add additional routers (e.g., recipes.router)
+# TODO: Add endpoint routers when implemented:
+# - recipes.router (POST /recipes, GET /recipes/popular, etc.)
+# - ingredients.router (nutritional info, substitutions, shopping info)
+# - admin.router (cache management)

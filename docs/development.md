@@ -323,23 +323,23 @@ class RecipeService:
 ### 3. Create Endpoint
 
 ```python
-# src/app/api/v1/endpoints/recipes.py
+# src/app/api/v1/endpoints/recipe_scraper/recipes.py
 from fastapi import APIRouter, Depends
 
 from app.auth.dependencies import get_current_user
 from app.schemas.recipes import RecipeCreate, RecipeResponse
 from app.services.recipes import RecipeService
 
-router = APIRouter(prefix="/recipes", tags=["recipes"])
+router = APIRouter(tags=["Recipes"])
 
 
-@router.post("/scrape", response_model=RecipeResponse)
-async def scrape_recipe(
+@router.post("", response_model=RecipeResponse)
+async def create_recipe(
     data: RecipeCreate,
     current_user=Depends(get_current_user),
     service: RecipeService = Depends(),
 ) -> RecipeResponse:
-    """Scrape a recipe from the given URL."""
+    """Create a recipe from a URL."""
     return await service.scrape(data)
 ```
 
@@ -347,25 +347,30 @@ async def scrape_recipe(
 
 ```python
 # src/app/api/v1/router.py
-from app.api.v1.endpoints import health, auth, recipes
+from fastapi import APIRouter
+from app.api.v1.endpoints import health
+from app.api.v1.endpoints.recipe_scraper import recipes
 
-api_router = APIRouter()
-api_router.include_router(health.router)
-api_router.include_router(auth.router)
-api_router.include_router(recipes.router)  # Add new router
+router = APIRouter()
+router.include_router(health.router)
+
+# Recipe Scraper endpoints under /api/v1/recipe-scraper/
+recipe_scraper_router = APIRouter(prefix="/recipe-scraper", tags=["Recipe Scraper"])
+recipe_scraper_router.include_router(recipes.router, prefix="/recipes")
+router.include_router(recipe_scraper_router)
 ```
 
 ### 5. Add Tests
 
 ```python
 # tests/unit/api/test_recipes.py
-class TestScrapeRecipe:
-    """Tests for recipe scraping endpoint."""
+class TestCreateRecipe:
+    """Tests for recipe creation endpoint."""
 
     @pytest.mark.asyncio
     async def test_requires_authentication(self, client):
         """Should require auth token."""
-        response = await client.post("/api/v1/recipes/scrape")
+        response = await client.post("/api/v1/recipe-scraper/recipes")
         assert response.status_code == 401
 ```
 

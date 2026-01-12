@@ -48,9 +48,9 @@ Configuration is loaded using Pydantic Settings with the following precedence (h
 
 ### API
 
-| Variable        | Type   | Default   | Description              |
-| --------------- | ------ | --------- | ------------------------ |
-| `API_V1_PREFIX` | string | `/api/v1` | API version 1 URL prefix |
+| Variable        | Type   | Default                  | Description              |
+| --------------- | ------ | ------------------------ | ------------------------ |
+| `API_V1_PREFIX` | string | `/api/v1/recipe-scraper` | API version 1 URL prefix |
 
 ### Authentication
 

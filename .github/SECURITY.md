@@ -49,7 +49,7 @@ Impact: An attacker can forge tokens and gain unauthorized access...
 
 Steps to Reproduce:
 1. Create a JWT with algorithm "none"
-2. Send to /api/v1/recipes/scrape
+2. Send to /api/v1/recipe-scraper/recipes
 3. Token is accepted without signature verification
 
 Affected: src/app/core/security/jwt.py line 45

@@ -80,7 +80,7 @@ spec:
           # Health Checks
           startupProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/recipe-scraper/health
               port: http
             initialDelaySeconds: 5
             periodSeconds: 5
@@ -89,7 +89,7 @@ spec:
 
           livenessProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/recipe-scraper/health
               port: http
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -98,7 +98,7 @@ spec:
 
           readinessProbe:
             httpGet:
-              path: /api/v1/ready
+              path: /api/v1/recipe-scraper/ready
               port: http
             initialDelaySeconds: 0
             periodSeconds: 5

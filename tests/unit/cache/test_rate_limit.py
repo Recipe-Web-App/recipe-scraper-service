@@ -105,7 +105,7 @@ class TestRateLimitExceededHandler:
     async def test_returns_429_status(self) -> None:
         """Should return 429 status code."""
         mock_request = MagicMock()
-        mock_request.url.path = "/api/v1/test"
+        mock_request.url.path = "/api/v1/recipe-scraper/test"
         mock_request.method = "GET"
         mock_request.headers = {}
 
@@ -124,7 +124,7 @@ class TestRateLimitExceededHandler:
     async def test_includes_error_details(self) -> None:
         """Should include error details in response body."""
         mock_request = MagicMock()
-        mock_request.url.path = "/api/v1/test"
+        mock_request.url.path = "/api/v1/recipe-scraper/test"
         mock_request.method = "GET"
         mock_request.headers = {}
 

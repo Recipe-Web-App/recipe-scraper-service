@@ -123,8 +123,8 @@ echo -e "${CYAN}Health Check (via kubectl exec):${NC}"
 API_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=api -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
 if [ -n "$API_POD" ]; then
-  echo "  Testing /api/v1/health..."
-  HEALTH_RESPONSE=$(kubectl exec -n "$NAMESPACE" "$API_POD" -- curl -s http://localhost:8000/api/v1/health 2>/dev/null || echo '{"error": "failed"}')
+  echo "  Testing /api/v1/recipe-scraper/health..."
+  HEALTH_RESPONSE=$(kubectl exec -n "$NAMESPACE" "$API_POD" -- curl -s http://localhost:8000/api/v1/recipe-scraper/health 2>/dev/null || echo '{"error": "failed"}')
 
   if command_exists jq; then
     echo "$HEALTH_RESPONSE" | jq -r '
@@ -139,8 +139,8 @@ if [ -n "$API_POD" ]; then
   fi
 
   echo ""
-  echo "  Testing /api/v1/ready..."
-  READY_RESPONSE=$(kubectl exec -n "$NAMESPACE" "$API_POD" -- curl -s http://localhost:8000/api/v1/ready 2>/dev/null || echo '{"error": "failed"}')
+  echo "  Testing /api/v1/recipe-scraper/ready..."
+  READY_RESPONSE=$(kubectl exec -n "$NAMESPACE" "$API_POD" -- curl -s http://localhost:8000/api/v1/recipe-scraper/ready 2>/dev/null || echo '{"error": "failed"}')
 
   if command_exists jq; then
     echo "$READY_RESPONSE" | jq -r '

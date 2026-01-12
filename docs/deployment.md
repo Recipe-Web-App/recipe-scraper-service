@@ -454,7 +454,7 @@ sequenceDiagram
     Note over K,A: Startup Phase
     loop Every 5s (max 30 attempts)
         K->>P: Startup Probe
-        P->>A: GET /api/v1/health
+        P->>A: GET /api/v1/recipe-scraper/health
         A-->>P: 200 OK
         P-->>K: Ready
     end
@@ -462,22 +462,22 @@ sequenceDiagram
     Note over K,A: Running Phase
     loop Every 10s
         K->>P: Liveness Probe
-        P->>A: GET /api/v1/health
+        P->>A: GET /api/v1/recipe-scraper/health
         A-->>P: 200 OK
     end
 
     loop Every 5s
         K->>P: Readiness Probe
-        P->>A: GET /api/v1/ready
+        P->>A: GET /api/v1/recipe-scraper/ready
         A-->>P: 200 OK (if dependencies healthy)
     end
 ```
 
-| Probe     | Endpoint         | Purpose                    | Failure Action      |
-| --------- | ---------------- | -------------------------- | ------------------- |
-| Startup   | `/api/v1/health` | Wait for app startup       | Keep waiting        |
-| Liveness  | `/api/v1/health` | Check if app is alive      | Restart pod         |
-| Readiness | `/api/v1/ready`  | Check if can serve traffic | Remove from service |
+| Probe     | Endpoint                        | Purpose                    | Failure Action      |
+| --------- | ------------------------------- | -------------------------- | ------------------- |
+| Startup   | `/api/v1/recipe-scraper/health` | Wait for app startup       | Keep waiting        |
+| Liveness  | `/api/v1/recipe-scraper/health` | Check if app is alive      | Restart pod         |
+| Readiness | `/api/v1/recipe-scraper/ready`  | Check if can serve traffic | Remove from service |
 
 ## Rollback
 

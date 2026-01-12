@@ -21,9 +21,9 @@ from app.core.config import get_settings
 
 
 # OAuth2 password bearer scheme
-# Token URL is relative to the API prefix
+# Token URL points to external auth service OAuth2 endpoint
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
+    tokenUrl="/oauth/token",
     scheme_name="JWT",
     description="JWT Bearer token authentication",
     auto_error=True,  # Raises 401 if token is missing
@@ -31,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 # Optional OAuth2 scheme - doesn't raise error if token is missing
 oauth2_scheme_optional = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
+    tokenUrl="/oauth/token",
     scheme_name="JWT",
     auto_error=False,
 )

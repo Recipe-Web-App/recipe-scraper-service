@@ -170,7 +170,7 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient]:
 
     Usage:
         async def test_endpoint(client):
-            response = await client.get("/api/v1/health")
+            response = await client.get("/api/v1/recipe-scraper/health")
             assert response.status_code == 200
     """
     transport = ASGITransport(app=app)

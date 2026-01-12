@@ -77,7 +77,7 @@ class TestRedisUnavailable:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.get("/api/v1/health")
+            response = await client.get("/api/v1/recipe-scraper/health")
             assert response.status_code == 200
 
     @pytest.mark.asyncio
@@ -96,7 +96,7 @@ class TestRedisUnavailable:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.get("/api/v1/ready")
+            response = await client.get("/api/v1/recipe-scraper/ready")
             data = response.json()
 
             # Should indicate Redis is not healthy

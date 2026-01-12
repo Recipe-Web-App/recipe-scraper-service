@@ -60,7 +60,7 @@ class TestApplicationStartup:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.get("/api/v1/ready")
+            response = await client.get("/api/v1/recipe-scraper/ready")
             data = response.json()
 
             # Ready endpoint should return status and dependencies
@@ -90,7 +90,7 @@ class TestApplicationStartup:
             assert response.status_code == 200
 
             # Health check should show degraded status
-            response = await client.get("/api/v1/ready")
+            response = await client.get("/api/v1/recipe-scraper/ready")
             data = response.json()
             # App may be degraded but should still respond
             assert data["status"] in ("ready", "degraded")
@@ -152,11 +152,11 @@ class TestLifespanGracefulDegradation:
             assert response.status_code == 200
 
             # Health endpoint should work
-            response = await client.get("/api/v1/health")
+            response = await client.get("/api/v1/recipe-scraper/health")
             assert response.status_code == 200
 
             # Ready endpoint should return degraded but not error
-            response = await client.get("/api/v1/ready")
+            response = await client.get("/api/v1/recipe-scraper/ready")
             assert response.status_code == 200
             data = response.json()
             assert data["status"] in ("ready", "degraded")

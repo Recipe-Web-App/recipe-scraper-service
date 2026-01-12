@@ -29,7 +29,7 @@ class SettingsFactory(ModelFactory[Settings]):
     PORT = 8000
 
     # API
-    API_V1_PREFIX = "/api/v1"
+    API_V1_PREFIX = "/api/v1/recipe-scraper"
 
     # JWT - test values
     JWT_SECRET_KEY = "test-secret-key-minimum-32-characters-long"

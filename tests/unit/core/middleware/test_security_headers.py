@@ -190,7 +190,7 @@ class TestSecurityHeadersMiddleware:
 
         request = MagicMock()
         request.url = MagicMock()
-        request.url.path = "/api/v1/users"
+        request.url.path = "/api/v1/recipe-scraper/users"
 
         response = MagicMock()
         response.headers = {}

@@ -71,7 +71,7 @@ class ServerSettings(BaseModel):
 class ApiSettings(BaseModel):
     """API configuration settings."""
 
-    v1_prefix: str = "/api/v1"
+    v1_prefix: str = "/api/v1/recipe-scraper"
     cors_origins: list[str] = []
 
 

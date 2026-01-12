@@ -115,7 +115,7 @@ sequenceDiagram
     participant Cache as Redis Cache
     participant Auth as Auth Service
 
-    C->>API: GET /api/v1/recipes + Bearer token
+    C->>API: GET /api/v1/recipe-scraper/recipes + Bearer token
     API->>Cache: Check token cache
 
     alt Token Cached
@@ -376,7 +376,7 @@ sequenceDiagram
     participant Worker as ARQ Worker
     participant External as External Site
 
-    C->>API: POST /recipes/scrape {url}
+    C->>API: POST /api/v1/recipe-scraper/recipes {url}
     API->>API: Validate URL
     API->>Cache: Check if recently scraped
 

@@ -30,7 +30,7 @@ class TestCreateApp:
         mock_settings.app.debug = False
         mock_settings.is_development = True
         mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         with (
             patch("app.factory.setup_tracing"),
@@ -51,7 +51,7 @@ class TestCreateApp:
         mock_settings.app.debug = False
         mock_settings.is_development = True
         mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         with (
             patch("app.factory.setup_tracing"),
@@ -70,7 +70,7 @@ class TestCreateApp:
         mock_settings.app.debug = False
         mock_settings.is_development = False
         mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         with (
             patch("app.factory.setup_tracing"),
@@ -91,7 +91,7 @@ class TestCreateApp:
         mock_settings.app.debug = True
         mock_settings.is_development = True
         mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         with (
             patch("app.factory.setup_tracing"),
@@ -112,7 +112,7 @@ class TestCreateApp:
         mock_settings.app.debug = False
         mock_settings.is_development = True
         mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         with (
             patch("app.factory.get_settings", return_value=mock_settings),
@@ -162,7 +162,7 @@ class TestSetupRouters:
         mock_settings.app.name = "test-app"
         mock_settings.app.version = "1.0.0"
         mock_settings.is_development = True
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         _setup_routers(app, mock_settings)
 
@@ -177,7 +177,7 @@ class TestSetupRouters:
         mock_settings.app.name = "test-app"
         mock_settings.app.version = "1.0.0"
         mock_settings.is_development = True
-        mock_settings.api.v1_prefix = "/api/v1"
+        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
 
         _setup_routers(app, mock_settings)
 

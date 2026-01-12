@@ -313,18 +313,34 @@ recipe-scraper-service/
 
 ## API Endpoints
 
-| Endpoint         | Method | Description        | Auth |
-| ---------------- | ------ | ------------------ | ---- |
-| `/`              | GET    | Service info       | No   |
-| `/api/v1/health` | GET    | Liveness probe     | No   |
-| `/api/v1/ready`  | GET    | Readiness probe    | No   |
-| `/metrics`       | GET    | Prometheus metrics | No   |
-| `/docs`          | GET    | OpenAPI Swagger UI | No   |
-| `/redoc`         | GET    | OpenAPI ReDoc      | No   |
+### Health & Monitoring
+
+| Endpoint                        | Method | Description        | Auth |
+| ------------------------------- | ------ | ------------------ | ---- |
+| `/`                             | GET    | Service info       | No   |
+| `/api/v1/recipe-scraper/health` | GET    | Liveness probe     | No   |
+| `/api/v1/recipe-scraper/ready`  | GET    | Readiness probe    | No   |
+| `/metrics`                      | GET    | Prometheus metrics | No   |
+| `/docs`                         | GET    | OpenAPI Swagger UI | No   |
+| `/redoc`                        | GET    | OpenAPI ReDoc      | No   |
+
+### Recipe Scraper API (`/api/v1/recipe-scraper/`)
+
+| Endpoint                                                   | Method | Description                    | Auth |
+| ---------------------------------------------------------- | ------ | ------------------------------ | ---- |
+| `/api/v1/recipe-scraper/recipes`                           | POST   | Create recipe from URL         | Yes  |
+| `/api/v1/recipe-scraper/recipes/popular`                   | GET    | Get popular recipes            | No   |
+| `/api/v1/recipe-scraper/recipes/{id}/nutritional-info`     | GET    | Get recipe nutritional info    | No   |
+| `/api/v1/recipe-scraper/recipes/{id}/pairings`             | GET    | Get recipe pairing suggestions | No   |
+| `/api/v1/recipe-scraper/recipes/{id}/shopping-info`        | GET    | Get recipe shopping info       | No   |
+| `/api/v1/recipe-scraper/ingredients/{id}/nutritional-info` | GET    | Get ingredient nutrition       | No   |
+| `/api/v1/recipe-scraper/ingredients/{id}/substitutions`    | GET    | Get ingredient substitutes     | No   |
+| `/api/v1/recipe-scraper/ingredients/{id}/shopping-info`    | GET    | Get ingredient shopping info   | No   |
+| `/api/v1/recipe-scraper/admin/cache`                       | DELETE | Clear service cache            | Yes  |
 
 > **Note**: Authentication is handled by an external auth-service. This service validates
 > tokens via configurable providers (introspection, local JWT, or header-based for
-> development).
+> development). See `docs/api/recipe-scraper-openapi.yaml` for full API specification.
 
 ## Configuration
 
