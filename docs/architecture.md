@@ -30,6 +30,7 @@ flowchart TB
         Cache[Redis Cache]
         Queue[Redis Queue]
         Clients[HTTP Clients]
+        LLM[LLM Client]
         Telemetry[Observability]
     end
 
@@ -282,6 +283,73 @@ stateDiagram-v2
     Failed --> [*]: Max retries exceeded
     Complete --> [*]: Result stored
 ```
+
+### LLM Integration
+
+AI-powered features using host-based Ollama with Redis caching:
+
+```mermaid
+flowchart TB
+    subgraph Service["Recipe Scraper Service (K8s)"]
+        API[API Endpoint]
+        LLMClient[OllamaClient]
+        Cache[(Redis Cache)]
+    end
+
+    subgraph Host["Desktop Host"]
+        Ollama[Ollama Service]
+        GPU[RTX 5070 GPU]
+    end
+
+    API --> LLMClient
+    LLMClient --> Cache
+    LLMClient -->|"HTTP :11434"| Ollama
+    Ollama --> GPU
+```
+
+#### Why Host-Based?
+
+Ollama runs on the desktop host (not in K8s) to:
+
+- **Share GPU with display server** - The desktop GPU serves 4 monitors and LLM inference
+- **Simplify deployment** - No GPU scheduling complexity in K8s
+- **Resource efficiency** - Single Ollama instance serves all environments
+
+#### LLM Request Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant API as Recipe API
+    participant Client as OllamaClient
+    participant Cache as Redis Cache
+    participant LLM as Ollama
+
+    API->>Client: generate_structured(prompt, schema)
+    Client->>Cache: Check cache (hash of prompt+model+schema)
+
+    alt Cache Hit
+        Cache-->>Client: Cached result
+        Client-->>API: LLMCompletionResult (cached=True)
+    else Cache Miss
+        Client->>LLM: POST /api/generate
+        LLM-->>Client: JSON response
+        Client->>Client: Validate against Pydantic schema
+        Client->>Cache: Store result (TTL: 1hr)
+        Client-->>API: LLMCompletionResult (cached=False)
+    end
+```
+
+#### LLM Use Cases
+
+| Feature            | Description                                  | Output Schema      |
+| ------------------ | -------------------------------------------- | ------------------ |
+| Recipe Extraction  | Parse unstructured HTML into structured data | `ExtractedRecipe`  |
+| Ingredient Parsing | Normalize ingredient text (qty, unit, name)  | `ParsedIngredient` |
+| Substitutions      | AI-powered ingredient substitution           | `SubstitutionList` |
+| Pairings           | Recipe pairing recommendations               | `PairingResult`    |
+
+See [LLM Integration Guide](./llm.md) for client usage and configuration.
 
 ### Observability Stack
 

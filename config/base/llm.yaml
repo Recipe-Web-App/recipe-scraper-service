@@ -1,0 +1,44 @@
+# ==============================================================================
+# LLM Configuration
+# ==============================================================================
+# Configures the connection to the local Ollama LLM service.
+# Ollama runs on the host machine (not in K8s) to share GPU with display server.
+#
+# Environment variables:
+#   LLM__ENABLED: Enable/disable LLM features
+#   LLM__OLLAMA__URL: Ollama service URL
+#   LLM__OLLAMA__MODEL: Model to use for inference
+# ==============================================================================
+
+llm:
+  # Master switch for LLM-powered features
+  enabled: true
+
+  # LLM provider (currently only ollama supported)
+  provider: ollama
+
+  ollama:
+    # Ollama API endpoint
+    # Default assumes local development; override in environment configs
+    url: http://localhost:11434
+
+    # Model to use for structured output tasks
+    # Recommended: mistral:7b (good balance of quality and speed)
+    # Alternatives: llama3.2:3b (faster), llama3.1:8b (higher quality)
+    model: mistral:7b
+
+    # Request timeout in seconds
+    # LLM inference can take 10-30s depending on prompt length
+    timeout: 60.0
+
+    # Number of retries for transient failures
+    max_retries: 2
+
+  # Response caching configuration
+  cache:
+    # Enable caching of LLM responses in Redis
+    enabled: true
+
+    # Cache TTL in seconds (1 hour default)
+    # Cached responses reduce GPU load and latency for repeated queries
+    ttl: 3600

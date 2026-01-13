@@ -12,10 +12,16 @@ from typing import TYPE_CHECKING
 
 from app.auth.providers import initialize_auth_provider, shutdown_auth_provider
 from app.cache.redis import close_redis_pools, get_cache_client, init_redis_pools
-from app.core.config import AuthMode, get_settings
+from app.core.config import AuthMode, Settings, get_settings
+from app.llm.client.ollama import OllamaClient
 from app.observability.logging import get_logger, setup_logging
 from app.observability.tracing import shutdown_tracing
 from app.workers.jobs import close_arq_pool, get_arq_pool
+
+
+# Container for global LLM client (avoids global statement)
+class _LLMClientHolder:
+    client: OllamaClient | None = None
 
 
 if TYPE_CHECKING:
@@ -87,12 +93,24 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         logger.exception("Failed to initialize auth provider")
         raise  # Auth is critical - don't continue without it
 
+    # Initialize LLM client (optional - non-critical)
+    if settings.llm.enabled:
+        try:
+            await _init_llm_client(settings)
+        except Exception:
+            logger.exception(
+                "Failed to initialize LLM client - LLM features unavailable"
+            )
+
     logger.info("Application startup complete")
 
     yield
 
     # === SHUTDOWN ===
     logger.info("Shutting down application")
+
+    # Shutdown LLM client
+    await _shutdown_llm_client()
 
     # Shutdown auth provider (close HTTP connections, etc.)
     await shutdown_auth_provider()
@@ -107,3 +125,58 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await close_redis_pools()
 
     logger.info("Application shutdown complete")
+
+
+async def _init_llm_client(settings: Settings) -> None:
+    """Initialize the LLM client.
+
+    Args:
+        settings: Application settings.
+    """
+    cache_client = None
+    if settings.llm.cache.enabled:
+        try:
+            cache_client = await get_cache_client()
+        except Exception:
+            logger.warning(
+                "Redis not available for LLM caching - continuing without cache"
+            )
+
+    _LLMClientHolder.client = OllamaClient(
+        base_url=settings.llm.ollama.url,
+        model=settings.llm.ollama.model,
+        timeout=settings.llm.ollama.timeout,
+        max_retries=settings.llm.ollama.max_retries,
+        cache_client=cache_client,
+        cache_ttl=settings.llm.cache.ttl,
+        cache_enabled=settings.llm.cache.enabled,
+    )
+    await _LLMClientHolder.client.initialize()
+    logger.info(
+        "LLM client initialized",
+        provider=settings.llm.provider,
+        model=settings.llm.ollama.model,
+    )
+
+
+async def _shutdown_llm_client() -> None:
+    """Shutdown the LLM client."""
+    if _LLMClientHolder.client is not None:
+        await _LLMClientHolder.client.shutdown()
+        _LLMClientHolder.client = None
+        logger.debug("LLM client shutdown")
+
+
+def get_llm_client() -> OllamaClient:
+    """Get the initialized LLM client.
+
+    Returns:
+        The global OllamaClient instance.
+
+    Raises:
+        RuntimeError: If LLM client is not initialized.
+    """
+    if _LLMClientHolder.client is None:
+        msg = "LLM client not initialized. Ensure LLM is enabled in settings."
+        raise RuntimeError(msg)
+    return _LLMClientHolder.client

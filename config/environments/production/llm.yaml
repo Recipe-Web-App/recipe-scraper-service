@@ -1,0 +1,6 @@
+# Production environment - Ollama on desktop host
+# TODO: Replace YOUR_DESKTOP_IP with actual IP (e.g., 192.168.1.100)
+llm:
+  ollama:
+    url: http://YOUR_DESKTOP_IP:11434
+    timeout: 90.0

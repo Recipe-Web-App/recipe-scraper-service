@@ -1,0 +1,5 @@
+# Development environment - Ollama on host machine
+# TODO: Replace with actual host IP when deploying to desktop K8s cluster
+llm:
+  ollama:
+    url: http://host.docker.internal:11434

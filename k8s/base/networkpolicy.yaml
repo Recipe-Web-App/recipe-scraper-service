@@ -85,3 +85,13 @@ spec:
           port: 4317
         - protocol: TCP
           port: 4318
+
+    # Allow Ollama LLM service (running on host machine)
+    # This allows connection to the host's private network for Ollama
+    # See docs/ollama-setup.md for host configuration
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 11434

@@ -169,6 +169,31 @@ class ObservabilitySettings(BaseModel):
     metrics: MetricsSettings = MetricsSettings()
 
 
+class OllamaSettings(BaseModel):
+    """Ollama LLM service configuration."""
+
+    url: str = "http://localhost:11434"
+    model: str = "mistral:7b"
+    timeout: float = 60.0
+    max_retries: int = 2
+
+
+class LLMCacheSettings(BaseModel):
+    """LLM response caching configuration."""
+
+    enabled: bool = True
+    ttl: int = 3600
+
+
+class LLMSettings(BaseModel):
+    """LLM configuration settings."""
+
+    enabled: bool = True
+    provider: str = "ollama"
+    ollama: OllamaSettings = OllamaSettings()
+    cache: LLMCacheSettings = LLMCacheSettings()
+
+
 class FeaturesSettings(BaseModel):
     """Feature flags configuration."""
 
@@ -221,6 +246,7 @@ class Settings(BaseSettings):
     logging: LoggingSettings = LoggingSettings()
     observability: ObservabilitySettings = ObservabilitySettings()
     features: FeaturesSettings = FeaturesSettings()
+    llm: LLMSettings = LLMSettings()
 
     # =========================================================================
     # Secrets (from .env only - never in YAML)
