@@ -5744,14 +5744,14 @@ test = ["coverage", "pytest", "pytest-cov"]
 
 [[package]]
 name = "unittest-xml-reporting"
-version = "3.2.0"
+version = "4.0.0"
 description = "unittest-based test runner with Ant/JUnit like XML reporting."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "unittest-xml-reporting-3.2.0.tar.gz", hash = "sha256:edd8d3170b40c3a81b8cf910f46c6a304ae2847ec01036d02e9c0f9b85762d28"},
-    {file = "unittest_xml_reporting-3.2.0-py2.py3-none-any.whl", hash = "sha256:f3d7402e5b3ac72a5ee3149278339db1a8f932ee405f48bcb9c681372f2717d5"},
+    {file = "unittest_xml_reporting-4.0.0-py2.py3-none-any.whl", hash = "sha256:e3e24bac8ea27c454d8be1d718851b2c5c8f712d75281920b6af81bdfef2f9bc"},
+    {file = "unittest_xml_reporting-4.0.0.tar.gz", hash = "sha256:bfa1ed65e9e6f33c161d04470d89050458cfb65a5a5d0358834ef7ce037d9136"},
 ]
 
 [package.dependencies]
@@ -6373,4 +6373,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.13.0"
-content-hash = "25e83ffc4a8f4cf929828c71079485026fdbf8953df63afcacc545032087b88a"
+content-hash = "7b38708f938368b0332838f644943c1fc73aa67bf7a1903349d5bd1e564b5303"
