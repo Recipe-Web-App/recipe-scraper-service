@@ -1,22 +1,29 @@
 # ==============================================================================
 # LLM Configuration
 # ==============================================================================
-# Configures the connection to the local Ollama LLM service.
-# Ollama runs on the host machine (not in K8s) to share GPU with display server.
+# Configures LLM providers for text generation with structured output.
+#
+# Primary: Ollama (local) - runs on host machine, shares GPU with display server
+# Fallback: Groq (cloud) - used when Ollama is unavailable
 #
 # Environment variables:
 #   LLM__ENABLED: Enable/disable LLM features
 #   LLM__OLLAMA__URL: Ollama service URL
 #   LLM__OLLAMA__MODEL: Model to use for inference
+#   LLM__FALLBACK__ENABLED: Enable fallback to cloud provider
+#   GROQ_API_KEY: API key for Groq (set in .env, not YAML)
 # ==============================================================================
 
 llm:
   # Master switch for LLM-powered features
   enabled: true
 
-  # LLM provider (currently only ollama supported)
+  # Primary LLM provider
   provider: ollama
 
+  # -----------------------------------------------------------------------------
+  # Ollama (Primary - Local)
+  # -----------------------------------------------------------------------------
   ollama:
     # Ollama API endpoint
     # Default assumes local development; override in environment configs
@@ -34,7 +41,31 @@ llm:
     # Number of retries for transient failures
     max_retries: 2
 
-  # Response caching configuration
+  # -----------------------------------------------------------------------------
+  # Groq (Fallback - Cloud)
+  # -----------------------------------------------------------------------------
+  # Groq provides fast cloud inference with OpenAI-compatible API.
+  # Free tier: 14,400 requests/day for llama-3.1-8b-instant
+  # Get API key: https://console.groq.com
+  groq:
+    url: https://api.groq.com/openai/v1
+    model: llama-3.1-8b-instant
+    timeout: 30.0
+    max_retries: 2
+
+  # -----------------------------------------------------------------------------
+  # Fallback Configuration
+  # -----------------------------------------------------------------------------
+  # When primary (Ollama) is unavailable, automatically retry with secondary.
+  # Triggers: connection errors, timeouts
+  # Does NOT trigger on: validation errors, rate limits, HTTP errors
+  fallback:
+    enabled: true
+    secondary_provider: groq
+
+  # -----------------------------------------------------------------------------
+  # Response Caching
+  # -----------------------------------------------------------------------------
   cache:
     # Enable caching of LLM responses in Redis
     enabled: true

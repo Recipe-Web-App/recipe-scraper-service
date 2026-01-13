@@ -126,6 +126,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           OAUTH2_SECRET: ${{ secrets.OAUTH2_SECRET }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           # Create secrets from environment
           # Note: In production, use external secrets management (e.g., Sealed Secrets, External Secrets Operator)
@@ -133,6 +134,7 @@ jobs:
             --from-literal=jwt-secret="${JWT_SECRET}" \
             --from-literal=redis-password="${REDIS_PASSWORD}" \
             --from-literal=oauth2-secret="${OAUTH2_SECRET}" \
+            --from-literal=groq-api-key="${GROQ_API_KEY}" \
             --namespace=${{ steps.namespace.outputs.namespace }} \
             --dry-run=client -o yaml | kubectl apply -f -
 

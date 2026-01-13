@@ -104,3 +104,50 @@ def get_recorded_response(name: str) -> dict[str, Any]:
         msg = f"Unknown response: {name}. Available: {list(responses.keys())}"
         raise KeyError(msg)
     return responses[name]
+
+
+# =============================================================================
+# Groq API Responses (OpenAI-compatible chat format)
+# =============================================================================
+
+
+def create_groq_response(
+    content: str,
+    model: str = "llama-3.1-8b-instant",
+    prompt_tokens: int = 10,
+    completion_tokens: int = 5,
+) -> dict[str, Any]:
+    """Factory for creating mock Groq responses."""
+    return {
+        "id": "chatcmpl-abc123",
+        "model": model,
+        "created": 1700000000,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        },
+    }
+
+
+# Simple Groq response
+GROQ_SIMPLE_RESPONSE: dict[str, Any] = create_groq_response(
+    content="Hello from Groq!",
+    prompt_tokens=5,
+    completion_tokens=4,
+)
+
+
+# Groq structured JSON response
+GROQ_STRUCTURED_RESPONSE: dict[str, Any] = create_groq_response(
+    content='{"title": "Test", "items": ["a", "b", "c"]}',
+    prompt_tokens=25,
+    completion_tokens=15,
+)

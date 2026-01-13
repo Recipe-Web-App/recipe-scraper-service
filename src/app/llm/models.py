@@ -90,3 +90,58 @@ class LLMCompletionResult(BaseModel):
     cached: bool = Field(default=False, description="Whether response was from cache")
 
     model_config = {"frozen": True}
+
+
+# =============================================================================
+# Groq API Models (OpenAI-compatible chat format)
+# =============================================================================
+
+
+class GroqMessage(BaseModel):
+    """Single message in Groq chat format."""
+
+    role: str = Field(..., description="Message role: system, user, or assistant")
+    content: str = Field(..., description="Message content")
+
+
+class GroqChatRequest(BaseModel):
+    """Request body for Groq /chat/completions endpoint."""
+
+    model: str = Field(..., description="Model name (e.g., 'llama-3.1-8b-instant')")
+    messages: list[dict[str, str]] = Field(..., description="Chat messages")
+    response_format: dict[str, str] | None = Field(
+        default=None,
+        description="Response format: {'type': 'json_object'} for JSON mode",
+    )
+    temperature: float = Field(default=0.1, description="Sampling temperature")
+    max_tokens: int | None = Field(
+        default=None,
+        description="Maximum tokens to generate",
+    )
+    stream: bool = Field(default=False, description="Whether to stream response")
+
+
+class GroqUsage(BaseModel):
+    """Token usage from Groq response."""
+
+    prompt_tokens: int = Field(..., description="Input token count")
+    completion_tokens: int = Field(..., description="Output token count")
+    total_tokens: int = Field(..., description="Total token count")
+
+
+class GroqChoice(BaseModel):
+    """Single choice in Groq response."""
+
+    index: int = Field(..., description="Choice index")
+    message: GroqMessage = Field(..., description="Generated message")
+    finish_reason: str = Field(..., description="Reason for completion")
+
+
+class GroqChatResponse(BaseModel):
+    """Response from Groq /chat/completions endpoint."""
+
+    id: str = Field(..., description="Unique response ID")
+    model: str = Field(..., description="Model that generated response")
+    choices: list[GroqChoice] = Field(..., description="Generated completions")
+    usage: GroqUsage = Field(..., description="Token usage statistics")
+    created: int = Field(..., description="Unix timestamp of creation")

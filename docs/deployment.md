@@ -318,8 +318,20 @@ kubectl create secret generic recipe-scraper-secrets \
 kubectl create secret generic recipe-scraper-secrets \
   --from-literal=JWT_SECRET_KEY=your-secret-key \
   --from-literal=REDIS_PASSWORD=redis-password \
+  --from-literal=groq-api-key=gsk_xxxxxxxxxxxx \
   -n recipe-scraper
 ```
+
+**Required Secrets:**
+
+| Secret Key       | Description                      | Required |
+| ---------------- | -------------------------------- | -------- |
+| `JWT_SECRET_KEY` | JWT signing key                  | Yes      |
+| `REDIS_PASSWORD` | Redis password (if auth enabled) | Optional |
+| `groq-api-key`   | Groq API key for LLM fallback    | Optional |
+
+The `groq-api-key` enables LLM fallback to Groq cloud when local Ollama is unavailable.
+Get your API key from [console.groq.com](https://console.groq.com).
 
 ### Monitoring Deployment
 

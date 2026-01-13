@@ -286,13 +286,15 @@ stateDiagram-v2
 
 ### LLM Integration
 
-AI-powered features using host-based Ollama with Redis caching:
+AI-powered features using a fallback-enabled LLM client with Redis caching:
 
 ```mermaid
 flowchart TB
     subgraph Service["Recipe Scraper Service (K8s)"]
         API[API Endpoint]
-        LLMClient[OllamaClient]
+        Fallback[FallbackLLMClient]
+        Primary[OllamaClient]
+        Secondary[GroqClient]
         Cache[(Redis Cache)]
     end
 
@@ -301,13 +303,28 @@ flowchart TB
         GPU[RTX 5070 GPU]
     end
 
-    API --> LLMClient
-    LLMClient --> Cache
-    LLMClient -->|"HTTP :11434"| Ollama
+    subgraph Cloud["Groq Cloud"]
+        GroqAPI[Groq API]
+    end
+
+    API --> Fallback
+    Fallback --> Primary
+    Fallback -.->|"on failure"| Secondary
+    Primary --> Cache
+    Secondary --> Cache
+    Primary -->|"HTTP :11434"| Ollama
+    Secondary -->|"HTTPS"| GroqAPI
     Ollama --> GPU
 ```
 
-#### Why Host-Based?
+#### Provider Strategy
+
+| Provider   | Role     | Description                             |
+| ---------- | -------- | --------------------------------------- |
+| **Ollama** | Primary  | Local inference on host GPU (RTX 5070)  |
+| **Groq**   | Fallback | Cloud inference when Ollama unavailable |
+
+#### Why Host-Based Ollama?
 
 Ollama runs on the desktop host (not in K8s) to:
 
@@ -321,22 +338,29 @@ Ollama runs on the desktop host (not in K8s) to:
 sequenceDiagram
     autonumber
     participant API as Recipe API
-    participant Client as OllamaClient
+    participant Fallback as FallbackLLMClient
     participant Cache as Redis Cache
-    participant LLM as Ollama
+    participant Ollama as Ollama (Primary)
+    participant Groq as Groq (Fallback)
 
-    API->>Client: generate_structured(prompt, schema)
-    Client->>Cache: Check cache (hash of prompt+model+schema)
+    API->>Fallback: generate_structured(prompt, schema)
+    Fallback->>Cache: Check cache (hash of prompt+model+schema)
 
     alt Cache Hit
-        Cache-->>Client: Cached result
-        Client-->>API: LLMCompletionResult (cached=True)
+        Cache-->>Fallback: Cached result
+        Fallback-->>API: LLMCompletionResult (cached=True)
     else Cache Miss
-        Client->>LLM: POST /api/generate
-        LLM-->>Client: JSON response
-        Client->>Client: Validate against Pydantic schema
-        Client->>Cache: Store result (TTL: 1hr)
-        Client-->>API: LLMCompletionResult (cached=False)
+        Fallback->>Ollama: POST /api/generate
+        alt Ollama Available
+            Ollama-->>Fallback: JSON response
+        else Ollama Unavailable
+            Ollama--xFallback: Connection Error
+            Fallback->>Groq: POST /chat/completions
+            Groq-->>Fallback: JSON response
+        end
+        Fallback->>Fallback: Validate against Pydantic schema
+        Fallback->>Cache: Store result (TTL: 1hr)
+        Fallback-->>API: LLMCompletionResult (cached=False)
     end
 ```
 

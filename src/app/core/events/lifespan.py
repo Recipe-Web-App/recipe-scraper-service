@@ -13,15 +13,12 @@ from typing import TYPE_CHECKING
 from app.auth.providers import initialize_auth_provider, shutdown_auth_provider
 from app.cache.redis import close_redis_pools, get_cache_client, init_redis_pools
 from app.core.config import AuthMode, Settings, get_settings
+from app.llm.client.fallback import FallbackLLMClient
+from app.llm.client.groq import GroqClient
 from app.llm.client.ollama import OllamaClient
 from app.observability.logging import get_logger, setup_logging
 from app.observability.tracing import shutdown_tracing
 from app.workers.jobs import close_arq_pool, get_arq_pool
-
-
-# Container for global LLM client (avoids global statement)
-class _LLMClientHolder:
-    client: OllamaClient | None = None
 
 
 if TYPE_CHECKING:
@@ -29,7 +26,14 @@ if TYPE_CHECKING:
 
     from fastapi import FastAPI
 
+    from app.llm.client.protocol import LLMClientProtocol
+
 logger = get_logger(__name__)
+
+
+# Container for global LLM client (avoids global statement)
+class _LLMClientHolder:
+    client: LLMClientProtocol | None = None
 
 
 @asynccontextmanager
@@ -128,7 +132,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
 
 async def _init_llm_client(settings: Settings) -> None:
-    """Initialize the LLM client.
+    """Initialize the LLM client with optional fallback.
+
+    Creates primary (Ollama) and secondary (Groq) clients, wrapped in
+    FallbackLLMClient for automatic failover on connection errors.
 
     Args:
         settings: Application settings.
@@ -142,7 +149,8 @@ async def _init_llm_client(settings: Settings) -> None:
                 "Redis not available for LLM caching - continuing without cache"
             )
 
-    _LLMClientHolder.client = OllamaClient(
+    # Create primary client (Ollama)
+    primary = OllamaClient(
         base_url=settings.llm.ollama.url,
         model=settings.llm.ollama.model,
         timeout=settings.llm.ollama.timeout,
@@ -151,11 +159,48 @@ async def _init_llm_client(settings: Settings) -> None:
         cache_ttl=settings.llm.cache.ttl,
         cache_enabled=settings.llm.cache.enabled,
     )
+
+    # Create secondary client (Groq) if fallback enabled and API key present
+    secondary: LLMClientProtocol | None = None
+    if (
+        settings.llm.fallback.enabled
+        and settings.llm.fallback.secondary_provider == "groq"
+        and settings.GROQ_API_KEY
+    ):
+        secondary = GroqClient(
+            api_key=settings.GROQ_API_KEY,
+            model=settings.llm.groq.model,
+            base_url=settings.llm.groq.url,
+            timeout=settings.llm.groq.timeout,
+            max_retries=settings.llm.groq.max_retries,
+            cache_client=cache_client,
+            cache_ttl=settings.llm.cache.ttl,
+            cache_enabled=settings.llm.cache.enabled,
+        )
+        logger.info(
+            "Groq fallback client configured",
+            model=settings.llm.groq.model,
+        )
+    elif settings.llm.fallback.enabled and not settings.GROQ_API_KEY:
+        logger.warning(
+            "LLM fallback enabled but GROQ_API_KEY not set - "
+            "fallback will not be available"
+        )
+
+    # Wrap in fallback client
+    _LLMClientHolder.client = FallbackLLMClient(
+        primary=primary,
+        secondary=secondary,
+        fallback_enabled=settings.llm.fallback.enabled,
+    )
     await _LLMClientHolder.client.initialize()
+
     logger.info(
         "LLM client initialized",
-        provider=settings.llm.provider,
-        model=settings.llm.ollama.model,
+        primary_provider=settings.llm.provider,
+        primary_model=settings.llm.ollama.model,
+        fallback_enabled=settings.llm.fallback.enabled,
+        has_fallback=secondary is not None,
     )
 
 
@@ -167,11 +212,12 @@ async def _shutdown_llm_client() -> None:
         logger.debug("LLM client shutdown")
 
 
-def get_llm_client() -> OllamaClient:
+def get_llm_client() -> LLMClientProtocol:
     """Get the initialized LLM client.
 
     Returns:
-        The global OllamaClient instance.
+        The global LLM client instance (FallbackLLMClient wrapping
+        primary and optional secondary providers).
 
     Raises:
         RuntimeError: If LLM client is not initialized.

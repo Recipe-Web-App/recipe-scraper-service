@@ -178,6 +178,22 @@ class OllamaSettings(BaseModel):
     max_retries: int = 2
 
 
+class GroqSettings(BaseModel):
+    """Groq LLM service configuration."""
+
+    url: str = "https://api.groq.com/openai/v1"
+    model: str = "llama-3.1-8b-instant"
+    timeout: float = 30.0
+    max_retries: int = 2
+
+
+class LLMFallbackSettings(BaseModel):
+    """LLM fallback behavior configuration."""
+
+    enabled: bool = True
+    secondary_provider: str = "groq"
+
+
 class LLMCacheSettings(BaseModel):
     """LLM response caching configuration."""
 
@@ -191,6 +207,8 @@ class LLMSettings(BaseModel):
     enabled: bool = True
     provider: str = "ollama"
     ollama: OllamaSettings = OllamaSettings()
+    groq: GroqSettings = GroqSettings()
+    fallback: LLMFallbackSettings = LLMFallbackSettings()
     cache: LLMCacheSettings = LLMCacheSettings()
 
 
@@ -255,6 +273,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = ""
     AUTH_SERVICE_CLIENT_SECRET: str | None = None
     SENTRY_DSN: str | None = None
+    GROQ_API_KEY: str = ""
 
     # Service API Keys for service-to-service auth (comma-separated in .env)
     SERVICE_API_KEYS: Annotated[list[str], BeforeValidator(parse_list)] = []

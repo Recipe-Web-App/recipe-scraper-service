@@ -238,6 +238,49 @@ flowchart LR
 | `METRICS_ENABLED` | boolean | `true`    | Enable Prometheus metrics endpoint                                    |
 | `SENTRY_DSN`      | string  | _(empty)_ | Sentry DSN for error tracking                                         |
 
+### LLM (AI Features)
+
+The service uses LLM providers for AI-powered features like recipe extraction and ingredient parsing.
+
+```mermaid
+flowchart LR
+    subgraph Providers["LLM Providers"]
+        Ollama["Ollama\n(Primary/Local)"]
+        Groq["Groq\n(Fallback/Cloud)"]
+    end
+
+    subgraph Fallback["Fallback Behavior"]
+        Try["Try Ollama"] -->|Unavailable| UseGroq["Use Groq"]
+    end
+
+    Ollama --> Try
+    Groq --> UseGroq
+```
+
+| Variable                 | Type    | Default                          | Description                           |
+| ------------------------ | ------- | -------------------------------- | ------------------------------------- |
+| `LLM__ENABLED`           | boolean | `true`                           | Enable LLM features                   |
+| `LLM__PROVIDER`          | string  | `ollama`                         | Primary LLM provider                  |
+| `LLM__OLLAMA__URL`       | string  | `http://localhost:11434`         | Ollama API endpoint                   |
+| `LLM__OLLAMA__MODEL`     | string  | `mistral:7b`                     | Default Ollama model                  |
+| `LLM__OLLAMA__TIMEOUT`   | float   | `60.0`                           | Ollama request timeout (seconds)      |
+| `LLM__GROQ__URL`         | string  | `https://api.groq.com/openai/v1` | Groq API endpoint                     |
+| `LLM__GROQ__MODEL`       | string  | `llama-3.1-8b-instant`           | Default Groq model                    |
+| `LLM__GROQ__TIMEOUT`     | float   | `30.0`                           | Groq request timeout (seconds)        |
+| `LLM__FALLBACK__ENABLED` | boolean | `true`                           | Enable fallback to secondary provider |
+| `LLM__CACHE__ENABLED`    | boolean | `true`                           | Cache LLM responses in Redis          |
+| `LLM__CACHE__TTL`        | integer | `3600`                           | Cache TTL in seconds (1 hour)         |
+| `GROQ_API_KEY`           | string  | _(empty)_                        | Groq API key (required for fallback)  |
+
+**Provider Strategy:**
+
+- **Ollama** (Primary): Local GPU inference, runs on host machine
+- **Groq** (Fallback): Cloud inference when Ollama unavailable
+
+If `GROQ_API_KEY` is not set, the system operates without fallback capability and logs a warning.
+
+See [LLM Integration Guide](./llm.md) for detailed configuration and usage.
+
 ### Feature Flags
 
 | Variable                | Type    | Default | Description                |
@@ -281,6 +324,11 @@ LOG_FORMAT=text
 # Observability
 ENABLE_TRACING=false
 METRICS_ENABLED=true
+
+# LLM (optional - for AI features)
+LLM__ENABLED=true
+LLM__OLLAMA__URL=http://localhost:11434
+GROQ_API_KEY=gsk_xxxxxxxxxxxx  # Get from console.groq.com
 ```
 
 ### Production
@@ -321,6 +369,12 @@ OTLP_ENDPOINT=http://otel-collector:4317
 ENABLE_TRACING=true
 METRICS_ENABLED=true
 SENTRY_DSN=${SENTRY_DSN}  # From secret manager
+
+# LLM
+LLM__ENABLED=true
+LLM__OLLAMA__URL=http://192.168.1.100:11434  # Desktop host IP
+LLM__FALLBACK__ENABLED=true
+GROQ_API_KEY=${GROQ_API_KEY}  # From secret manager
 ```
 
 ## Validation
