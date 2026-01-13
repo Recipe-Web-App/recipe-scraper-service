@@ -81,7 +81,7 @@ radon = "^6.0.1"
 locust = "^2.43.0"
 pylint = "^4.0.4"
 testcontainers = "^4.14.0"
-types-requests = "^2.32.4.20250809"
+types-requests = "^2.32.4.20260107"
 types-python-jose = "^3.3.0"
 
 [tool.black]
