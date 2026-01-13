@@ -5102,18 +5102,18 @@ dev = ["attribution (==1.7.1)", "black (==24.4.2)", "coverage (==7.5.1)", "docut
 
 [[package]]
 name = "sphinx-rtd-theme"
-version = "3.1.0rc1"
+version = "3.1.0"
 description = "Read the Docs theme for Sphinx"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "sphinx_rtd_theme-3.1.0rc1-py2.py3-none-any.whl", hash = "sha256:4d956e807a83b5a89f61abca5615ff80c34249d462e5efe11bb93ce23c148ef6"},
-    {file = "sphinx_rtd_theme-3.1.0rc1.tar.gz", hash = "sha256:7989a0002a0685ac4bd3cf2f0c39cf8b5e8f4a7d37db8484df2fe39cb6dcb70b"},
+    {file = "sphinx_rtd_theme-3.1.0-py2.py3-none-any.whl", hash = "sha256:1785824ae8e6632060490f67cf3a72d404a85d2d9fc26bce3619944de5682b89"},
+    {file = "sphinx_rtd_theme-3.1.0.tar.gz", hash = "sha256:b44276f2c276e909239a4f6c955aa667aaafeb78597923b1c60babc76db78e4c"},
 ]
 
 [package.dependencies]
-docutils = ">0.18,<0.22"
+docutils = ">0.18,<0.23"
 sphinx = ">=6,<10"
 sphinxcontrib-jquery = ">=4,<5"
 
@@ -6373,4 +6373,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.13.0"
-content-hash = "7b38708f938368b0332838f644943c1fc73aa67bf7a1903349d5bd1e564b5303"
+content-hash = "955cbbda64e5ae1a6e07726d6ee44db7f78a45566aae2bcb3bad3572b528cef1"
