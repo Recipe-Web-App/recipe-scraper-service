@@ -53,10 +53,8 @@ spec:
               containerPort: 8000
               protocol: TCP
 
-          # Environment from ConfigMap
+          # Environment from Secrets
           envFrom:
-            - configMapRef:
-                name: recipe-scraper-config
             - secretRef:
                 name: recipe-scraper-secrets
 

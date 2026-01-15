@@ -56,8 +56,8 @@ junit.xml
 
 # Environments
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 .venv/
 venv/
 ENV/
@@ -130,13 +130,6 @@ docker-compose.override.yml
 *.key
 .secrets
 secrets/
-*.env.local
-.env.secrets
-
-# Kubernetes config (not examples)
-k8s/config/*.env
-!k8s/config/*.env.example
-
 # Database
 *.db
 *.sqlite

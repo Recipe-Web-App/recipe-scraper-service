@@ -102,17 +102,11 @@ patches:
         path: /spec/tls/0/hosts/0
         value: recipe-scraper-dev.example.com
 
-# ConfigMap - environment configuration
-configMapGenerator:
-  - name: recipe-scraper-config
-    envs:
-      - ../../config/development.env
-
-# Secret - sensitive values (copy secrets.env.example to secrets.env)
+# Secrets from .env symlink (-> ../../.env.development)
 secretGenerator:
   - name: recipe-scraper-secrets
     envs:
-      - ../../config/secrets.env
+      - .env
 
 generatorOptions:
   disableNameSuffixHash: true

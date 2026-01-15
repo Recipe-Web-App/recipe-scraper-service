@@ -2,36 +2,48 @@
 
 Complete reference for all configuration options in the Recipe Scraper Service.
 
-## Configuration Loading
+## Configuration Structure
+
+The service uses a two-file configuration approach:
+
+| Type            | Location             | Purpose                                            |
+| --------------- | -------------------- | -------------------------------------------------- |
+| **Secrets**     | `.env.{environment}` | Sensitive values (JWT keys, API keys, passwords)   |
+| **Non-secrets** | `config/**/*.yaml`   | Application settings (logging, timeouts, features) |
 
 ```mermaid
 flowchart TB
-    subgraph Sources["Configuration Sources"]
-        Defaults[Default Values]
-        EnvFile[".env File"]
-        EnvVars[Environment Variables]
+    subgraph Secrets["Secrets (.env files)"]
+        EnvExample[".env.example\n(template)"]
+        EnvLocal[".env.local"]
+        EnvProd[".env.production"]
     end
 
-    subgraph Loading["Loading Order"]
-        L1["1. Load defaults"]
-        L2["2. Load .env file"]
-        L3["3. Override with env vars"]
+    subgraph Config["Config (YAML files)"]
+        Base["config/base/*.yaml"]
+        Envs["config/environments/{env}/*.yaml"]
     end
 
-    subgraph Result["Final Settings"]
+    subgraph App["Application"]
         Settings[Settings Object]
     end
 
-    Defaults --> L1 --> L2
-    EnvFile --> L2 --> L3
-    EnvVars --> L3 --> Settings
+    EnvExample -.->|copy| EnvLocal & EnvProd
+    EnvLocal --> Settings
+    EnvProd --> Settings
+    Base --> Settings
+    Envs --> Settings
 ```
+
+### Loading Precedence
 
 Configuration is loaded using Pydantic Settings with the following precedence (highest to lowest):
 
 1. Environment variables
-2. `.env` file values
-3. Default values in code
+2. `.env.{APP_ENV}` file values
+3. YAML config files (`config/environments/{APP_ENV}/`)
+4. Base YAML config (`config/base/`)
+5. Default values in code
 
 ## Environment Variables
 
@@ -289,93 +301,37 @@ See [LLM Integration Guide](./llm.md) for detailed configuration and usage.
 
 ## Example Configurations
 
-### Development (.env)
+### Local Development (.env.local)
+
+Secrets only - non-secret config is in `config/environments/local/*.yaml`:
 
 ```bash
-# Application
-APP_NAME=Recipe Scraper Service
-ENVIRONMENT=development
-DEBUG=true
+# Environment
+APP_ENV=local
 
-# Server
-HOST=0.0.0.0
-PORT=8000
-
-# JWT (insecure - development only!)
+# Secrets
 JWT_SECRET_KEY=dev-secret-key-change-in-prod
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# CORS
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-
-# Rate Limiting (relaxed for development)
-RATE_LIMIT_DEFAULT=1000/minute
-RATE_LIMIT_AUTH=100/minute
-
-# Logging
-LOG_LEVEL=DEBUG
-LOG_FORMAT=text
-
-# Observability
-ENABLE_TRACING=false
-METRICS_ENABLED=true
-
-# LLM (optional - for AI features)
-LLM__ENABLED=true
-LLM__OLLAMA__URL=http://localhost:11434
-GROQ_API_KEY=gsk_xxxxxxxxxxxx  # Get from console.groq.com
+REDIS_PASSWORD=
+GROQ_API_KEY=  # Optional, get from console.groq.com
 ```
 
-### Production
+### Production (.env.production)
+
+Secrets only - non-secret config is in `config/environments/production/*.yaml`:
 
 ```bash
-# Application
-APP_NAME=Recipe Scraper Service
-ENVIRONMENT=production
-DEBUG=false
+# Environment
+APP_ENV=production
 
-# Server
-HOST=0.0.0.0
-PORT=8000
-
-# JWT (use secure secret!)
-JWT_SECRET_KEY=${JWT_SECRET_KEY}  # From secret manager
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# Redis
-REDIS_HOST=redis-cluster.internal
-REDIS_PORT=6379
-REDIS_PASSWORD=${REDIS_PASSWORD}  # From secret manager
-
-# CORS
-CORS_ORIGINS=https://app.example.com,https://www.example.com
-
-# Rate Limiting
-RATE_LIMIT_DEFAULT=100/minute
-RATE_LIMIT_AUTH=5/minute
-
-# Logging
-LOG_LEVEL=WARNING
-LOG_FORMAT=json
-
-# Observability
-OTLP_ENDPOINT=http://otel-collector:4317
-ENABLE_TRACING=true
-METRICS_ENABLED=true
-SENTRY_DSN=${SENTRY_DSN}  # From secret manager
-
-# LLM
-LLM__ENABLED=true
-LLM__OLLAMA__URL=http://192.168.1.100:11434  # Desktop host IP
-LLM__FALLBACK__ENABLED=true
-GROQ_API_KEY=${GROQ_API_KEY}  # From secret manager
+# Secrets
+JWT_SECRET_KEY=your-secure-production-key
+REDIS_PASSWORD=your-redis-password
+AUTH_SERVICE_CLIENT_SECRET=your-oauth-secret
+GROQ_API_KEY=gsk_xxxxxxxxxxxx
+SENTRY_DSN=https://xxx@sentry.io/xxx
 ```
+
+**Note:** See [Deployment Guide](./deployment.md) for K8s deployment instructions.
 
 ## Validation
 

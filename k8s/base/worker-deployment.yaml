@@ -47,10 +47,8 @@ spec:
           # Override command to run worker
           command: ["scripts/start-worker.sh"]
 
-          # Environment from ConfigMap
+          # Environment from Secrets
           envFrom:
-            - configMapRef:
-                name: recipe-scraper-config
             - secretRef:
                 name: recipe-scraper-secrets
 

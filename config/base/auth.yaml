@@ -14,7 +14,7 @@ auth:
     permissions: X-User-Permissions
   service:
     url: null
-    client_id: recipe-scraper-service
+    client_id: 78317bce-1f60-42a9-a5dc-a845092daa91
   jwt_validation:
     issuer: null
     audience: []

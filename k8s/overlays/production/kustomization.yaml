@@ -115,17 +115,11 @@ patches:
                       app.kubernetes.io/component: api
                   topologyKey: kubernetes.io/hostname
 
-# ConfigMap - environment configuration
-configMapGenerator:
-  - name: recipe-scraper-config
-    envs:
-      - ../../config/production.env
-
-# Secret - sensitive values (use Sealed Secrets or External Secrets Operator)
+# Secrets from .env symlink (-> ../../.env.production)
 secretGenerator:
   - name: recipe-scraper-secrets
     envs:
-      - ../../config/secrets.env
+      - .env
 
 generatorOptions:
   disableNameSuffixHash: true

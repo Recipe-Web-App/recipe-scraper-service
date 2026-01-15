@@ -308,29 +308,42 @@ spec:
 
 ### Secrets Management
 
-```bash
-# Create secret from env file
-kubectl create secret generic recipe-scraper-secrets \
-  --from-env-file=k8s/config/secrets.env \
-  -n recipe-scraper
+Secrets are stored in `.env` files:
 
-# Create secret from literal values
-kubectl create secret generic recipe-scraper-secrets \
-  --from-literal=JWT_SECRET_KEY=your-secret-key \
-  --from-literal=REDIS_PASSWORD=redis-password \
-  --from-literal=groq-api-key=gsk_xxxxxxxxxxxx \
-  -n recipe-scraper
+| File                            | Purpose                        |
+| ------------------------------- | ------------------------------ |
+| `.env.example`                  | Template (committed)           |
+| `.env.local`                    | Local development (gitignored) |
+| `k8s/overlays/development/.env` | K8s development (gitignored)   |
+| `k8s/overlays/staging/.env`     | K8s staging (gitignored)       |
+| `k8s/overlays/production/.env`  | K8s production (gitignored)    |
+
+Kustomize automatically generates K8s secrets from these files via `secretGenerator`.
+
+**Setup:**
+
+```bash
+# 1. Copy template for your environment
+cp .env.example k8s/overlays/development/.env
+
+# 2. Edit with your secrets
+vim k8s/overlays/development/.env
+
+# 3. Deploy (secrets included automatically)
+kustomize build k8s/overlays/development | kubectl apply -f -
 ```
 
 **Required Secrets:**
 
-| Secret Key       | Description                      | Required |
-| ---------------- | -------------------------------- | -------- |
-| `JWT_SECRET_KEY` | JWT signing key                  | Yes      |
-| `REDIS_PASSWORD` | Redis password (if auth enabled) | Optional |
-| `groq-api-key`   | Groq API key for LLM fallback    | Optional |
+| Secret Key                   | Description                      | Required |
+| ---------------------------- | -------------------------------- | -------- |
+| `JWT_SECRET_KEY`             | JWT signing key                  | Yes      |
+| `REDIS_PASSWORD`             | Redis password (if auth enabled) | Optional |
+| `AUTH_SERVICE_CLIENT_SECRET` | OAuth2 client secret             | Optional |
+| `GROQ_API_KEY`               | Groq API key for LLM fallback    | Optional |
+| `SENTRY_DSN`                 | Sentry error tracking            | Optional |
 
-The `groq-api-key` enables LLM fallback to Groq cloud when local Ollama is unavailable.
+The `GROQ_API_KEY` enables LLM fallback to Groq cloud when local Ollama is unavailable.
 Get your API key from [console.groq.com](https://console.groq.com).
 
 ### Monitoring Deployment
