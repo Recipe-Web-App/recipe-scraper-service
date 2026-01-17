@@ -138,7 +138,9 @@ secrets/
 # Local development
 .local/
 local/
+.tmp/
 tmp/
+.temp/
 temp/
 
 # uv
