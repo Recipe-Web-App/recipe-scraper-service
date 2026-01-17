@@ -3,6 +3,7 @@
 Tests cover:
 - Metrics setup configuration
 - Instrumentator initialization
+- Disabled metrics path
 """
 
 from __future__ import annotations
@@ -17,27 +18,50 @@ from app.observability.metrics import setup_metrics
 pytestmark = pytest.mark.unit
 
 
+def _create_mock_settings(*, metrics_enabled: bool = True) -> MagicMock:
+    """Create mock settings with proper nested structure."""
+    mock_settings = MagicMock()
+    mock_settings.observability.metrics.enabled = metrics_enabled
+    return mock_settings
+
+
 class TestSetupMetrics:
     """Tests for setup_metrics function."""
 
     def test_returns_instrumentator_when_disabled(self) -> None:
         """Should return empty instrumentator when metrics disabled."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.METRICS_ENABLED = False
+        mock_settings = _create_mock_settings(metrics_enabled=False)
 
         with patch(
             "app.observability.metrics.get_settings", return_value=mock_settings
         ):
             result = setup_metrics(mock_app)
 
+        # Should return an Instrumentator (empty)
         assert result is not None
+
+    def test_disabled_metrics_does_not_instrument_app(self) -> None:
+        """Should not instrument app when metrics are disabled."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=False)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            # Should NOT call instrument when disabled
+            mock_instrumentator.instrument.assert_not_called()
 
     def test_configures_instrumentator_when_enabled(self) -> None:
         """Should configure instrumentator when metrics enabled."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.METRICS_ENABLED = True
+        mock_settings = _create_mock_settings(metrics_enabled=True)
 
         with (
             patch("app.observability.metrics.get_settings", return_value=mock_settings),
@@ -61,8 +85,7 @@ class TestSetupMetrics:
     def test_excludes_health_and_metrics_endpoints(self) -> None:
         """Should exclude health and metrics from instrumentation."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.METRICS_ENABLED = True
+        mock_settings = _create_mock_settings(metrics_enabled=True)
 
         with (
             patch("app.observability.metrics.get_settings", return_value=mock_settings),
@@ -82,8 +105,7 @@ class TestSetupMetrics:
     def test_exposes_metrics_endpoint(self) -> None:
         """Should expose /metrics endpoint."""
         mock_app = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.METRICS_ENABLED = True
+        mock_settings = _create_mock_settings(metrics_enabled=True)
 
         with (
             patch("app.observability.metrics.get_settings", return_value=mock_settings),

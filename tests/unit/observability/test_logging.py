@@ -4,21 +4,29 @@ Tests cover:
 - Context variable management
 - Logger retrieval
 - InterceptHandler
+- Log formatting (JSON and dev)
+- File logging setup
 """
 
 from __future__ import annotations
 
 import logging
+import tempfile
+from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.observability.logging import (
     InterceptHandler,
+    _format_record,
+    _format_record_dev,
     bind_context,
     clear_context,
     get_context,
     get_logger,
+    setup_logging,
     unbind_context,
 )
 
@@ -193,3 +201,316 @@ class TestContextIsolation:
         clear_context()
         context = get_context()
         assert context.get("test_id") is None
+
+
+# =============================================================================
+# Format Record Tests
+# =============================================================================
+
+
+@pytest.fixture
+def mock_record() -> MagicMock:
+    """Create a mock Loguru record for formatting tests."""
+    record = MagicMock()
+    record.__getitem__ = lambda self, key: {
+        "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+        "level": MagicMock(name="INFO"),
+        "message": "Test log message",
+        "name": "test.module",
+        "function": "test_function",
+        "line": 42,
+        "extra": {},
+        "exception": None,
+    }.get(key, MagicMock())
+    return record
+
+
+class MockLevel:
+    """Mock for Loguru level object."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+
+class TestFormatRecord:
+    """Tests for JSON format record function."""
+
+    def test_format_record_basic(self) -> None:
+        """Should format basic record to JSON."""
+        clear_context()
+
+        record = {
+            "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            "level": MockLevel("INFO"),
+            "message": "Test message",
+            "name": "test.module",
+            "function": "test_func",
+            "line": 10,
+            "extra": {},
+            "exception": None,
+        }
+
+        result = _format_record(record)
+
+        assert "Test message" in result
+        assert "INFO" in result
+        assert result.endswith("\n")
+
+    def test_format_record_with_context(self) -> None:
+        """Should include context variables in JSON output."""
+        clear_context()
+        bind_context(request_id="req-123", user_id="user-456")
+
+        record = {
+            "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            "level": MockLevel("INFO"),
+            "message": "Test message",
+            "name": "test.module",
+            "function": "test_func",
+            "line": 10,
+            "extra": {},
+            "exception": None,
+        }
+
+        result = _format_record(record)
+
+        assert "req-123" in result
+        assert "user-456" in result
+
+    def test_format_record_with_exception(self) -> None:
+        """Should include exception info in JSON output."""
+        clear_context()
+
+        exception = MagicMock()
+        exception.type = ValueError
+        exception.value = ValueError("Test error")
+        exception.traceback = "traceback info"
+
+        record = {
+            "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            "level": MockLevel("ERROR"),
+            "message": "Error occurred",
+            "name": "test.module",
+            "function": "test_func",
+            "line": 10,
+            "extra": {},
+            "exception": exception,
+        }
+
+        result = _format_record(record)
+
+        assert "ValueError" in result
+        assert "Test error" in result
+
+
+class TestFormatRecordDev:
+    """Tests for development format record function."""
+
+    def test_format_record_dev_basic(self) -> None:
+        """Should return format string for dev output."""
+        clear_context()
+
+        record = {
+            "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            "level": MockLevel("INFO"),
+            "message": "Test message",
+            "name": "test.module",
+            "function": "test_func",
+            "line": 10,
+            "extra": {},
+            "exception": None,
+        }
+
+        result = _format_record_dev(record)
+
+        # Dev format returns a format string with placeholders
+        assert "{time:" in result
+        assert "{level:" in result
+        assert "{message}" in result
+
+    def test_format_record_dev_with_context(self) -> None:
+        """Should include context in dev format string."""
+        clear_context()
+        bind_context(request_id="req-123", trace_id="trace-456")
+
+        record = {
+            "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            "level": MockLevel("INFO"),
+            "message": "Test message",
+            "name": "test.module",
+            "function": "test_func",
+            "line": 10,
+            "extra": {},
+            "exception": None,
+        }
+
+        result = _format_record_dev(record)
+
+        # Context should be included in the format string
+        assert "request_id=req-123" in result
+        assert "trace_id=trace-456" in result
+
+    def test_format_record_dev_with_exception(self) -> None:
+        """Should include exception placeholder when exception present."""
+        clear_context()
+
+        exception = MagicMock()
+        exception.type = ValueError
+        exception.value = ValueError("Test error")
+        exception.traceback = "traceback"
+
+        record = {
+            "time": datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            "level": MockLevel("ERROR"),
+            "message": "Error occurred",
+            "name": "test.module",
+            "function": "test_func",
+            "line": 10,
+            "extra": {},
+            "exception": exception,
+        }
+
+        result = _format_record_dev(record)
+
+        # Should include exception placeholder
+        assert "{exception}" in result
+
+
+# =============================================================================
+# Setup Logging Tests
+# =============================================================================
+
+
+class TestSetupLogging:
+    """Tests for setup_logging function."""
+
+    def test_setup_logging_json_format(self) -> None:
+        """Should configure JSON logging for production."""
+        # Call setup_logging with JSON format
+        setup_logging(log_level="INFO", log_format="json", is_development=False)
+
+        # Verify logger was configured (no exception means success)
+        logger = get_logger("test")
+        assert logger is not None
+
+    def test_setup_logging_text_format(self) -> None:
+        """Should configure text logging for development."""
+        setup_logging(log_level="DEBUG", log_format="text", is_development=True)
+
+        logger = get_logger("test")
+        assert logger is not None
+
+    def test_setup_logging_development_mode(self) -> None:
+        """Should use dev format when is_development is True."""
+        # is_development=True should force dev format even with json
+        setup_logging(log_level="INFO", log_format="json", is_development=True)
+
+        logger = get_logger("test")
+        assert logger is not None
+
+    def test_setup_logging_with_file(self) -> None:
+        """Should configure file logging with rotation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_file = Path(tmpdir) / "logs" / "app.log"
+
+            setup_logging(
+                log_level="INFO",
+                log_format="json",
+                is_development=False,
+                log_file=log_file,
+            )
+
+            # Directory should be created
+            assert log_file.parent.exists()
+
+    def test_setup_logging_creates_parent_directories(self) -> None:
+        """Should create parent directories for log file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_file = Path(tmpdir) / "deep" / "nested" / "path" / "app.log"
+
+            setup_logging(
+                log_level="INFO",
+                log_format="json",
+                log_file=log_file,
+            )
+
+            # All parent directories should be created
+            assert log_file.parent.exists()
+
+    def test_setup_logging_intercepts_stdlib_logging(self) -> None:
+        """Should intercept standard library logging."""
+        setup_logging(log_level="INFO", log_format="json")
+
+        # Standard logging should have InterceptHandler
+        root_logger = logging.getLogger()
+        handler_types = [type(h).__name__ for h in root_logger.handlers]
+        assert "InterceptHandler" in handler_types
+
+
+# =============================================================================
+# InterceptHandler Frame Walking Tests
+# =============================================================================
+
+
+class TestInterceptHandlerFrameWalking:
+    """Tests for InterceptHandler frame walking logic."""
+
+    def test_emit_walks_frames_correctly(self) -> None:
+        """Should walk frames to find correct caller depth."""
+        handler = InterceptHandler()
+
+        # Create a nested logging scenario
+        def inner_function():
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="test.py",
+                lineno=1,
+                msg="Test from inner",
+                args=(),
+                exc_info=None,
+            )
+            with patch("app.observability.logging.logger") as mock_logger:
+                mock_logger.level.return_value = MagicMock(name="INFO")
+                mock_opt = MagicMock()
+                mock_logger.opt.return_value = mock_opt
+                handler.emit(record)
+                # Verify opt was called with a depth parameter
+                mock_logger.opt.assert_called()
+                call_kwargs = mock_logger.opt.call_args[1]
+                assert "depth" in call_kwargs
+                assert call_kwargs["depth"] >= 2
+
+        def outer_function():
+            inner_function()
+
+        outer_function()
+
+    def test_emit_handles_frame_traversal(self) -> None:
+        """Should handle frame traversal when frame.f_back is called."""
+        handler = InterceptHandler()
+
+        # Mock currentframe to simulate frame walking
+        mock_frame = MagicMock()
+        mock_frame.f_code.co_filename = "not_logging.py"
+        mock_frame.f_back = None
+
+        with (
+            patch("logging.currentframe", return_value=mock_frame),
+            patch("app.observability.logging.logger") as mock_logger,
+        ):
+            mock_logger.level.return_value = MagicMock(name="INFO")
+            mock_logger.opt.return_value = mock_logger
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="test.py",
+                lineno=1,
+                msg="Test message",
+                args=(),
+                exc_info=None,
+            )
+
+            # Should not raise even when frame walking terminates
+            handler.emit(record)

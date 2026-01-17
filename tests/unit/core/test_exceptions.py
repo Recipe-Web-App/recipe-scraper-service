@@ -8,8 +8,13 @@ Tests cover:
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
-from fastapi import status
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.testclient import TestClient
 
 from app.core.exceptions import (
     AppError,
@@ -22,6 +27,8 @@ from app.core.exceptions import (
     RateLimitError,
     ServiceUnavailableError,
     UnauthorizedError,
+    _get_request_id,
+    setup_exception_handlers,
 )
 
 
@@ -284,3 +291,160 @@ class TestServiceUnavailableError:
         error = ServiceUnavailableError(message="Database connection failed")
 
         assert error.message == "Database connection failed"
+
+
+# =============================================================================
+# Helper Function Tests
+# =============================================================================
+
+
+class TestGetRequestId:
+    """Tests for _get_request_id helper function."""
+
+    def test_returns_request_id_when_present(self):
+        """Should return request_id from request state."""
+        mock_request = MagicMock()
+        mock_request.state.request_id = "req-abc-123"
+
+        result = _get_request_id(mock_request)
+
+        assert result == "req-abc-123"
+
+    def test_returns_none_when_missing(self):
+        """Should return None when request_id not in state."""
+        mock_request = MagicMock(spec=[])
+        mock_request.state = MagicMock(spec=[])
+
+        result = _get_request_id(mock_request)
+
+        assert result is None
+
+
+# =============================================================================
+# Exception Handler Tests
+# =============================================================================
+
+
+class TestSetupExceptionHandlers:
+    """Tests for exception handlers."""
+
+    @pytest.fixture
+    def test_app(self):
+        """Create a test FastAPI app with handlers registered."""
+        app = FastAPI()
+        setup_exception_handlers(app)
+        return app
+
+    @pytest.fixture
+    def test_client(self, test_app):
+        """Create a test client for the app."""
+        return TestClient(test_app, raise_server_exceptions=False)
+
+    def test_app_error_handler(self, test_app, test_client):
+        """Should handle AppError and return structured response."""
+
+        @test_app.get("/app-error")
+        async def trigger_app_error():
+            raise BadRequestError(message="Test bad request")
+
+        response = test_client.get("/app-error")
+
+        assert response.status_code == 400
+        data = response.json()
+        assert data["error"] == "BAD_REQUEST"
+        assert data["message"] == "Test bad request"
+
+    def test_http_exception_handler(self, test_app, test_client):
+        """Should handle HTTP exceptions and return structured response."""
+
+        @test_app.get("/http-error")
+        async def trigger_http_error():
+            raise HTTPException(status_code=404, detail="Resource not found")
+
+        response = test_client.get("/http-error")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert data["error"] == "HTTP_ERROR"
+        assert "Resource not found" in data["message"]
+
+    def test_validation_exception_handler(self, test_app, test_client):
+        """Should handle validation errors and return structured response."""
+
+        class RequestBody(BaseModel):
+            name: str
+            count: int
+
+        @test_app.post("/validate")
+        async def validate_endpoint(body: RequestBody):
+            return {"ok": True}
+
+        response = test_client.post("/validate", json={"name": 123})
+
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"] == "VALIDATION_ERROR"
+        assert data["message"] == "Request validation failed"
+        assert data["details"] is not None
+        assert len(data["details"]) > 0
+
+    def test_general_exception_handler(self, test_app, test_client):
+        """Should handle unexpected exceptions and return 500."""
+
+        @test_app.get("/unexpected-error")
+        async def trigger_unexpected_error():
+            msg = "Something unexpected happened"
+            raise RuntimeError(msg)
+
+        response = test_client.get("/unexpected-error")
+
+        assert response.status_code == 500
+        data = response.json()
+        assert data["error"] == "INTERNAL_SERVER_ERROR"
+        assert data["message"] == "An unexpected error occurred"
+
+    def test_handler_includes_request_id(self, test_app, test_client):
+        """Should include request_id from request state in response."""
+
+        class AddRequestIdMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                request.state.request_id = "test-req-id-456"
+                return await call_next(request)
+
+        test_app.add_middleware(AddRequestIdMiddleware)
+
+        @test_app.get("/with-request-id")
+        async def trigger_error_with_id():
+            raise BadRequestError(message="Error with ID")
+
+        response = test_client.get("/with-request-id")
+
+        data = response.json()
+        assert data["request_id"] == "test-req-id-456"
+
+    def test_app_error_handler_with_details(self, test_app, test_client):
+        """Should include error details in response."""
+
+        @test_app.get("/detailed-error")
+        async def trigger_detailed_error():
+            details = [
+                ErrorDetail(code="FIELD_ERROR", message="Invalid value", field="name"),
+                ErrorDetail(
+                    code="FIELD_ERROR", message="Too long", field="description"
+                ),
+            ]
+            raise AppError(
+                status_code=422,
+                error="VALIDATION_FAILED",
+                message="Multiple validation errors",
+                details=details,
+            )
+
+        response = test_client.get("/detailed-error")
+
+        assert response.status_code == 422
+        data = response.json()
+        assert data["details"] is not None
+        assert len(data["details"]) == 2
+        assert data["details"][0]["field"] == "name"
+        assert data["details"][1]["field"] == "description"

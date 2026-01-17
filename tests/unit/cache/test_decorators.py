@@ -349,3 +349,58 @@ class TestCacheManager:
             result = await cache_manager.get("mykey", default="fallback")
 
         assert result == "fallback"
+
+    async def test_set_returns_false_on_redis_error(self, cache_manager, mock_redis):
+        """Should return False when set operation fails."""
+        mock_redis.setex = AsyncMock(side_effect=Exception("Write error"))
+
+        with patch("app.cache.decorators.get_cache_client", return_value=mock_redis):
+            result = await cache_manager.set("mykey", {"data": True})
+
+        assert result is False
+
+    async def test_delete_returns_false_on_redis_error(self, cache_manager, mock_redis):
+        """Should return False when delete operation fails."""
+        mock_redis.delete = AsyncMock(side_effect=Exception("Delete error"))
+
+        with patch("app.cache.decorators.get_cache_client", return_value=mock_redis):
+            result = await cache_manager.delete("mykey")
+
+        assert result is False
+
+    async def test_delete_pattern_returns_zero_on_redis_error(
+        self, cache_manager, mock_redis
+    ):
+        """Should return 0 when delete_pattern operation fails."""
+
+        async def mock_scan_iter_error(*args, **kwargs):
+            msg = "Scan error"
+            raise RuntimeError(msg)
+            yield  # Never reached
+
+        mock_redis.scan_iter = mock_scan_iter_error
+
+        with patch("app.cache.decorators.get_cache_client", return_value=mock_redis):
+            result = await cache_manager.delete_pattern("user:*")
+
+        assert result == 0
+
+    async def test_exists_returns_false_on_redis_error(self, cache_manager, mock_redis):
+        """Should return False when exists operation fails."""
+        mock_redis.exists = AsyncMock(side_effect=Exception("Exists error"))
+
+        with patch("app.cache.decorators.get_cache_client", return_value=mock_redis):
+            result = await cache_manager.exists("mykey")
+
+        assert result is False
+
+    async def test_ttl_returns_negative_two_on_redis_error(
+        self, cache_manager, mock_redis
+    ):
+        """Should return -2 when ttl operation fails."""
+        mock_redis.ttl = AsyncMock(side_effect=Exception("TTL error"))
+
+        with patch("app.cache.decorators.get_cache_client", return_value=mock_redis):
+            result = await cache_manager.ttl("mykey")
+
+        assert result == -2
