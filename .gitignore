@@ -136,8 +136,6 @@ secrets/
 *.sqlite3
 
 # Local development
-.local/
-local/
 .tmp/
 tmp/
 .temp/

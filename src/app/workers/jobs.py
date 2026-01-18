@@ -13,7 +13,7 @@ from arq.connections import ArqRedis, create_pool
 from arq.jobs import Job
 
 from app.observability.logging import get_logger
-from app.workers.arq import get_redis_settings
+from app.workers.arq import ARQ_QUEUE_NAME, get_redis_settings
 
 
 logger = get_logger(__name__)
@@ -54,7 +54,7 @@ async def enqueue_job(
     function_name: str,
     *args: Any,
     _job_id: str | None = None,
-    _queue_name: str | None = None,
+    _queue_name: str = ARQ_QUEUE_NAME,
     _defer_until: Any | None = None,
     _defer_by: float | None = None,
     _expires: float | None = None,
@@ -67,7 +67,7 @@ async def enqueue_job(
         function_name: Name of the task function to execute.
         *args: Positional arguments for the task.
         _job_id: Optional unique job ID.
-        _queue_name: Optional queue name (default: arq:queue).
+        _queue_name: Queue name (default: scraper:queue:jobs).
         _defer_until: Optional datetime to defer job execution.
         _defer_by: Optional seconds to defer job execution.
         _expires: Optional job expiration time in seconds.
@@ -161,7 +161,7 @@ async def get_job_status(job_id: str) -> dict[str, Any] | None:
     """
     try:
         pool = await get_arq_pool()
-        job = Job(job_id, pool)
+        job = Job(job_id, pool, _queue_name=ARQ_QUEUE_NAME)
 
         # Get job definition (enqueue info)
         info = await job.info()

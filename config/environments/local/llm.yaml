@@ -1,0 +1,4 @@
+# Local development - Ollama running on same machine
+llm:
+  ollama:
+    url: http://localhost:11434

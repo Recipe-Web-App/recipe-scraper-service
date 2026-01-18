@@ -129,6 +129,7 @@ class RedisSettings(BaseModel):
 
     host: str = "localhost"
     port: int = 6379
+    user: str | None = None  # Redis ACL username (Redis 6.0+)
     cache_db: int = 0
     queue_db: int = 1
     rate_limit_db: int = 2
@@ -334,26 +335,42 @@ class Settings(BaseSettings):
             return f"{self.auth.service.url.rstrip('/')}/oauth2/userinfo"
         return None
 
+    def _build_redis_url(self, db: int) -> str:
+        """Build Redis connection URL with optional authentication.
+
+        Supports Redis 6.0+ ACL authentication with username.
+        URL format: redis://[user:password@]host:port/db
+
+        Args:
+            db: Redis database number
+
+        Returns:
+            Redis connection URL string
+        """
+        auth_part = ""
+        if self.redis.user and self.REDIS_PASSWORD:
+            auth_part = f"{self.redis.user}:{self.REDIS_PASSWORD}@"
+        elif self.REDIS_PASSWORD:
+            auth_part = f":{self.REDIS_PASSWORD}@"
+        elif self.redis.user:
+            auth_part = f"{self.redis.user}@"
+
+        return f"redis://{auth_part}{self.redis.host}:{self.redis.port}/{db}"
+
     @property
     def redis_cache_url(self) -> str:
         """Build Redis cache connection URL."""
-        if self.REDIS_PASSWORD:
-            return f"redis://:{self.REDIS_PASSWORD}@{self.redis.host}:{self.redis.port}/{self.redis.cache_db}"
-        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.cache_db}"
+        return self._build_redis_url(self.redis.cache_db)
 
     @property
     def redis_queue_url(self) -> str:
         """Build Redis queue connection URL for ARQ."""
-        if self.REDIS_PASSWORD:
-            return f"redis://:{self.REDIS_PASSWORD}@{self.redis.host}:{self.redis.port}/{self.redis.queue_db}"
-        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.queue_db}"
+        return self._build_redis_url(self.redis.queue_db)
 
     @property
     def redis_rate_limit_url(self) -> str:
         """Build Redis rate limit connection URL."""
-        if self.REDIS_PASSWORD:
-            return f"redis://:{self.REDIS_PASSWORD}@{self.redis.host}:{self.redis.port}/{self.redis.rate_limit_db}"
-        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.rate_limit_db}"
+        return self._build_redis_url(self.redis.rate_limit_db)
 
     # =========================================================================
     # Environment Helpers

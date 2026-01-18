@@ -19,6 +19,7 @@ from arq.connections import RedisSettings
 from arq.jobs import Job, JobStatus
 
 import app.workers.jobs as jobs_module
+from app.workers.arq import ARQ_QUEUE_NAME
 from app.workers.jobs import (
     close_arq_pool,
     enqueue_job,
@@ -350,7 +351,7 @@ class TestJobLifecycle:
         assert job is not None
 
         # Job should be queued initially
-        job_obj = Job(job.job_id, arq_pool)
+        job_obj = Job(job.job_id, arq_pool, _queue_name=ARQ_QUEUE_NAME)
         status = await job_obj.status()
         assert status in (JobStatus.queued, JobStatus.deferred)
 

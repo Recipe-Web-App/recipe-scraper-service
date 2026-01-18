@@ -71,6 +71,11 @@ async def shutdown(_ctx: dict[str, Any]) -> None:
     logger.info("ARQ worker shutting down")
 
 
+# Redis key names - must match Redis ACL pattern (scraper:*)
+ARQ_QUEUE_NAME = "scraper:queue:jobs"
+ARQ_HEALTH_CHECK_KEY = "scraper:queue:health-check"
+
+
 def get_redis_settings() -> RedisSettings:
     """Get Redis settings for ARQ.
 
@@ -82,6 +87,7 @@ def get_redis_settings() -> RedisSettings:
     return RedisSettings(
         host=settings.redis.host,
         port=settings.redis.port,
+        username=settings.redis.user,
         password=settings.REDIS_PASSWORD or None,
         database=settings.redis.queue_db,
     )
@@ -96,6 +102,12 @@ class WorkerSettings:
 
     # Redis connection settings
     redis_settings = get_redis_settings()
+
+    # Queue name - must match Redis ACL key pattern (scraper:*)
+    queue_name = ARQ_QUEUE_NAME
+
+    # Health check key - must match Redis ACL key pattern (scraper:*)
+    health_check_key = ARQ_HEALTH_CHECK_KEY
 
     # Lifecycle hooks
     on_startup = startup

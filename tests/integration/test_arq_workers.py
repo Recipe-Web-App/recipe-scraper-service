@@ -18,7 +18,13 @@ import pytest
 from arq.connections import ArqRedis, RedisSettings, create_pool
 
 import app.workers.jobs as jobs_module
-from app.workers.arq import WorkerSettings, get_redis_settings, shutdown, startup
+from app.workers.arq import (
+    ARQ_QUEUE_NAME,
+    WorkerSettings,
+    get_redis_settings,
+    shutdown,
+    startup,
+)
 from app.workers.jobs import (
     close_arq_pool,
     enqueue_job,
@@ -444,6 +450,7 @@ class TestARQEdgeCases:
             "user-123",
             "Deferred message",
             _defer_until=defer_until,
+            _queue_name=ARQ_QUEUE_NAME,
         )
 
         assert job is not None

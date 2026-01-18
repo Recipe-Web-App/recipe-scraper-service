@@ -90,17 +90,26 @@ class TestSettings:
         assert settings.auth.jwt.refresh_token_expire_days == 7
 
     def test_redis_defaults(self, monkeypatch: pytest.MonkeyPatch):
-        """Should have Redis settings with base defaults."""
-        # Set APP_ENV to development so YAML loads base defaults
-        # (test environment uses DBs 10, 11, 12)
+        """Should have Redis settings with model defaults when overridden."""
         monkeypatch.setenv("APP_ENV", "development")
-        settings = Settings()
+        # Explicitly pass redis config to override YAML values
+        settings = Settings(
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": None,
+            }
+        )
 
         assert settings.redis.host == "localhost"
         assert settings.redis.port == 6379
         assert settings.redis.cache_db == 0
         assert settings.redis.queue_db == 1
         assert settings.redis.rate_limit_db == 2
+        assert settings.redis.user is None
 
 
 class TestSettingsComputedProperties:
@@ -109,14 +118,34 @@ class TestSettingsComputedProperties:
     def test_redis_cache_url_without_password(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis URL without password."""
         monkeypatch.setenv("APP_ENV", "development")
-        settings = Settings(REDIS_PASSWORD="")
+        settings = Settings(
+            REDIS_PASSWORD="",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": None,
+            },
+        )
 
         assert settings.redis_cache_url == "redis://localhost:6379/0"
 
     def test_redis_cache_url_with_password(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis URL with password."""
         monkeypatch.setenv("APP_ENV", "development")
-        settings = Settings(REDIS_PASSWORD="secret123")
+        settings = Settings(
+            REDIS_PASSWORD="secret123",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": None,
+            },
+        )
 
         assert "secret123" in settings.redis_cache_url
         assert settings.redis_cache_url == "redis://:secret123@localhost:6379/0"
@@ -124,16 +153,135 @@ class TestSettingsComputedProperties:
     def test_redis_queue_url(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis queue URL."""
         monkeypatch.setenv("APP_ENV", "development")
-        settings = Settings(REDIS_PASSWORD="")
+        settings = Settings(
+            REDIS_PASSWORD="",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": None,
+            },
+        )
 
         assert settings.redis_queue_url == "redis://localhost:6379/1"
 
     def test_redis_rate_limit_url(self, monkeypatch: pytest.MonkeyPatch):
         """Should build Redis rate limit URL."""
         monkeypatch.setenv("APP_ENV", "development")
-        settings = Settings(REDIS_PASSWORD="")
+        settings = Settings(
+            REDIS_PASSWORD="",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": None,
+            },
+        )
 
         assert settings.redis_rate_limit_url == "redis://localhost:6379/2"
+
+    def test_redis_cache_url_with_username_and_password(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Should build Redis URL with username and password (ACL auth)."""
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(
+            REDIS_PASSWORD="secret123",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": "scraper_user",
+            },
+        )
+
+        assert (
+            settings.redis_cache_url
+            == "redis://scraper_user:secret123@localhost:6379/0"
+        )
+
+    def test_redis_queue_url_with_username_and_password(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Should build Redis queue URL with username and password."""
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(
+            REDIS_PASSWORD="secret123",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": "scraper_user",
+            },
+        )
+
+        assert (
+            settings.redis_queue_url
+            == "redis://scraper_user:secret123@localhost:6379/1"
+        )
+
+    def test_redis_rate_limit_url_with_username_and_password(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Should build Redis rate limit URL with username and password."""
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(
+            REDIS_PASSWORD="secret123",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": "scraper_user",
+            },
+        )
+
+        assert (
+            settings.redis_rate_limit_url
+            == "redis://scraper_user:secret123@localhost:6379/2"
+        )
+
+    def test_redis_url_with_username_only(self, monkeypatch: pytest.MonkeyPatch):
+        """Should build Redis URL with username but no password."""
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(
+            REDIS_PASSWORD="",
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": "scraper_user",
+            },
+        )
+
+        assert settings.redis_cache_url == "redis://scraper_user@localhost:6379/0"
+
+    def test_redis_user_field_defaults_to_none(self, monkeypatch: pytest.MonkeyPatch):
+        """Should have user field as None when explicitly set."""
+        monkeypatch.setenv("APP_ENV", "development")
+        settings = Settings(
+            redis={
+                "host": "localhost",
+                "port": 6379,
+                "cache_db": 0,
+                "queue_db": 1,
+                "rate_limit_db": 2,
+                "user": None,
+            },
+        )
+
+        assert settings.redis.user is None
 
 
 class TestSettingsEnvironmentDetection:
