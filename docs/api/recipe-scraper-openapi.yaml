@@ -19,7 +19,7 @@ servers:
   - url: https://api.recipe-scraper.example.com
     description: Production server
 paths:
-  /:
+  /api/v1/recipe-scraper:
     get:
       tags:
         - Root
@@ -45,11 +45,11 @@ paths:
                     example: operational
                   docs:
                     type: string
-                    example: /docs
+                    example: /api/v1/recipe-scraper/docs
                   health:
                     type: string
                     example: /api/v1/recipe-scraper/health
-  /docs:
+  /api/v1/recipe-scraper/docs:
     get:
       tags:
         - Documentation
@@ -77,7 +77,7 @@ paths:
                   value:
                     error: NOT_FOUND
                     message: Documentation is not available in production mode
-  /redoc:
+  /api/v1/recipe-scraper/redoc:
     get:
       tags:
         - Documentation
@@ -105,7 +105,7 @@ paths:
                   value:
                     error: NOT_FOUND
                     message: Documentation is not available in production mode
-  /openapi.json:
+  /api/v1/recipe-scraper/openapi.json:
     get:
       tags:
         - Documentation
@@ -138,7 +138,7 @@ paths:
                   value:
                     error: NOT_FOUND
                     message: OpenAPI specification is not available in production mode
-  /metrics:
+  /api/v1/recipe-scraper/metrics:
     get:
       tags:
         - Monitoring

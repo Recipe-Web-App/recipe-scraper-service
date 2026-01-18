@@ -24,7 +24,7 @@ class TestRootEndpointE2E:
     @pytest.mark.asyncio
     async def test_root_endpoint_full_stack(self, client: AsyncClient) -> None:
         """Should return service info through full middleware stack."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -41,7 +41,7 @@ class TestRootEndpointE2E:
     async def test_root_to_health_navigation(self, client: AsyncClient) -> None:
         """Should be able to navigate from root to health endpoint."""
         # Get root
-        root_response = await client.get("/")
+        root_response = await client.get("/api/v1/recipe-scraper/")
         assert root_response.status_code == 200
 
         # Navigate to health
@@ -57,7 +57,7 @@ class TestRootEndpointE2E:
         client: AsyncClient,
     ) -> None:
         """Should return non-empty service info values."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -72,18 +72,18 @@ class TestRootEndpointE2E:
         client: AsyncClient,
     ) -> None:
         """Should report docs availability as either URL or disabled."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
         data = response.json()
-        # docs should be either "/docs" or "disabled" based on environment
-        assert data["docs"] in ("/docs", "disabled")
+        # docs should be either prefixed URL or "disabled" based on environment
+        assert data["docs"] in ("/api/v1/recipe-scraper/docs", "disabled")
 
     @pytest.mark.asyncio
     async def test_root_health_url_format(self, client: AsyncClient) -> None:
         """Should return properly formatted health URL."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -97,7 +97,7 @@ class TestRootEndpointE2E:
     @pytest.mark.asyncio
     async def test_root_response_json_format(self, client: AsyncClient) -> None:
         """Should return properly formatted JSON response."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/json"
@@ -113,7 +113,7 @@ class TestRootEndpointE2E:
         client: AsyncClient,
     ) -> None:
         """Should include security headers from middleware."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -124,7 +124,7 @@ class TestRootEndpointE2E:
     @pytest.mark.asyncio
     async def test_root_request_id_tracking(self, client: AsyncClient) -> None:
         """Should include request ID for tracing."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -140,6 +140,6 @@ class TestRootEndpointE2E:
     ) -> None:
         """Should handle multiple sequential requests."""
         for _ in range(5):
-            response = await client.get("/")
+            response = await client.get("/api/v1/recipe-scraper/")
             assert response.status_code == 200
             assert response.json()["status"] == "operational"

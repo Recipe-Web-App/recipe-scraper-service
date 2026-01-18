@@ -58,7 +58,7 @@ class TestRedisUnavailable:
             base_url="http://test",
         ) as client:
             # App should still respond to basic requests
-            response = await client.get("/")
+            response = await client.get("/api/v1/recipe-scraper/")
             assert response.status_code == 200
 
     @pytest.mark.asyncio

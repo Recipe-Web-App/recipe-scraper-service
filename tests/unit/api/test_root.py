@@ -65,7 +65,7 @@ class TestRootEndpoint:
 
     @pytest.mark.asyncio
     async def test_docs_url_in_non_production(self) -> None:
-        """Should return /docs when in non-production environment."""
+        """Should return prefixed docs URL when in non-production environment."""
         mock_settings = MagicMock()
         mock_settings.app.name = "Recipe Scraper Service"
         mock_settings.app.version = "2.0.0"
@@ -74,7 +74,7 @@ class TestRootEndpoint:
 
         result = await root(mock_settings)
 
-        assert result.docs == "/docs"
+        assert result.docs == "/api/v1/recipe-scraper/docs"
 
     @pytest.mark.asyncio
     async def test_docs_disabled_in_production(self) -> None:

@@ -1,4 +1,4 @@
-"""End-to-end tests for /metrics Prometheus endpoint.
+"""End-to-end tests for /api/v1/recipe-scraper/metrics Prometheus endpoint.
 
 Tests cover full system integration including middleware stack,
 response format, and metric accuracy.
@@ -24,7 +24,7 @@ class TestMetricsEndpointE2E:
     @pytest.mark.asyncio
     async def test_metrics_full_middleware_stack(self, client: AsyncClient) -> None:
         """Should return metrics through full middleware stack."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
 
@@ -35,7 +35,7 @@ class TestMetricsEndpointE2E:
     @pytest.mark.asyncio
     async def test_metrics_security_headers_present(self, client: AsyncClient) -> None:
         """Should include security headers from middleware."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
 
@@ -47,11 +47,11 @@ class TestMetricsEndpointE2E:
     async def test_metrics_records_api_requests(self, client: AsyncClient) -> None:
         """Should record metrics for API requests."""
         # Make some API requests
-        await client.get("/")
+        await client.get("/api/v1/recipe-scraper/")
         await client.get("/api/v1/recipe-scraper/health")
 
         # Get metrics
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
         # Should have recorded endpoints
@@ -63,9 +63,9 @@ class TestMetricsEndpointE2E:
         self, client: AsyncClient
     ) -> None:
         """Should include request duration histogram."""
-        await client.get("/")
+        await client.get("/api/v1/recipe-scraper/")
 
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
         # Should contain duration metrics (histogram type)
@@ -78,9 +78,9 @@ class TestMetricsEndpointE2E:
         """Should include request counter metrics."""
         # Make multiple requests
         for _ in range(3):
-            await client.get("/")
+            await client.get("/api/v1/recipe-scraper/")
 
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
         assert response.status_code == 200
@@ -93,7 +93,7 @@ class TestMetricsEndpointE2E:
     ) -> None:
         """Should be accessible without authentication."""
         # Don't set any auth headers
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         # Should succeed without auth
         assert response.status_code == 200
@@ -102,7 +102,7 @@ class TestMetricsEndpointE2E:
     @pytest.mark.asyncio
     async def test_metrics_inprogress_gauge(self, client: AsyncClient) -> None:
         """Should include in-progress request gauge."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
         assert response.status_code == 200
@@ -111,7 +111,7 @@ class TestMetricsEndpointE2E:
     @pytest.mark.asyncio
     async def test_metrics_request_id_tracking(self, client: AsyncClient) -> None:
         """Should include request ID for tracing."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
 
@@ -124,14 +124,14 @@ class TestMetricsEndpointE2E:
     async def test_multiple_metrics_requests_succeed(self, client: AsyncClient) -> None:
         """Should handle multiple sequential requests."""
         for _ in range(5):
-            response = await client.get("/metrics")
+            response = await client.get("/api/v1/recipe-scraper/metrics")
             assert response.status_code == 200
             assert "# HELP" in response.text
 
     @pytest.mark.asyncio
     async def test_metrics_response_is_not_empty(self, client: AsyncClient) -> None:
         """Should return non-empty metrics response."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
         content = response.text

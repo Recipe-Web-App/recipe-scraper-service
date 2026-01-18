@@ -22,6 +22,7 @@ def _create_mock_settings(*, metrics_enabled: bool = True) -> MagicMock:
     """Create mock settings with proper nested structure."""
     mock_settings = MagicMock()
     mock_settings.observability.metrics.enabled = metrics_enabled
+    mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
     return mock_settings
 
 
@@ -97,13 +98,13 @@ class TestSetupMetrics:
 
             setup_metrics(mock_app)
 
-            # Check excluded_handlers in the call
+            # Check excluded_handlers in the call (all paths should be prefixed)
             call_kwargs = mock_instr_class.call_args.kwargs
-            assert "/health" in call_kwargs["excluded_handlers"]
-            assert "/metrics" in call_kwargs["excluded_handlers"]
+            assert "/api/v1/recipe-scraper/health" in call_kwargs["excluded_handlers"]
+            assert "/api/v1/recipe-scraper/metrics" in call_kwargs["excluded_handlers"]
 
     def test_exposes_metrics_endpoint(self) -> None:
-        """Should expose /metrics endpoint."""
+        """Should expose /api/v1/recipe-scraper/metrics endpoint."""
         mock_app = MagicMock()
         mock_settings = _create_mock_settings(metrics_enabled=True)
 
@@ -117,10 +118,10 @@ class TestSetupMetrics:
 
             setup_metrics(mock_app)
 
-            # Should expose endpoint
+            # Should expose endpoint with API prefix
             mock_instrumentator.expose.assert_called_once()
             call_kwargs = mock_instrumentator.expose.call_args.kwargs
-            assert call_kwargs["endpoint"] == "/metrics"
+            assert call_kwargs["endpoint"] == "/api/v1/recipe-scraper/metrics"
 
 
 class TestMetricsConfiguration:
@@ -276,7 +277,7 @@ class TestMetricsConfiguration:
             assert mock_instrumentator.add.call_count == 3
 
     def test_excludes_documentation_endpoints(self) -> None:
-        """Should exclude /docs, /redoc, /openapi.json from instrumentation."""
+        """Should exclude prefixed docs endpoints from instrumentation."""
         mock_app = MagicMock()
         mock_settings = _create_mock_settings(metrics_enabled=True)
 
@@ -292,6 +293,6 @@ class TestMetricsConfiguration:
 
             call_kwargs = mock_instr_class.call_args.kwargs
             excluded = call_kwargs["excluded_handlers"]
-            assert "/docs" in excluded
-            assert "/redoc" in excluded
-            assert "/openapi.json" in excluded
+            assert "/api/v1/recipe-scraper/docs" in excluded
+            assert "/api/v1/recipe-scraper/redoc" in excluded
+            assert "/api/v1/recipe-scraper/openapi.json" in excluded

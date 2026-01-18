@@ -43,7 +43,7 @@ class TestApplicationStartup:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.get("/")
+            response = await client.get("/api/v1/recipe-scraper/")
             assert response.status_code == 200
 
     @pytest.mark.asyncio
@@ -86,7 +86,7 @@ class TestApplicationStartup:
             base_url="http://test",
         ) as client:
             # App should still respond
-            response = await client.get("/")
+            response = await client.get("/api/v1/recipe-scraper/")
             assert response.status_code == 200
 
             # Health check should show degraded status
@@ -115,7 +115,7 @@ class TestApplicationShutdown:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.get("/")
+                response = await client.get("/api/v1/recipe-scraper/")
                 assert response.status_code == 200
 
             # Reset module state between cycles
@@ -148,7 +148,7 @@ class TestLifespanGracefulDegradation:
             base_url="http://test",
         ) as client:
             # Root endpoint should work
-            response = await client.get("/")
+            response = await client.get("/api/v1/recipe-scraper/")
             assert response.status_code == 200
 
             # Health endpoint should work

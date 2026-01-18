@@ -36,7 +36,7 @@ class RootResponse(APIResponse):
     docs: str = Field(
         ...,
         description="API documentation URL or status",
-        examples=["/docs"],
+        examples=["/api/v1/recipe-scraper/docs"],
     )
     health: str = Field(
         ...,

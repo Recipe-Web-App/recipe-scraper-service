@@ -92,9 +92,10 @@ class TestCreateApp:
         ):
             app = create_app(settings)
 
-        assert app.docs_url == "/docs"
-        assert app.redoc_url == "/redoc"
-        assert app.openapi_url == "/openapi.json"
+        prefix = settings.api.v1_prefix
+        assert app.docs_url == f"{prefix}/docs"
+        assert app.redoc_url == f"{prefix}/redoc"
+        assert app.openapi_url == f"{prefix}/openapi.json"
 
     def test_enables_docs_in_test(self) -> None:
         """Should enable docs endpoints in test environment."""
@@ -107,9 +108,10 @@ class TestCreateApp:
         ):
             app = create_app(settings)
 
-        assert app.docs_url == "/docs"
-        assert app.redoc_url == "/redoc"
-        assert app.openapi_url == "/openapi.json"
+        prefix = settings.api.v1_prefix
+        assert app.docs_url == f"{prefix}/docs"
+        assert app.redoc_url == f"{prefix}/redoc"
+        assert app.openapi_url == f"{prefix}/openapi.json"
 
     def test_enables_docs_in_development(self) -> None:
         """Should enable docs endpoints in development environment."""
@@ -122,9 +124,10 @@ class TestCreateApp:
         ):
             app = create_app(settings)
 
-        assert app.docs_url == "/docs"
-        assert app.redoc_url == "/redoc"
-        assert app.openapi_url == "/openapi.json"
+        prefix = settings.api.v1_prefix
+        assert app.docs_url == f"{prefix}/docs"
+        assert app.redoc_url == f"{prefix}/redoc"
+        assert app.openapi_url == f"{prefix}/openapi.json"
 
     def test_uses_default_settings_when_none_provided(self) -> None:
         """Should use get_settings when no settings provided."""
@@ -172,7 +175,7 @@ class TestSetupRouters:
     """Tests for _setup_routers function."""
 
     def test_mounts_v1_router(self) -> None:
-        """Should mount v1 API router."""
+        """Should mount v1 API router with prefix."""
         app = FastAPI()
         mock_settings = MagicMock()
         mock_settings.app.name = "test-app"
@@ -182,12 +185,12 @@ class TestSetupRouters:
 
         _setup_routers(app, mock_settings)
 
-        # Check that routes were added
-        routes = [r.path for r in app.routes]
-        assert "/" in routes  # Root endpoint
+        # Check that routes were added with prefix
+        routes = [r.path for r in app.routes if hasattr(r, "path")]
+        assert "/api/v1/recipe-scraper/" in routes  # Root endpoint with prefix
 
     def test_creates_root_endpoint(self) -> None:
-        """Should create root endpoint."""
+        """Should create root endpoint with prefix."""
         app = FastAPI()
         mock_settings = MagicMock()
         mock_settings.app.name = "test-app"
@@ -197,6 +200,6 @@ class TestSetupRouters:
 
         _setup_routers(app, mock_settings)
 
-        # Root should be in routes
-        route_paths = [r.path for r in app.routes]
-        assert "/" in route_paths
+        # Root should be in routes with prefix
+        route_paths = [r.path for r in app.routes if hasattr(r, "path")]
+        assert "/api/v1/recipe-scraper/" in route_paths

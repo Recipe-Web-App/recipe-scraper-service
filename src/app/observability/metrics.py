@@ -45,6 +45,9 @@ def setup_metrics(app: FastAPI) -> Instrumentator:
 
     logger.info("Setting up Prometheus metrics")
 
+    # All paths must use the API prefix for gateway routing
+    prefix = settings.api.v1_prefix
+
     # Create instrumentator with configuration
     instrumentator = Instrumentator(
         should_group_status_codes=True,
@@ -52,13 +55,12 @@ def setup_metrics(app: FastAPI) -> Instrumentator:
         should_respect_env_var=True,
         should_instrument_requests_inprogress=True,
         excluded_handlers=[
-            "/health",
-            "/health/live",
-            "/health/ready",
-            "/metrics",
-            "/openapi.json",
-            "/docs",
-            "/redoc",
+            f"{prefix}/health",
+            f"{prefix}/ready",
+            f"{prefix}/metrics",
+            f"{prefix}/openapi.json",
+            f"{prefix}/docs",
+            f"{prefix}/redoc",
         ],
         env_var_name="METRICS_ENABLED",
         inprogress_name="http_requests_inprogress",
@@ -99,15 +101,16 @@ def setup_metrics(app: FastAPI) -> Instrumentator:
     # Instrument the app
     instrumentator.instrument(app)
 
-    # Expose metrics endpoint
+    # Expose metrics endpoint with API prefix for gateway routing
+    metrics_endpoint = f"{prefix}/metrics"
     instrumentator.expose(
         app,
-        endpoint="/metrics",
+        endpoint=metrics_endpoint,
         include_in_schema=True,
         tags=["Monitoring"],
     )
 
-    logger.info("Prometheus metrics configured", endpoint="/metrics")
+    logger.info("Prometheus metrics configured", endpoint=metrics_endpoint)
 
     return instrumentator
 

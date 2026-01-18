@@ -69,7 +69,7 @@ class TestRootEndpoint:
     @pytest.mark.asyncio
     async def test_root_returns_service_info(self, client: AsyncClient) -> None:
         """Should return basic service information."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -83,7 +83,7 @@ class TestRootEndpoint:
     @pytest.mark.asyncio
     async def test_root_status_is_operational(self, client: AsyncClient) -> None:
         """Should return operational status."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -93,7 +93,7 @@ class TestRootEndpoint:
     @pytest.mark.asyncio
     async def test_root_health_url_is_valid(self, client: AsyncClient) -> None:
         """Should return valid health endpoint URL."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 
@@ -111,7 +111,7 @@ class TestRootEndpoint:
         client: AsyncClient,
     ) -> None:
         """Should return response with correct field types."""
-        response = await client.get("/")
+        response = await client.get("/api/v1/recipe-scraper/")
 
         assert response.status_code == 200
 

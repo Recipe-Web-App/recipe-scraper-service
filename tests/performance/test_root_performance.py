@@ -35,7 +35,7 @@ class TestRootEndpointBenchmarks:
         """Benchmark root endpoint response time."""
 
         def fetch_root() -> dict:
-            response = sync_client.get("/")
+            response = sync_client.get("/api/v1/recipe-scraper/")
             return response.json()
 
         result = benchmark(fetch_root)
@@ -49,7 +49,7 @@ class TestRootEndpointBenchmarks:
         """Benchmark root endpoint status code check."""
 
         def check_status() -> int:
-            response = sync_client.get("/")
+            response = sync_client.get("/api/v1/recipe-scraper/")
             return response.status_code
 
         result = benchmark(check_status)
@@ -65,7 +65,7 @@ class TestRootEndpointBenchmarks:
         def fetch_multiple() -> int:
             success_count = 0
             for _ in range(10):
-                response = sync_client.get("/")
+                response = sync_client.get("/api/v1/recipe-scraper/")
                 if response.status_code == 200:
                     success_count += 1
             return success_count
@@ -81,7 +81,7 @@ class TestRootEndpointBenchmarks:
         """Benchmark JSON parsing overhead for root response."""
 
         def fetch_and_parse() -> tuple[str, str, str]:
-            response = sync_client.get("/")
+            response = sync_client.get("/api/v1/recipe-scraper/")
             data = response.json()
             return data["service"], data["version"], data["status"]
 
@@ -96,7 +96,7 @@ class TestRootEndpointBenchmarks:
         """Benchmark root endpoint with header verification."""
 
         def fetch_with_headers() -> tuple[int, bool, bool]:
-            response = sync_client.get("/")
+            response = sync_client.get("/api/v1/recipe-scraper/")
             has_request_id = "x-request-id" in response.headers
             has_process_time = "x-process-time" in response.headers
             return response.status_code, has_request_id, has_process_time
@@ -115,7 +115,7 @@ class TestRootEndpointBenchmarks:
         """Benchmark navigating from root to health endpoint."""
 
         def navigate_to_health() -> tuple[str, str]:
-            root_response = sync_client.get("/")
+            root_response = sync_client.get("/api/v1/recipe-scraper/")
             health_url = root_response.json()["health"]
             health_response = sync_client.get(health_url)
             return root_response.json()["status"], health_response.json()["status"]

@@ -42,14 +42,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         settings = get_settings()
 
     # Create FastAPI app with configuration
+    # All URLs must use the API prefix for gateway routing
+    prefix = settings.api.v1_prefix
     app = FastAPI(
         title=settings.app.name,
         version=settings.app.version,
         description="Recipe Scraper Service - Enterprise-grade API for recipe management",
         lifespan=lifespan,
-        docs_url="/docs" if settings.is_non_production else None,
-        redoc_url="/redoc" if settings.is_non_production else None,
-        openapi_url="/openapi.json" if settings.is_non_production else None,
+        docs_url=f"{prefix}/docs" if settings.is_non_production else None,
+        redoc_url=f"{prefix}/redoc" if settings.is_non_production else None,
+        openapi_url=f"{prefix}/openapi.json" if settings.is_non_production else None,
         debug=settings.app.debug,
     )
 
@@ -106,9 +108,15 @@ def _setup_middleware(app: FastAPI, settings: Settings) -> None:
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # Request/response logging
+    # All paths must use the API prefix for gateway routing
+    prefix = settings.api.v1_prefix
     app.add_middleware(
         LoggingMiddleware,
-        exclude_paths={"/health", "/ready", "/metrics", "/favicon.ico"},
+        exclude_paths={
+            f"{prefix}/health",
+            f"{prefix}/ready",
+            f"{prefix}/metrics",
+        },
     )
 
     # Request timing
@@ -124,12 +132,16 @@ def _setup_middleware(app: FastAPI, settings: Settings) -> None:
 def _setup_routers(app: FastAPI, settings: Settings) -> None:
     """Mount API routers.
 
+    All routers must use the API prefix for gateway routing.
+
     Args:
         app: FastAPI application instance.
         settings: Application settings.
     """
-    # Mount root router (no prefix, for service discovery)
-    app.include_router(root_router)
+    prefix = settings.api.v1_prefix
 
-    # Mount v1 API router
-    app.include_router(v1_router, prefix=settings.api.v1_prefix)
+    # Mount root router with prefix (for service discovery)
+    app.include_router(root_router, prefix=prefix)
+
+    # Mount v1 API router with prefix
+    app.include_router(v1_router, prefix=prefix)

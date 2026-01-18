@@ -1,4 +1,4 @@
-"""Performance benchmarks for /metrics endpoint.
+"""Performance benchmarks for /api/v1/recipe-scraper/metrics endpoint.
 
 Benchmarks cover:
 - Metrics endpoint response time
@@ -35,7 +35,7 @@ class TestMetricsEndpointBenchmarks:
         """Benchmark metrics endpoint response time."""
 
         def fetch_metrics() -> str:
-            response = sync_client.get("/metrics")
+            response = sync_client.get("/api/v1/recipe-scraper/metrics")
             return response.text
 
         result = benchmark(fetch_metrics)
@@ -49,7 +49,7 @@ class TestMetricsEndpointBenchmarks:
         """Benchmark metrics endpoint status code check."""
 
         def check_status() -> int:
-            response = sync_client.get("/metrics")
+            response = sync_client.get("/api/v1/recipe-scraper/metrics")
             return response.status_code
 
         result = benchmark(check_status)
@@ -65,7 +65,7 @@ class TestMetricsEndpointBenchmarks:
         def fetch_multiple() -> int:
             success_count = 0
             for _ in range(10):
-                response = sync_client.get("/metrics")
+                response = sync_client.get("/api/v1/recipe-scraper/metrics")
                 if response.status_code == 200:
                     success_count += 1
             return success_count
@@ -81,10 +81,10 @@ class TestMetricsEndpointBenchmarks:
         """Benchmark metrics endpoint after generating API traffic."""
         # Generate some API traffic first
         for _ in range(100):
-            sync_client.get("/")
+            sync_client.get("/api/v1/recipe-scraper/")
 
         def fetch_metrics() -> str:
-            response = sync_client.get("/metrics")
+            response = sync_client.get("/api/v1/recipe-scraper/metrics")
             return response.text
 
         result = benchmark(fetch_metrics)
@@ -98,7 +98,7 @@ class TestMetricsEndpointBenchmarks:
         """Benchmark metrics response size."""
 
         def fetch_and_measure() -> int:
-            response = sync_client.get("/metrics")
+            response = sync_client.get("/api/v1/recipe-scraper/metrics")
             return len(response.content)
 
         result = benchmark(fetch_and_measure)
@@ -113,7 +113,7 @@ class TestMetricsEndpointBenchmarks:
         """Benchmark metrics endpoint with header verification."""
 
         def fetch_with_headers() -> tuple[int, bool, bool]:
-            response = sync_client.get("/metrics")
+            response = sync_client.get("/api/v1/recipe-scraper/metrics")
             has_request_id = "x-request-id" in response.headers
             has_process_time = "x-process-time" in response.headers
             return response.status_code, has_request_id, has_process_time
@@ -132,7 +132,7 @@ class TestMetricsEndpointBenchmarks:
         """Benchmark fetching and validating Prometheus format."""
 
         def fetch_and_validate() -> tuple[bool, bool]:
-            response = sync_client.get("/metrics")
+            response = sync_client.get("/api/v1/recipe-scraper/metrics")
             content = response.text
             has_help = "# HELP" in content
             has_type = "# TYPE" in content

@@ -36,6 +36,8 @@ async def root(
         service=settings.app.name,
         version=settings.app.version,
         status="operational",
-        docs="/docs" if settings.is_non_production else "disabled",
+        docs=f"{settings.api.v1_prefix}/docs"
+        if settings.is_non_production
+        else "disabled",
         health=f"{settings.api.v1_prefix}/health",
     )

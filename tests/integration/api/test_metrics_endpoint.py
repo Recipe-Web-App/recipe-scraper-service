@@ -1,4 +1,4 @@
-"""Integration tests for /metrics Prometheus endpoint.
+"""Integration tests for /api/v1/recipe-scraper/metrics Prometheus endpoint.
 
 Tests cover:
 - Endpoint accessibility
@@ -22,19 +22,19 @@ pytestmark = pytest.mark.integration
 
 
 class TestMetricsEndpoint:
-    """Tests for GET /metrics."""
+    """Tests for GET /api/v1/recipe-scraper/metrics."""
 
     @pytest.mark.asyncio
     async def test_metrics_endpoint_accessible(self, client: AsyncClient) -> None:
         """Should return 200 status code."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_metrics_returns_prometheus_format(self, client: AsyncClient) -> None:
         """Should return valid Prometheus metrics format."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
         content = response.text
@@ -48,7 +48,7 @@ class TestMetricsEndpoint:
         self, client: AsyncClient
     ) -> None:
         """Should return text/plain content type."""
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
 
         assert response.status_code == 200
         content_type = response.headers.get("content-type", "")
@@ -58,9 +58,9 @@ class TestMetricsEndpoint:
     async def test_metrics_contains_http_metrics(self, client: AsyncClient) -> None:
         """Should contain HTTP request metrics with recipe_scraper namespace."""
         # Make a request to generate metrics
-        await client.get("/")
+        await client.get("/api/v1/recipe-scraper/")
 
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
         # Should contain recipe_scraper namespace metrics
@@ -70,26 +70,26 @@ class TestMetricsEndpoint:
     async def test_metrics_excludes_metrics_endpoint_from_instrumentation(
         self, client: AsyncClient
     ) -> None:
-        """Should not instrument the /metrics endpoint itself."""
-        # Make multiple requests to /metrics
+        """Should not instrument the /api/v1/recipe-scraper/metrics endpoint itself."""
+        # Make multiple requests to /api/v1/recipe-scraper/metrics
         for _ in range(5):
-            await client.get("/metrics")
+            await client.get("/api/v1/recipe-scraper/metrics")
 
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
-        # The /metrics endpoint should not appear in handler labels
+        # The /api/v1/recipe-scraper/metrics endpoint should not appear in handler labels
         # (it's in excluded_handlers)
-        assert 'handler="/metrics"' not in content
+        assert 'handler="/api/v1/recipe-scraper/metrics"' not in content
 
     @pytest.mark.asyncio
     async def test_metrics_records_after_api_request(self, client: AsyncClient) -> None:
         """Should record metrics after API requests are made."""
         # Make requests to various endpoints
-        await client.get("/")
+        await client.get("/api/v1/recipe-scraper/")
         await client.get("/api/v1/recipe-scraper/health")
 
-        response = await client.get("/metrics")
+        response = await client.get("/api/v1/recipe-scraper/metrics")
         content = response.text
 
         # Should have recorded requests (counter or histogram present)
