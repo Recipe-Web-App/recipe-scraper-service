@@ -121,3 +121,177 @@ class TestSetupMetrics:
             mock_instrumentator.expose.assert_called_once()
             call_kwargs = mock_instrumentator.expose.call_args.kwargs
             assert call_kwargs["endpoint"] == "/metrics"
+
+
+class TestMetricsConfiguration:
+    """Tests for metrics configuration options."""
+
+    def test_uses_recipe_scraper_namespace(self) -> None:
+        """Should use recipe_scraper as metric namespace."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+            patch("app.observability.metrics.metrics") as mock_metrics_module,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            # Verify namespace is set in default metrics
+            mock_metrics_module.default.assert_called()
+            call_kwargs = mock_metrics_module.default.call_args.kwargs
+            assert call_kwargs["metric_namespace"] == "recipe_scraper"
+
+    def test_includes_request_size_metrics(self) -> None:
+        """Should add request size metrics."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+            patch("app.observability.metrics.metrics") as mock_metrics_module,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            mock_metrics_module.request_size.assert_called()
+
+    def test_includes_response_size_metrics(self) -> None:
+        """Should add response size metrics."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+            patch("app.observability.metrics.metrics") as mock_metrics_module,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            mock_metrics_module.response_size.assert_called()
+
+    def test_configures_status_code_grouping(self) -> None:
+        """Should configure status code grouping."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            call_kwargs = mock_instr_class.call_args.kwargs
+            assert call_kwargs["should_group_status_codes"] is True
+
+    def test_configures_inprogress_tracking(self) -> None:
+        """Should configure in-progress request tracking."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            call_kwargs = mock_instr_class.call_args.kwargs
+            assert call_kwargs["should_instrument_requests_inprogress"] is True
+            assert call_kwargs["inprogress_name"] == "http_requests_inprogress"
+
+    def test_expose_includes_in_schema(self) -> None:
+        """Should include metrics endpoint in OpenAPI schema."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            call_kwargs = mock_instrumentator.expose.call_args.kwargs
+            assert call_kwargs["include_in_schema"] is True
+
+    def test_expose_uses_monitoring_tag(self) -> None:
+        """Should use 'Monitoring' tag for OpenAPI documentation."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            call_kwargs = mock_instrumentator.expose.call_args.kwargs
+            assert call_kwargs["tags"] == ["Monitoring"]
+
+    def test_adds_three_metric_types(self) -> None:
+        """Should add default, request_size, and response_size metrics."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+            patch("app.observability.metrics.metrics"),
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            # Should have called add() three times
+            assert mock_instrumentator.add.call_count == 3
+
+    def test_excludes_documentation_endpoints(self) -> None:
+        """Should exclude /docs, /redoc, /openapi.json from instrumentation."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings(metrics_enabled=True)
+
+        with (
+            patch("app.observability.metrics.get_settings", return_value=mock_settings),
+            patch("app.observability.metrics.Instrumentator") as mock_instr_class,
+        ):
+            mock_instrumentator = MagicMock()
+            mock_instr_class.return_value = mock_instrumentator
+            mock_instrumentator.add.return_value = mock_instrumentator
+
+            setup_metrics(mock_app)
+
+            call_kwargs = mock_instr_class.call_args.kwargs
+            excluded = call_kwargs["excluded_handlers"]
+            assert "/docs" in excluded
+            assert "/redoc" in excluded
+            assert "/openapi.json" in excluded

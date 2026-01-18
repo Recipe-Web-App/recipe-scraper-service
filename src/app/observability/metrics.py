@@ -103,8 +103,8 @@ def setup_metrics(app: FastAPI) -> Instrumentator:
     instrumentator.expose(
         app,
         endpoint="/metrics",
-        include_in_schema=False,
-        tags=["monitoring"],
+        include_in_schema=True,
+        tags=["Monitoring"],
     )
 
     logger.info("Prometheus metrics configured", endpoint="/metrics")

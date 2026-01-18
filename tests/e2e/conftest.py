@@ -5,6 +5,8 @@ Provides fixtures for end-to-end testing with full system integration.
 
 from __future__ import annotations
 
+import contextlib
+import os
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -12,6 +14,7 @@ import pytest
 from arq import create_pool
 from arq.connections import RedisSettings as ArqRedisSettings
 from httpx import ASGITransport, AsyncClient
+from prometheus_client import REGISTRY
 from testcontainers.redis import RedisContainer
 
 import app.cache.redis as redis_module
@@ -103,8 +106,25 @@ def test_settings(redis_url: str) -> Settings:
 
 @pytest.fixture
 def app(test_settings: Settings) -> FastAPI:
-    """Create FastAPI app with test settings."""
-    return create_app(test_settings)
+    """Create FastAPI app with test settings.
+
+    Sets METRICS_ENABLED env var since prometheus-fastapi-instrumentator
+    checks this when should_respect_env_var=True.
+    """
+    original_metrics_enabled = os.environ.get("METRICS_ENABLED")
+    os.environ["METRICS_ENABLED"] = "true"
+
+    try:
+        with (
+            patch("app.observability.metrics.get_settings", return_value=test_settings),
+            patch("app.observability.tracing.get_settings", return_value=test_settings),
+        ):
+            return create_app(test_settings)
+    finally:
+        if original_metrics_enabled is None:
+            os.environ.pop("METRICS_ENABLED", None)
+        else:
+            os.environ["METRICS_ENABLED"] = original_metrics_enabled
 
 
 @pytest.fixture
@@ -177,3 +197,27 @@ async def reset_redis_state() -> AsyncGenerator[None]:
     yield
 
     await close_redis_pools()
+
+
+@pytest.fixture(autouse=True)
+def reset_prometheus_registry() -> Generator[None]:
+    """Reset Prometheus registry between tests.
+
+    This prevents 'Duplicated timeseries' errors when creating
+    multiple app instances in tests.
+    """
+
+    # Collect all collector names before test
+    collectors_before = set(REGISTRY._names_to_collectors.keys())
+
+    yield
+
+    # Remove any collectors added during the test
+    collectors_to_remove = []
+    for name, collector in list(REGISTRY._names_to_collectors.items()):
+        if name not in collectors_before:
+            collectors_to_remove.append(collector)
+
+    for collector in collectors_to_remove:
+        with contextlib.suppress(Exception):
+            REGISTRY.unregister(collector)
