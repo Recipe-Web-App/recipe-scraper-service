@@ -49,6 +49,95 @@ paths:
                   health:
                     type: string
                     example: /api/v1/recipe-scraper/health
+  /docs:
+    get:
+      tags:
+        - Documentation
+      summary: Interactive API documentation
+      description: Swagger UI interactive API documentation. Only available in development
+        mode. Provides a web-based interface for exploring and testing API endpoints.
+      operationId: swaggerDocs
+      responses:
+        "200":
+          description: Swagger UI HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+              example: "<!DOCTYPE html><html>...</html>"
+        "404":
+          description: Documentation not available (production mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                docs_disabled:
+                  summary: Documentation disabled in production
+                  value:
+                    error: NOT_FOUND
+                    message: Documentation is not available in production mode
+  /redoc:
+    get:
+      tags:
+        - Documentation
+      summary: ReDoc API documentation
+      description: ReDoc-style API documentation. Only available in development mode.
+        Provides an alternative documentation view with a clean, readable layout.
+      operationId: redocDocs
+      responses:
+        "200":
+          description: ReDoc HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+              example: "<!DOCTYPE html><html>...</html>"
+        "404":
+          description: Documentation not available (production mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                docs_disabled:
+                  summary: Documentation disabled in production
+                  value:
+                    error: NOT_FOUND
+                    message: Documentation is not available in production mode
+  /openapi.json:
+    get:
+      tags:
+        - Documentation
+      summary: OpenAPI specification
+      description: Raw OpenAPI 3.1 specification in JSON format. Only available in
+        development mode. Can be used to generate client SDKs or import into API tools.
+      operationId: openApiSpec
+      responses:
+        "200":
+          description: OpenAPI specification JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                description: OpenAPI 3.1 specification document
+              example:
+                openapi: "3.1.0"
+                info:
+                  title: Recipe Scraper Service
+                  version: "2.0.0"
+        "404":
+          description: Specification not available (production mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                spec_disabled:
+                  summary: OpenAPI spec disabled in production
+                  value:
+                    error: NOT_FOUND
+                    message: OpenAPI specification is not available in production mode
   /metrics:
     get:
       tags:
@@ -1584,6 +1673,9 @@ security:
 tags:
   - name: Root
     description: Root and basic service endpoints
+  - name: Documentation
+    description: API documentation endpoints (Swagger UI, ReDoc, OpenAPI spec) - only
+      available in development mode
   - name: Health
     description: Health check and monitoring endpoints for service observability
   - name: Monitoring

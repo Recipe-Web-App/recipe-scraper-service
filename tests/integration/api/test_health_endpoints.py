@@ -76,4 +76,48 @@ class TestRootEndpoint:
         data = response.json()
         assert "service" in data
         assert "version" in data
+        assert "status" in data
         assert "docs" in data
+        assert "health" in data
+
+    @pytest.mark.asyncio
+    async def test_root_status_is_operational(self, client: AsyncClient) -> None:
+        """Should return operational status."""
+        response = await client.get("/")
+
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["status"] == "operational"
+
+    @pytest.mark.asyncio
+    async def test_root_health_url_is_valid(self, client: AsyncClient) -> None:
+        """Should return valid health endpoint URL."""
+        response = await client.get("/")
+
+        assert response.status_code == 200
+
+        data = response.json()
+        health_url = data["health"]
+
+        # Verify health URL points to working endpoint
+        health_response = await client.get(health_url)
+        assert health_response.status_code == 200
+        assert health_response.json()["status"] == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_root_response_has_correct_structure(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        """Should return response with correct field types."""
+        response = await client.get("/")
+
+        assert response.status_code == 200
+
+        data = response.json()
+        assert isinstance(data["service"], str)
+        assert isinstance(data["version"], str)
+        assert isinstance(data["status"], str)
+        assert isinstance(data["docs"], str)
+        assert isinstance(data["health"], str)

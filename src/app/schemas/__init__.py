@@ -81,6 +81,9 @@ from app.schemas.recommendations import (
     RecommendedSubstitutionsResponse,
 )
 
+# Root schemas
+from app.schemas.root import RootResponse
+
 # Shopping schemas
 from app.schemas.shopping import (
     IngredientShoppingInfoResponse,
@@ -129,6 +132,7 @@ __all__ = [
     "RecipeStep",
     "RecommendedSubstitutionsResponse",
     "RefreshTokenRequest",
+    "RootResponse",
     "Sugars",
     "TokenInfo",
     "TokenRequest",

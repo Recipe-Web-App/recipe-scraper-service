@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi.errors import RateLimitExceeded
 
+from app.api.v1.endpoints.root import router as root_router
 from app.api.v1.router import router as v1_router
 from app.cache.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.config import Settings, get_settings
@@ -46,9 +47,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=settings.app.version,
         description="Recipe Scraper Service - Enterprise-grade API for recipe management",
         lifespan=lifespan,
-        docs_url="/docs" if settings.is_development else None,
-        redoc_url="/redoc" if settings.is_development else None,
-        openapi_url="/openapi.json" if settings.is_development else None,
+        docs_url="/docs" if settings.is_non_production else None,
+        redoc_url="/redoc" if settings.is_non_production else None,
+        openapi_url="/openapi.json" if settings.is_non_production else None,
         debug=settings.app.debug,
     )
 
@@ -127,15 +128,8 @@ def _setup_routers(app: FastAPI, settings: Settings) -> None:
         app: FastAPI application instance.
         settings: Application settings.
     """
+    # Mount root router (no prefix, for service discovery)
+    app.include_router(root_router)
+
     # Mount v1 API router
     app.include_router(v1_router, prefix=settings.api.v1_prefix)
-
-    # Root health check (no prefix, for load balancers)
-    @app.get("/", include_in_schema=False)
-    async def root() -> dict[str, str]:
-        """Root endpoint returning basic service info."""
-        return {
-            "service": settings.app.name,
-            "version": settings.app.version,
-            "docs": "/docs" if settings.is_development else "disabled",
-        }

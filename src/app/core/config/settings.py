@@ -370,6 +370,16 @@ class Settings(BaseSettings):
         return self.APP_ENV == "production"
 
     @property
+    def is_non_production(self) -> bool:
+        """Check if running in a non-production environment.
+
+        Returns True for local, test, and development environments where
+        features like API documentation, debug logging, and detailed error
+        messages should be enabled.
+        """
+        return self.APP_ENV in ("local", "test", "development")
+
+    @property
     def is_testing(self) -> bool:
         """Check if running in test environment."""
         return self.APP_ENV == "test"

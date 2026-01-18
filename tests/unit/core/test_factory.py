@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import FastAPI
 
+from app.core.config import Settings
 from app.factory import _setup_middleware, _setup_routers, create_app
 
 
@@ -24,81 +25,102 @@ class TestCreateApp:
 
     def test_creates_fastapi_instance(self) -> None:
         """Should create a FastAPI instance."""
-        mock_settings = MagicMock()
-        mock_settings.app.name = "test-app"
-        mock_settings.app.version = "1.0.0"
-        mock_settings.app.debug = False
-        mock_settings.is_development = True
-        mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
+        settings = Settings(APP_ENV="local")
 
         with (
             patch("app.factory.setup_tracing"),
             patch("app.factory.setup_metrics"),
             patch("app.factory.setup_exception_handlers"),
         ):
-            app = create_app(mock_settings)
+            app = create_app(settings)
 
         assert isinstance(app, FastAPI)
-        assert app.title == "test-app"
-        assert app.version == "1.0.0"
+        assert app.title == settings.app.name
+        assert app.version == settings.app.version
 
     def test_stores_settings_in_state(self) -> None:
         """Should store settings in app state."""
-        mock_settings = MagicMock()
-        mock_settings.app.name = "test-app"
-        mock_settings.app.version = "1.0.0"
-        mock_settings.app.debug = False
-        mock_settings.is_development = True
-        mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
+        settings = Settings(APP_ENV="local")
 
         with (
             patch("app.factory.setup_tracing"),
             patch("app.factory.setup_metrics"),
             patch("app.factory.setup_exception_handlers"),
         ):
-            app = create_app(mock_settings)
+            app = create_app(settings)
 
-        assert app.state.settings is mock_settings
+        assert app.state.settings is settings
 
     def test_disables_docs_in_production(self) -> None:
         """Should disable docs endpoints in production."""
-        mock_settings = MagicMock()
-        mock_settings.app.name = "test-app"
-        mock_settings.app.version = "1.0.0"
-        mock_settings.app.debug = False
-        mock_settings.is_development = False
-        mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
+        settings = Settings(APP_ENV="production")
 
         with (
             patch("app.factory.setup_tracing"),
             patch("app.factory.setup_metrics"),
             patch("app.factory.setup_exception_handlers"),
         ):
-            app = create_app(mock_settings)
+            app = create_app(settings)
 
         assert app.docs_url is None
         assert app.redoc_url is None
         assert app.openapi_url is None
 
-    def test_enables_docs_in_development(self) -> None:
-        """Should enable docs endpoints in development."""
-        mock_settings = MagicMock()
-        mock_settings.app.name = "test-app"
-        mock_settings.app.version = "1.0.0"
-        mock_settings.app.debug = True
-        mock_settings.is_development = True
-        mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
+    def test_disables_docs_in_staging(self) -> None:
+        """Should disable docs endpoints in staging."""
+        settings = Settings(APP_ENV="staging")
 
         with (
             patch("app.factory.setup_tracing"),
             patch("app.factory.setup_metrics"),
             patch("app.factory.setup_exception_handlers"),
         ):
-            app = create_app(mock_settings)
+            app = create_app(settings)
+
+        assert app.docs_url is None
+        assert app.redoc_url is None
+        assert app.openapi_url is None
+
+    def test_enables_docs_in_local(self) -> None:
+        """Should enable docs endpoints in local environment."""
+        settings = Settings(APP_ENV="local")
+
+        with (
+            patch("app.factory.setup_tracing"),
+            patch("app.factory.setup_metrics"),
+            patch("app.factory.setup_exception_handlers"),
+        ):
+            app = create_app(settings)
+
+        assert app.docs_url == "/docs"
+        assert app.redoc_url == "/redoc"
+        assert app.openapi_url == "/openapi.json"
+
+    def test_enables_docs_in_test(self) -> None:
+        """Should enable docs endpoints in test environment."""
+        settings = Settings(APP_ENV="test")
+
+        with (
+            patch("app.factory.setup_tracing"),
+            patch("app.factory.setup_metrics"),
+            patch("app.factory.setup_exception_handlers"),
+        ):
+            app = create_app(settings)
+
+        assert app.docs_url == "/docs"
+        assert app.redoc_url == "/redoc"
+        assert app.openapi_url == "/openapi.json"
+
+    def test_enables_docs_in_development(self) -> None:
+        """Should enable docs endpoints in development environment."""
+        settings = Settings(APP_ENV="development")
+
+        with (
+            patch("app.factory.setup_tracing"),
+            patch("app.factory.setup_metrics"),
+            patch("app.factory.setup_exception_handlers"),
+        ):
+            app = create_app(settings)
 
         assert app.docs_url == "/docs"
         assert app.redoc_url == "/redoc"
@@ -106,23 +128,17 @@ class TestCreateApp:
 
     def test_uses_default_settings_when_none_provided(self) -> None:
         """Should use get_settings when no settings provided."""
-        mock_settings = MagicMock()
-        mock_settings.app.name = "default-app"
-        mock_settings.app.version = "0.0.1"
-        mock_settings.app.debug = False
-        mock_settings.is_development = True
-        mock_settings.api.cors_origins = []
-        mock_settings.api.v1_prefix = "/api/v1/recipe-scraper"
+        settings = Settings(APP_ENV="local")
 
         with (
-            patch("app.factory.get_settings", return_value=mock_settings),
+            patch("app.factory.get_settings", return_value=settings),
             patch("app.factory.setup_tracing"),
             patch("app.factory.setup_metrics"),
             patch("app.factory.setup_exception_handlers"),
         ):
             app = create_app()
 
-        assert app.title == "default-app"
+        assert app.title == settings.app.name
 
 
 class TestSetupMiddleware:

@@ -166,6 +166,31 @@ class TestSettingsEnvironmentDetection:
         assert settings.is_local is True
         assert settings.is_development is False
 
+    def test_is_non_production_for_local(self):
+        """Should return True for local environment."""
+        settings = Settings(APP_ENV="local")
+        assert settings.is_non_production is True
+
+    def test_is_non_production_for_test(self):
+        """Should return True for test environment."""
+        settings = Settings(APP_ENV="test")
+        assert settings.is_non_production is True
+
+    def test_is_non_production_for_development(self):
+        """Should return True for development environment."""
+        settings = Settings(APP_ENV="development")
+        assert settings.is_non_production is True
+
+    def test_is_non_production_for_staging(self):
+        """Should return False for staging environment."""
+        settings = Settings(APP_ENV="staging")
+        assert settings.is_non_production is False
+
+    def test_is_non_production_for_production(self):
+        """Should return False for production environment."""
+        settings = Settings(APP_ENV="production")
+        assert settings.is_non_production is False
+
 
 class TestSettingsCorsOrigins:
     """Tests for CORS origins configuration."""

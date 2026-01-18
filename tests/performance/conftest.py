@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from starlette.testclient import TestClient
 from testcontainers.redis import RedisContainer
 
 import app.cache.redis as redis_module
@@ -24,10 +25,13 @@ from app.core.config.settings import (
     RedisSettings,
     ServerSettings,
 )
+from app.factory import create_app
 
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
+
+    from fastapi import FastAPI
 
 
 pytestmark = pytest.mark.performance
@@ -119,3 +123,19 @@ async def reset_redis_state() -> AsyncGenerator[None]:
     yield
 
     await close_redis_pools()
+
+
+@pytest.fixture
+def app(test_settings: Settings) -> FastAPI:
+    """Create FastAPI app with test settings for performance tests."""
+    return create_app(test_settings)
+
+
+@pytest.fixture
+def sync_client(app: FastAPI) -> Generator[TestClient]:
+    """Create a sync HTTP client for performance benchmarks.
+
+    Uses Starlette TestClient to avoid event loop conflicts with pytest-benchmark.
+    """
+    with TestClient(app) as client:
+        yield client
