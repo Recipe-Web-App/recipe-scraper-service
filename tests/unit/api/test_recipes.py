@@ -19,8 +19,6 @@ from app.api.dependencies import (
     get_scraper_service,
 )
 from app.api.v1.endpoints.recipes import (
-    CreateRecipeRequest,
-    CreateRecipeResponse,
     _build_downstream_request,
     _build_response,
     _map_unit,
@@ -31,6 +29,7 @@ from app.llm.prompts import ParsedIngredient
 from app.parsing.exceptions import (
     IngredientParsingError,
 )
+from app.schemas import CreateRecipeRequest, CreateRecipeResponse
 from app.services.recipe_management import IngredientUnit, RecipeResponse
 from app.services.recipe_management.exceptions import (
     RecipeManagementResponseError,

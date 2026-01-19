@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field, HttpUrl
 
 from app.api.dependencies import (
     get_ingredient_parser,
@@ -22,6 +21,13 @@ from app.llm.prompts import IngredientUnit as ParsedIngredientUnit  # noqa: TC00
 from app.observability.logging import get_logger
 from app.parsing.exceptions import IngredientParsingError
 from app.parsing.ingredient import IngredientParser  # noqa: TC001
+from app.schemas import (
+    CreateRecipeRequest,
+    CreateRecipeResponse,
+    Ingredient,
+    Recipe,
+    RecipeStep,
+)
 
 # These imports are needed at runtime for FastAPI dependency injection type resolution
 from app.services.recipe_management import (
@@ -56,99 +62,6 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["Recipes"])
-
-
-# --- Request/Response Schemas ---
-
-
-class CreateRecipeRequest(BaseModel):
-    """Request schema for creating a recipe from a URL."""
-
-    recipe_url: HttpUrl = Field(
-        ...,
-        alias="recipeUrl",
-        description="The recipe URL to scrape and save",
-        examples=[
-            "https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/"
-        ],
-    )
-
-    model_config = {"populate_by_name": True}
-
-
-class Quantity(BaseModel):
-    """Ingredient quantity with amount and measurement."""
-
-    amount: float = Field(..., ge=0, description="Numeric quantity")
-    measurement: str = Field(default="UNIT", description="Unit of measurement")
-
-
-class Ingredient(BaseModel):
-    """Ingredient in the response."""
-
-    ingredient_id: int | None = Field(
-        None,
-        alias="ingredientId",
-        description="Ingredient ID from downstream service",
-    )
-    name: str | None = Field(None, description="Ingredient name")
-    quantity: Quantity | None = None
-
-    model_config = {"populate_by_name": True}
-
-
-class RecipeStep(BaseModel):
-    """Recipe preparation step."""
-
-    step_number: int = Field(
-        ..., alias="stepNumber", description="Step sequence number"
-    )
-    instruction: str = Field(..., description="Step instruction")
-    optional: bool = Field(default=False, description="Whether step is optional")
-    timer_seconds: int | None = Field(
-        None,
-        alias="timerSeconds",
-        description="Timer in seconds for this step",
-    )
-
-    model_config = {"populate_by_name": True}
-
-
-class Recipe(BaseModel):
-    """Recipe data returned after creation."""
-
-    recipe_id: int = Field(..., alias="recipeId", description="Created recipe ID")
-    title: str = Field(..., description="Recipe title")
-    description: str | None = Field(None, description="Recipe description")
-    origin_url: str | None = Field(None, alias="originUrl", description="Source URL")
-    servings: float | None = Field(None, description="Number of servings")
-    preparation_time: int | None = Field(
-        None,
-        alias="preparationTime",
-        description="Prep time in minutes",
-    )
-    cooking_time: int | None = Field(
-        None,
-        alias="cookingTime",
-        description="Cook time in minutes",
-    )
-    difficulty: str | None = Field(None, description="Difficulty level")
-    ingredients: list[Ingredient] = Field(
-        default_factory=list,
-        description="List of ingredients",
-    )
-    steps: list[RecipeStep] = Field(
-        default_factory=list,
-        description="List of preparation steps",
-    )
-
-    model_config = {"populate_by_name": True}
-
-
-class CreateRecipeResponse(BaseModel):
-    """Response returned after successfully creating a recipe."""
-
-    recipe: Recipe = Field(..., description="Created recipe data")
 
 
 # --- Helper Functions ---

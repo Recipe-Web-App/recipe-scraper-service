@@ -24,7 +24,10 @@ class Quantity(APIResponse):
 class Ingredient(APIResponse):
     """Ingredient data with optional quantity."""
 
-    ingredient_id: int = Field(..., description="Unique ingredient identifier")
+    ingredient_id: int | None = Field(
+        default=None,
+        description="Unique ingredient identifier",
+    )
     name: str | None = Field(default=None, description="Ingredient name")
     quantity: Quantity | None = Field(default=None, description="Ingredient quantity")
 
