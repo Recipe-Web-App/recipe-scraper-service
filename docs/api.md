@@ -14,14 +14,14 @@ Complete API documentation for the Recipe Scraper Service.
 
 All API endpoints are versioned under `/api/v1/recipe-scraper/`. The version and service name are included in the URL path.
 
-- **Health/monitoring endpoints**: `/api/v1/recipe-scraper/health`, `/api/v1/recipe-scraper/liveness`, `/api/v1/recipe-scraper/readiness`
+- **Health/monitoring endpoints**: `/api/v1/recipe-scraper/health`, `/api/v1/recipe-scraper/ready`
 - **Recipe business endpoints**: `/api/v1/recipe-scraper/recipes`, `/api/v1/recipe-scraper/ingredients`, etc.
 
 ```mermaid
 flowchart LR
     Client([Client]) --> LB[Load Balancer]
     LB --> API["/api/v1/recipe-scraper/*"]
-    API --> Health["/health, /liveness, /readiness"]
+    API --> Health["/health, /ready"]
     API --> Recipes["/recipes"]
     API --> Ingredients["/ingredients"]
 ```

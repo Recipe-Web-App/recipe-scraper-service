@@ -157,33 +157,7 @@ paths:
                 # TYPE http_requests_total counter
 
                 http_requests_total{method="GET",endpoint="/api/health"} 42'
-  /api/v1/recipe-scraper/liveness:
-    get:
-      tags:
-        - Health
-      summary: Liveness probe
-      description: Basic liveness check for Kubernetes/container orchestration. Returns
-        200 OK if the service is running.
-      operationId: livenessProbe
-      responses:
-        "200":
-          description: Service is alive
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: alive
-                  timestamp:
-                    type: string
-                    format: date-time
-                    example: "2025-01-31T12:00:00Z"
-                  service:
-                    type: string
-                    example: recipe-scraper-service
-  /api/v1/recipe-scraper/readiness:
+  /api/v1/recipe-scraper/ready:
     get:
       tags:
         - Health
