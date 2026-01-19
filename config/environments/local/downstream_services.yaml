@@ -1,0 +1,3 @@
+downstream_services:
+  recipe_management:
+    url: http://kong-proxy.local/api/v1/recipe-management

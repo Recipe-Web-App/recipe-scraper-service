@@ -22,10 +22,17 @@ from app.core.config.settings import (
     ApiSettings,
     AppSettings,
     AuthSettings,
+    DownstreamServicesSettings,
+    LLMCacheSettings,
+    LLMFallbackSettings,
+    LLMSettings,
     LoggingSettings,
     ObservabilitySettings,
+    OllamaSettings,
     RateLimitingSettings,
+    RecipeManagementServiceSettings,
     RedisSettings,
+    ScrapingSettings,
     ServerSettings,
 )
 from app.factory import create_app
@@ -97,6 +104,28 @@ def test_settings(redis_url: str) -> Settings:
             format="json",
         ),
         observability=ObservabilitySettings(),
+        llm=LLMSettings(
+            enabled=True,
+            provider="ollama",
+            ollama=OllamaSettings(
+                url="http://localhost:11434",
+                model="mistral:7b",
+                timeout=60.0,
+            ),
+            fallback=LLMFallbackSettings(enabled=False),
+            cache=LLMCacheSettings(enabled=False),
+        ),
+        scraping=ScrapingSettings(
+            fetch_timeout=30.0,
+            max_retries=2,
+            cache_enabled=False,  # Disable cache for benchmarks
+        ),
+        downstream_services=DownstreamServicesSettings(
+            recipe_management=RecipeManagementServiceSettings(
+                url="http://localhost:8001",
+                timeout=10.0,
+            ),
+        ),
     )
 
 

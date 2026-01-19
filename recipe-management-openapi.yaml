@@ -1,0 +1,4856 @@
+---
+openapi: 3.1.0
+info:
+  title: Recipe Management Service API
+  description: |
+    Comprehensive recipe management service for the Recipe Web Application ecosystem.
+
+    Provides complete functionality for managing recipes, ingredients, steps, tags,
+    reviews, and media content. Built with Spring Boot 3.5.3 and Java 21.
+
+    **Features:**
+    - Complete recipe CRUD operations
+    - Advanced search and filtering
+    - Ingredient management with scaling and shopping lists
+    - Step-by-step cooking instructions
+    - User reviews and ratings
+    - Tag-based categorization
+    - Media upload and management
+    - Revision history tracking
+    - JWT authentication integration
+  version: 1.0.0
+  contact:
+    name: Recipe Web App Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1/recipe-management
+    description: Local development server
+  - url: http://sous-chef-proxy.local/api/v1/recipe-management
+    description: Kubernetes deployment
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: recipes
+    description: Recipe CRUD operations and management
+  - name: collections
+    description: Recipe collection management and organization
+  - name: ingredients
+    description: Ingredient management and scaling
+  - name: steps
+    description: Cooking step management
+  - name: tags
+    description: Recipe categorization and tagging
+  - name: reviews
+    description: Recipe reviews and ratings
+  - name: media
+    description: Media file management
+  - name: revisions
+    description: Change history tracking
+  - name: search
+    description: Recipe search and filtering
+  - name: health
+    description: Health checks and monitoring endpoints
+  - name: monitoring
+    description: Application metrics and observability
+  - name: comments
+    description: Recipe comment management
+  - name: favorites
+    description: Recipe and collection favorite management
+  - name: users
+    description: User-scoped endpoints for accessing authenticated user's resources
+
+paths:
+  /recipes:
+    get:
+      tags: [recipes]
+      summary: Get all recipes
+      description: |
+        Retrieves all recipes with pagination support. Returns basic recipe information
+        including title, description, ratings, and metadata.
+      operationId: getAllRecipes
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      responses:
+        "200":
+          description: List of recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchRecipesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [recipes]
+      summary: Create new recipe
+      description: |
+        Creates a new recipe with ingredients, steps, and tags. The recipe is
+        associated with the authenticated user.
+      operationId: createRecipe
+      requestBody:
+        description: Recipe creation data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecipeRequest"
+      responses:
+        "201":
+          description: Recipe created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}:
+    get:
+      tags: [recipes]
+      summary: Get recipe by ID
+      description: |
+        Retrieves a complete recipe with all associated data including ingredients,
+        steps, tags, and summary statistics.
+      operationId: getRecipeById
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - name: includeComments
+          in: query
+          required: false
+          description: Include recipe comments in the response
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Recipe retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags: [recipes]
+      summary: Update recipe
+      description: |
+        Updates an existing recipe. User must own the recipe or have appropriate
+        permissions to modify it.
+      operationId: updateRecipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: Recipe update data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecipeRequest"
+      responses:
+        "200":
+          description: Recipe updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [recipes]
+      summary: Delete recipe
+      description: |
+        Permanently deletes a recipe and all associated data including ingredients,
+        steps, reviews, and media. User must own the recipe to delete it.
+      operationId: deleteRecipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "204":
+          description: Recipe deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/trending:
+    get:
+      tags: [search]
+      summary: Get trending recipes
+      description: |
+        Retrieves the most trending recipes with pagination support.
+
+        Recipes are ordered by trending score in descending order, so the first
+        item in the response is the "most trending" recipe.
+
+        **Trending Factors:**
+        Trending score considers recent engagement metrics including favorites,
+        shares, comments, and collection additions.
+      operationId: getTrendingRecipes
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+      responses:
+        "200":
+          description: Trending recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchRecipesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/comments:
+    get:
+      tags: [comments]
+      summary: Get all comments for a recipe
+      description: |
+        Retrieves all comments for a specific recipe, ordered by creation date.
+        Returns all public and private comments as all comments are visible to everyone.
+      operationId: getRecipeComments
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeCommentsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [comments]
+      summary: Add comment to recipe
+      description: |
+        Adds a new comment to a recipe. The comment is associated with the
+        authenticated user making the request.
+      operationId: addRecipeComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: Comment data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddRecipeCommentRequest"
+      responses:
+        "201":
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeCommentDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/comments/{commentId}:
+    put:
+      tags: [comments]
+      summary: Edit recipe comment
+      description: |
+        Updates an existing recipe comment. Only the comment owner can edit their comment.
+      operationId: editRecipeComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - name: commentId
+          in: path
+          required: true
+          description: Comment identifier
+          schema:
+            type: integer
+            format: int64
+            example: 501
+      requestBody:
+        description: Updated comment data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditRecipeCommentRequest"
+      responses:
+        "200":
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeCommentDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - User can only edit their own comments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [comments]
+      summary: Delete recipe comment
+      description: |
+        Deletes a recipe comment. Only the comment owner can delete their comment.
+      operationId: deleteRecipeComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - name: commentId
+          in: path
+          required: true
+          description: Comment identifier
+          schema:
+            type: integer
+            format: int64
+            example: 501
+      responses:
+        "204":
+          description: Comment deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - User can only delete their own comments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /favorites/recipes:
+    get:
+      tags: [favorites]
+      summary: Get all favorited recipes
+      description: |
+        Retrieves all recipes favorited by a specified user with pagination support.
+        Returns recipes in the same format as the main recipes list endpoint.
+
+        **Privacy Controls:**
+        This endpoint integrates with user-management-service to check user privacy
+        preferences. If the target user's profile is private, only users they follow
+        can retrieve their favorites list. Returns 403 Forbidden if the requesting
+        user is not authorized to view the favorites.
+
+        **Default Behavior:**
+        If userId is not provided, returns favorites for the authenticated user.
+      operationId: getFavoriteRecipes
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      responses:
+        "200":
+          description: Favorited recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchRecipesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - User's favorites are private and requester is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 403
+                error: "Forbidden"
+                message: "User's favorites are private. Only followers can view them."
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/recipes"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /favorites/recipes/{recipeId}:
+    post:
+      tags: [favorites]
+      summary: Favorite a recipe
+      description: |
+        Adds a recipe to the authenticated user's favorites.
+
+        **Visibility:**
+        Any authenticated user can favorite any recipe regardless of recipe ownership
+        or visibility. There are no restrictions on which recipes can be favorited.
+
+        Returns 409 Conflict if the recipe is already favorited by this user.
+      operationId: favoriteRecipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "201":
+          description: Recipe favorited successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeFavoriteDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Conflict - Recipe is already favorited by this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 409
+                error: "Conflict"
+                message: "User has already favorited this recipe"
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/recipes/123"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [favorites]
+      summary: Unfavorite a recipe
+      description: |
+        Removes a recipe from the authenticated user's favorites.
+
+        Returns 404 if the favorite does not exist (i.e., the recipe was not
+        favorited by this user).
+      operationId: unfavoriteRecipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "204":
+          description: Recipe unfavorited successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Not Found - Recipe was not favorited by this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 404
+                error: "Not Found"
+                message: "Favorite not found for this user and recipe"
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/recipes/123"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /favorites/recipes/{recipeId}/is-favorited:
+    get:
+      tags: [favorites]
+      summary: Check if recipe is favorited
+      description: |
+        Checks whether the authenticated user has favorited the specified recipe.
+
+        Returns a boolean value indicating favorite status.
+      operationId: isRecipeFavorited
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Successfully retrieved favorite status
+          content:
+            application/json:
+              schema:
+                type: boolean
+              examples:
+                favorited:
+                  value: true
+                  summary: Recipe is favorited
+                notFavorited:
+                  value: false
+                  summary: Recipe is not favorited
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /favorites/collections:
+    get:
+      tags: [favorites]
+      summary: Get all favorited collections
+      description: |
+        Retrieves all collections favorited by a specified user with pagination support.
+        Returns collections in the same format as the main collections list endpoint.
+
+        **Privacy Controls:**
+        This endpoint integrates with user-management-service to check user privacy
+        preferences. If the target user's profile is private, only users they follow
+        can retrieve their favorites list. Returns 403 Forbidden if the requesting
+        user is not authorized to view the favorites.
+
+        **Default Behavior:**
+        If userId is not provided, returns favorites for the authenticated user.
+      operationId: getFavoriteCollections
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      responses:
+        "200":
+          description: Favorited collections retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCollectionDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - User's favorites are private and requester is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 403
+                error: "Forbidden"
+                message: "User's favorites are private. Only followers can view them."
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/collections"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /favorites/collections/{collectionId}:
+    post:
+      tags: [favorites]
+      summary: Favorite a collection
+      description: |
+        Adds a collection to the authenticated user's favorites.
+
+        **Visibility:**
+        Users can only favorite collections they have access to view. This includes
+        PUBLIC collections and collections where the user has been granted access
+        (e.g., as a collaborator or through other permission mechanisms).
+
+        Returns 403 Forbidden if the user does not have access to view the collection.
+        Returns 409 Conflict if the collection is already favorited by this user.
+      operationId: favoriteCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "201":
+          description: Collection favorited successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionFavoriteDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - User does not have access to view this collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 403
+                error: "Forbidden"
+                message: "You do not have access to view this collection"
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/collections/301"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Conflict - Collection is already favorited by this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 409
+                error: "Conflict"
+                message: "User has already favorited this collection"
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/collections/301"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [favorites]
+      summary: Unfavorite a collection
+      description: |
+        Removes a collection from the authenticated user's favorites.
+
+        Returns 404 if the favorite does not exist (i.e., the collection was not
+        favorited by this user).
+      operationId: unfavoriteCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "204":
+          description: Collection unfavorited successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Not Found - Collection was not favorited by this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: 404
+                error: "Not Found"
+                message: "Favorite not found for this user and collection"
+                timestamp: "2024-08-28T10:30:00Z"
+                path: "/favorites/collections/301"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /favorites/collections/{collectionId}/is-favorited:
+    get:
+      tags: [favorites]
+      summary: Check if collection is favorited
+      description: |
+        Checks whether the authenticated user has favorited the specified collection.
+
+        Returns a boolean value indicating favorite status.
+      operationId: isCollectionFavorited
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "200":
+          description: Successfully retrieved favorite status
+          content:
+            application/json:
+              schema:
+                type: boolean
+              examples:
+                favorited:
+                  value: true
+                  summary: Collection is favorited
+                notFavorited:
+                  value: false
+                  summary: Collection is not favorited
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users/me/recipes:
+    get:
+      tags: [users]
+      summary: Get recipes owned by authenticated user
+      description: |
+        Retrieves all recipes created by the authenticated user with pagination support.
+        Returns recipes in the same format as the main recipes list endpoint.
+
+        This endpoint only returns recipes where the authenticated user is the owner
+        (userId matches the JWT token subject).
+      operationId: getMyRecipes
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      responses:
+        "200":
+          description: User's recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchRecipesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users/me/collections:
+    get:
+      tags: [users]
+      summary: Get collections for authenticated user
+      description: |
+        Retrieves collections associated with the authenticated user with pagination support.
+
+        By default, returns only collections owned by the user. Use the `includeCollaborations`
+        parameter to also include collections where the user is defined as a collaborator.
+      operationId: getMyCollections
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+        - name: includeCollaborations
+          in: query
+          required: false
+          description: |
+            When true, includes collections where the user is a collaborator
+            in addition to collections owned by the user. When false or omitted,
+            only returns collections owned by the user.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: User's collections retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCollectionDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/description:
+    get:
+      tags: [recipes]
+      summary: Get recipe description
+      description: |
+        Retrieves the description of a specific recipe.
+      operationId: getRecipeDescription
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Recipe description retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Classic homemade chocolate chip cookies"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/history:
+    get:
+      tags: [recipes]
+      summary: Get recipe history
+      description: |
+        Retrieves the history/timeline of changes for a specific recipe.
+      operationId: getRecipeHistory
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Recipe history retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: [string, "null"]
+                example: "Recipe history placeholder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/search:
+    post:
+      tags: [search]
+      summary: Search recipes
+      description: |
+        Advanced recipe search with multiple criteria including ingredients, tags,
+        difficulty, timing, and ratings. Supports flexible matching options.
+      operationId: searchRecipes
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      requestBody:
+        description: Search criteria
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRecipesRequest"
+      responses:
+        "200":
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchRecipesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients:
+    get:
+      tags: [ingredients]
+      summary: Get recipe ingredients
+      description: |
+        Retrieves all ingredients for a recipe including quantities, units,
+        notes, and associated comments.
+      operationId: getRecipeIngredients
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Ingredients retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeIngredientsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients/scale:
+    get:
+      tags: [ingredients]
+      summary: Scale recipe ingredients
+      description: |
+        Scales ingredient quantities based on a multiplier. Useful for adjusting
+        recipes for different serving sizes.
+      operationId: scaleIngredients
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - name: quantity
+          in: query
+          description: Scaling multiplier
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            example: 1.5
+      responses:
+        "200":
+          description: Ingredients scaled successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeIngredientsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients/shopping-list:
+    get:
+      tags: [ingredients]
+      summary: Generate shopping list
+      description: |
+        Creates a shopping list from recipe ingredients, organized by category
+        for convenient grocery shopping.
+      operationId: generateShoppingList
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Shopping list generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShoppingListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients/{ingredientId}/comment:
+    post:
+      tags: [ingredients]
+      summary: Add ingredient comment
+      description: |
+        Adds a user comment to a recipe ingredient. Comments can include tips,
+        substitutions, or preparation notes.
+      operationId: addIngredientComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+      requestBody:
+        description: Comment data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddIngredientCommentRequest"
+      responses:
+        "200":
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientCommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags: [ingredients]
+      summary: Edit ingredient comment
+      description: |
+        Updates an existing ingredient comment. User must own the comment to edit it.
+      operationId: editIngredientComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+      requestBody:
+        description: Updated comment data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditIngredientCommentRequest"
+      responses:
+        "200":
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientCommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [ingredients]
+      summary: Delete ingredient comment
+      description: |
+        Removes an ingredient comment. User must own the comment to delete it.
+      operationId: deleteIngredientComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+      requestBody:
+        description: Comment deletion data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteIngredientCommentRequest"
+      responses:
+        "200":
+          description: Comment deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientCommentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/steps:
+    get:
+      tags: [steps]
+      summary: Get recipe steps
+      description: |
+        Retrieves all cooking steps for a recipe in order, including instructions,
+        timing, and associated comments.
+      operationId: getRecipeSteps
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Steps retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/steps/{stepId}/comment:
+    get:
+      tags: [steps]
+      summary: Get step comments
+      description: |
+        Retrieves all comments for a specific recipe step.
+      operationId: getStepComments
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+      responses:
+        "200":
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepCommentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [steps]
+      summary: Add step comment
+      description: |
+        Adds a user comment to a recipe step. Comments can include tips,
+        variations, or troubleshooting advice.
+      operationId: addStepComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+      requestBody:
+        description: Comment data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddStepCommentRequest"
+      responses:
+        "201":
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepCommentDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags: [steps]
+      summary: Edit step comment
+      description: |
+        Updates an existing step comment. User must own the comment to edit it.
+      operationId: editStepComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+      requestBody:
+        description: Updated comment data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditStepCommentRequest"
+      responses:
+        "200":
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepCommentDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [steps]
+      summary: Delete step comment
+      description: |
+        Removes a step comment. User must own the comment to delete it.
+      operationId: deleteStepComment
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+      requestBody:
+        description: Comment deletion data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteStepCommentRequest"
+      responses:
+        "204":
+          description: Comment deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/tags:
+    get:
+      tags: [tags]
+      summary: Get recipe tags
+      description: |
+        Retrieves all tags associated with a recipe for categorization and discovery.
+      operationId: getRecipeTags
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [tags]
+      summary: Add tag to recipe
+      description: |
+        Associates a tag with a recipe for categorization. Creates the tag if it
+        doesn't exist.
+      operationId: addTagToRecipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: Tag data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddTagRequest"
+      responses:
+        "201":
+          description: Tag added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [tags]
+      summary: Remove tag from recipe
+      description: |
+        Removes a tag association from a recipe. The tag itself is not deleted.
+      operationId: removeTagFromRecipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: Tag removal data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveTagRequest"
+      responses:
+        "200":
+          description: Tag removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/review:
+    get:
+      tags: [reviews]
+      summary: Get recipe reviews
+      description: |
+        Retrieves all reviews for a recipe including ratings, comments, and
+        summary statistics.
+      operationId: getRecipeReviews
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Reviews retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [reviews]
+      summary: Add recipe review
+      description: |
+        Adds a user review and rating to a recipe. Users can only review
+        recipes they haven't reviewed before.
+      operationId: addRecipeReview
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: Review data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddReviewRequest"
+      responses:
+        "200":
+          description: Review added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/review/{reviewId}:
+    put:
+      tags: [reviews]
+      summary: Edit recipe review
+      description: |
+        Updates an existing review. User must own the review to edit it.
+      operationId: editRecipeReview
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/ReviewIdParam"
+      requestBody:
+        description: Updated review data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditReviewRequest"
+      responses:
+        "200":
+          description: Review updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [reviews]
+      summary: Delete recipe review
+      description: |
+        Removes a recipe review. User must own the review to delete it.
+      operationId: deleteRecipeReview
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/ReviewIdParam"
+      responses:
+        "204":
+          description: Review deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/revisions:
+    get:
+      tags: [revisions]
+      summary: Get recipe revisions
+      description: |
+        Retrieves the complete revision history for a recipe showing all changes
+        over time.
+      operationId: getRecipeRevisions
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "200":
+          description: Revisions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeRevisionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/steps/{stepId}/revisions:
+    get:
+      tags: [revisions]
+      summary: Get step revisions
+      description: |
+        Retrieves the revision history for a specific recipe step.
+      operationId: getStepRevisions
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+      responses:
+        "200":
+          description: Step revisions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepRevisionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients/{ingredientId}/revisions:
+    get:
+      tags: [revisions]
+      summary: Get ingredient revisions
+      description: |
+        Retrieves the revision history for a specific recipe ingredient.
+      operationId: getIngredientRevisions
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+      responses:
+        "200":
+          description: Ingredient revisions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientRevisionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/media:
+    get:
+      tags: [media]
+      summary: Get recipe media
+      description: |
+        Retrieves all media files associated with a recipe including images,
+        videos, and other content.
+      operationId: getRecipeMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+      responses:
+        "200":
+          description: Media retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageMediaDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [media]
+      summary: Upload recipe media
+      description: |
+        Uploads and associates media files with a recipe. Supports images,
+        videos, and audio files.
+      operationId: uploadRecipeMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: Media upload data
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/MediaUploadRequest"
+      responses:
+        "200":
+          description: Media uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMediaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/media/{mediaId}:
+    delete:
+      tags: [media]
+      summary: Delete recipe media
+      description: |
+        Removes media associated with a recipe. User must own the recipe to
+        delete its media.
+      operationId: deleteRecipeMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/MediaIdParam"
+      responses:
+        "200":
+          description: Media deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMediaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients/{ingredientId}/media:
+    get:
+      tags: [media]
+      summary: Get ingredient media
+      description: |
+        Retrieves media files associated with a recipe ingredient.
+      operationId: getIngredientMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+      responses:
+        "200":
+          description: Media retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageMediaDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [media]
+      summary: Upload ingredient media
+      description: |
+        Uploads and associates media files with a recipe ingredient.
+      operationId: uploadIngredientMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+      requestBody:
+        description: Media upload data
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/MediaUploadRequest"
+      responses:
+        "200":
+          description: Media uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMediaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/ingredients/{ingredientId}/media/{mediaId}:
+    delete:
+      tags: [media]
+      summary: Delete ingredient media
+      description: |
+        Removes media associated with a recipe ingredient.
+      operationId: deleteIngredientMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/IngredientIdParam"
+        - $ref: "#/components/parameters/MediaIdParam"
+      responses:
+        "200":
+          description: Media deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMediaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/steps/{stepId}/media:
+    get:
+      tags: [media]
+      summary: Get step media
+      description: |
+        Retrieves media files associated with a recipe step.
+      operationId: getStepMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+      responses:
+        "200":
+          description: Media retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageMediaDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [media]
+      summary: Upload step media
+      description: |
+        Uploads and associates media files with a recipe step.
+      operationId: uploadStepMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+      requestBody:
+        description: Media upload data
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/MediaUploadRequest"
+      responses:
+        "200":
+          description: Media uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMediaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /recipes/{recipeId}/steps/{stepId}/media/{mediaId}:
+    delete:
+      tags: [media]
+      summary: Delete step media
+      description: |
+        Removes media associated with a recipe step.
+      operationId: deleteStepMedia
+      parameters:
+        - $ref: "#/components/parameters/RecipeIdParam"
+        - $ref: "#/components/parameters/StepIdParam"
+        - $ref: "#/components/parameters/MediaIdParam"
+      responses:
+        "200":
+          description: Media deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMediaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections:
+    get:
+      tags: [collections]
+      summary: Get accessible collections
+      description: |
+        Retrieves all collections that the authenticated user can access based on
+        permissions. This includes collections they own, collections they collaborate on,
+        and public collections.
+      operationId: getCollections
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      responses:
+        "200":
+          description: Collections retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCollectionDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [collections]
+      summary: Create new collection
+      description: |
+        Creates a new recipe collection owned by the authenticated user.
+
+        **Batch Operations:**
+        - Optionally include `recipeIds` to add recipes to the collection during creation
+        - Optionally include `collaboratorIds` to add collaborators during creation
+          (only applicable when `collaborationMode` is `SPECIFIC_USERS`)
+        - Optionally include `tags` to associate tags with the collection during creation
+
+        This reduces multiple API calls to a single request when creating a collection
+        with initial recipes, collaborators, and/or tags.
+      operationId: createCollection
+      requestBody:
+        description: Collection creation data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCollectionRequest"
+      responses:
+        "201":
+          description: Collection created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/{collectionId}:
+    get:
+      tags: [collections]
+      summary: Get collection details
+      description: |
+        Retrieves complete collection details including all recipes in display order.
+        User must have view permission for the collection.
+      operationId: getCollectionById
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "200":
+          description: Collection retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionDetailsDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags: [collections]
+      summary: Update collection
+      description: |
+        Updates collection metadata (name, description, visibility, collaboration mode).
+        User must own the collection or have edit permission.
+      operationId: updateCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      requestBody:
+        description: Collection update data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCollectionRequest"
+      responses:
+        "200":
+          description: Collection updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [collections]
+      summary: Delete collection
+      description: |
+        Permanently deletes a collection and all associated items and collaborators.
+        User must own the collection to delete it.
+      operationId: deleteCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "204":
+          description: Collection deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/search:
+    post:
+      tags: [search]
+      summary: Search collections
+      description: |
+        Advanced collection search with multiple filter criteria including visibility,
+        collaboration mode, owner, and recipe count ranges.
+      operationId: searchCollections
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+      requestBody:
+        description: Search criteria
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchCollectionsRequest"
+      responses:
+        "200":
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCollectionDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/trending:
+    get:
+      tags: [search]
+      summary: Get trending collections
+      description: |
+        Retrieves the most trending collections with pagination support.
+
+        Collections are ordered by trending score in descending order, so the first
+        item in the response is the "most trending" collection.
+
+        **Trending Factors:**
+        Trending score considers recent engagement metrics including favorites,
+        recipe additions, and user interactions.
+      operationId: getTrendingCollections
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+      responses:
+        "200":
+          description: Trending collections retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCollectionDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/{collectionId}/recipes/{recipeId}:
+    post:
+      tags: [collections]
+      summary: Add recipe to collection
+      description: |
+        Adds a recipe to a collection with automatic display order assignment.
+        User must have edit permission for the collection.
+      operationId: addRecipeToCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "201":
+          description: Recipe added to collection successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionRecipeDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [collections]
+      summary: Remove recipe from collection
+      description: |
+        Removes a recipe from a collection. User must have edit permission.
+      operationId: removeRecipeFromCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+        - $ref: "#/components/parameters/RecipeIdParam"
+      responses:
+        "204":
+          description: Recipe removed from collection successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    patch:
+      tags: [collections]
+      summary: Update recipe display order
+      description: |
+        Updates the display order for a single recipe in the collection.
+        User must have edit permission.
+      operationId: updateRecipeOrder
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+        - $ref: "#/components/parameters/RecipeIdParam"
+      requestBody:
+        description: New display order
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecipeOrderRequest"
+      responses:
+        "200":
+          description: Display order updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionRecipeDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/{collectionId}/recipes/reorder:
+    put:
+      tags: [collections]
+      summary: Batch reorder recipes
+      description: |
+        Updates display order for multiple recipes in a collection at once.
+        User must have edit permission.
+      operationId: reorderRecipes
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      requestBody:
+        description: Recipe order updates
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderRecipesRequest"
+      responses:
+        "200":
+          description: Recipes reordered successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollectionRecipeDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/{collectionId}/collaborators:
+    get:
+      tags: [collections]
+      summary: Get collection collaborators
+      description: |
+        Retrieves all collaborators for a collection. Only available for collections
+        with SPECIFIC_USERS collaboration mode. User must have view permission.
+      operationId: getCollaborators
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "200":
+          description: Collaborators retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollaboratorDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [collections]
+      summary: Add collaborator
+      description: |
+        Adds a collaborator to a collection. Collection must have SPECIFIC_USERS
+        collaboration mode. User must be the collection owner.
+      operationId: addCollaborator
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      requestBody:
+        description: Collaborator data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCollaboratorRequest"
+      responses:
+        "201":
+          description: Collaborator added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollaboratorDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/{collectionId}/collaborators/{userId}:
+    delete:
+      tags: [collections]
+      summary: Remove collaborator
+      description: |
+        Removes a collaborator from a collection. User must be the collection owner.
+      operationId: removeCollaborator
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+        - name: userId
+          in: path
+          description: User ID of collaborator to remove
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        "204":
+          description: Collaborator removed successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /collections/{collectionId}/tags:
+    get:
+      tags: [tags]
+      summary: Get collection tags
+      description: |
+        Retrieves all tags associated with a collection for categorization and discovery.
+      operationId: getCollectionTags
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      responses:
+        "200":
+          description: Tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionTagResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [tags]
+      summary: Add tag to collection
+      description: |
+        Associates a tag with a collection for categorization. Creates the tag if it
+        doesn't exist.
+      operationId: addTagToCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      requestBody:
+        description: Tag data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddTagRequest"
+      responses:
+        "201":
+          description: Tag added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionTagResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags: [tags]
+      summary: Remove tag from collection
+      description: |
+        Removes a tag association from a collection. The tag itself is not deleted.
+      operationId: removeTagFromCollection
+      parameters:
+        - $ref: "#/components/parameters/CollectionIdParam"
+      requestBody:
+        description: Tag removal data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveTagRequest"
+      responses:
+        "200":
+          description: Tag removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionTagResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /actuator/health:
+    get:
+      tags: [health]
+      summary: Get application health status
+      description: |
+        Comprehensive health check endpoint that monitors all application components
+        including database connectivity, disk space, memory usage, and external services.
+
+        Includes custom health indicators for:
+        - Database connection with retry logic
+        - Disk space monitoring with thresholds
+        - JVM memory usage monitoring
+        - Recipe scraper service availability
+        - Circuit breaker states
+      operationId: getHealth
+      responses:
+        "200":
+          description: Health status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service unavailable - health check failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /actuator/health/readiness:
+    get:
+      tags: [health]
+      summary: Get application readiness status
+      description: |
+        Readiness probe for Kubernetes deployments. Indicates whether the application
+        is ready to receive traffic.
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Application is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Application is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /actuator/health/liveness:
+    get:
+      tags: [health]
+      summary: Get application liveness status
+      description: |
+        Liveness probe for Kubernetes deployments. Indicates whether the application
+        is alive and should not be restarted.
+      operationId: getLiveness
+      responses:
+        "200":
+          description: Application is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Application is not responding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /actuator/info:
+    get:
+      tags: [monitoring]
+      summary: Get application information
+      description: |
+        Provides application metadata including version, build info, and configuration.
+      operationId: getInfo
+      responses:
+        "200":
+          description: Application info retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoResponse"
+
+  /actuator/metrics:
+    get:
+      tags: [monitoring]
+      summary: Get available metrics
+      description: |
+        Lists all available application metrics that can be queried.
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Metrics list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsResponse"
+
+  /actuator/metrics/{metricName}:
+    get:
+      tags: [monitoring]
+      summary: Get specific metric value
+      description: |
+        Retrieves the current value and statistics for a specific metric.
+      operationId: getMetric
+      parameters:
+        - name: metricName
+          in: path
+          description: Name of the metric to retrieve
+          required: true
+          schema:
+            type: string
+            example: "jvm.memory.used"
+      responses:
+        "200":
+          description: Metric value retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricResponse"
+        "404":
+          description: Metric not found
+
+  /actuator/prometheus:
+    get:
+      tags: [monitoring]
+      summary: Get Prometheus metrics
+      description: |
+        Provides all metrics in Prometheus format for scraping by monitoring systems.
+      operationId: getPrometheusMetrics
+      responses:
+        "200":
+          description: Prometheus metrics retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Metrics in Prometheus exposition format
+                example: |
+                  # HELP jvm_memory_used_bytes The amount of used memory
+                  # TYPE jvm_memory_used_bytes gauge
+                  jvm_memory_used_bytes{area="heap",id="PS Eden Space",} 1.234567E8
+
+  /actuator/env:
+    get:
+      tags: [monitoring]
+      summary: Get environment properties
+      description: |
+        Provides access to environment properties and configuration values.
+        Sensitive values are masked for security.
+
+        **Security Note:** This endpoint may expose configuration details.
+        Access should be restricted in production environments.
+      operationId: getEnvironment
+      responses:
+        "200":
+          description: Environment properties retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvironmentResponse"
+
+  /actuator/env/{propertyName}:
+    get:
+      tags: [monitoring]
+      summary: Get specific environment property
+      description: |
+        Retrieves the value of a specific environment property or configuration setting.
+      operationId: getEnvironmentProperty
+      parameters:
+        - name: propertyName
+          in: path
+          description: Name of the property to retrieve
+          required: true
+          schema:
+            type: string
+            example: "spring.application.name"
+      responses:
+        "200":
+          description: Property retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyResponse"
+        "404":
+          description: Property not found
+
+  /actuator/configprops:
+    get:
+      tags: [monitoring]
+      summary: Get configuration properties
+      description: |
+        Provides access to all configuration properties bound to @ConfigurationProperties beans.
+        Shows the actual configuration values used by the application.
+
+        **Security Note:** Sensitive properties are masked for security.
+        Access should be restricted in production environments.
+      operationId: getConfigurationProperties
+      responses:
+        "200":
+          description: Configuration properties retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigPropsResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token authentication. Obtain token from user-management-service
+        and include in Authorization header as 'Bearer <token>'.
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (0-based)
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    SizeParam:
+      name: size
+      in: query
+      description: Page size
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SortParam:
+      name: sort
+      in: query
+      description: Sort criteria (property,direction)
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+        example: ["createdAt,desc", "title,asc"]
+
+    RecipeIdParam:
+      name: recipeId
+      in: path
+      description: Recipe identifier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 123
+
+    IngredientIdParam:
+      name: ingredientId
+      in: path
+      description: Ingredient identifier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 456
+
+    StepIdParam:
+      name: stepId
+      in: path
+      description: Step identifier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 789
+
+    ReviewIdParam:
+      name: reviewId
+      in: path
+      description: Review identifier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 101
+
+    MediaIdParam:
+      name: mediaId
+      in: path
+      description: Media identifier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 201
+
+    CollectionIdParam:
+      name: collectionId
+      in: path
+      description: Collection identifier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 301
+
+    UserIdParam:
+      name: userId
+      in: query
+      description: User identifier (UUID). If not provided, defaults to authenticated user.
+      required: false
+      schema:
+        type: string
+        format: uuid
+        example: "123e4567-e89b-12d3-a456-426614174000"
+
+  schemas:
+    RecipeDto:
+      type: object
+      required:
+        - recipeId
+        - title
+        - servings
+        - createdAt
+        - userId
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Unique recipe identifier
+          example: 123
+        userId:
+          type: string
+          format: uuid
+          description: UUID of the user who created the recipe
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Recipe title
+          example: "Chocolate Chip Cookies"
+        description:
+          type: string
+          maxLength: 2000
+          description: Recipe description
+          example: "Classic homemade chocolate chip cookies"
+        originUrl:
+          type: string
+          description: The origin URL of the recipe
+          example: "https://example.com/recipe/123"
+        servings:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Number of servings as decimal
+          example: 4.5
+        preparationTime:
+          type: integer
+          minimum: 0
+          description: Preparation time in minutes
+          example: 15
+        cookingTime:
+          type: integer
+          minimum: 0
+          description: Cooking time in minutes
+          example: 12
+        difficulty:
+          $ref: "#/components/schemas/DifficultyLevel"
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-08-28T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-08-28T10:30:00Z"
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeIngredientDto"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeStepDto"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeTagDto"
+        revisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeRevisionDto"
+        favorites:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeFavoriteDto"
+        comments:
+          type: array
+          description: Comments on the recipe
+          items:
+            $ref: "#/components/schemas/RecipeCommentDto"
+
+    RecipeIngredientDto:
+      type: object
+      required:
+        - ingredientId
+        - ingredientName
+        - quantity
+        - unit
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        ingredientId:
+          type: integer
+          format: int64
+          description: Ingredient identifier
+          example: 789
+        ingredientName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Ingredient name
+          example: "All-purpose flour"
+        quantity:
+          type: number
+          format: decimal
+          exclusiveMinimum: 0
+          description: Ingredient quantity as decimal
+          example: 2.25
+        unit:
+          $ref: "#/components/schemas/IngredientUnit"
+        isOptional:
+          type: boolean
+          description: Whether the ingredient is optional
+          example: false
+        comments:
+          type: array
+          description: Comments associated with this ingredient
+          items:
+            $ref: "#/components/schemas/IngredientCommentDto"
+
+    RecipeStepDto:
+      type: object
+      required:
+        - stepId
+        - stepNumber
+        - instruction
+      properties:
+        stepId:
+          type: integer
+          format: int64
+          description: Step identifier
+          example: 101
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        stepNumber:
+          type: integer
+          minimum: 1
+          description: Step sequence number
+          example: 1
+        instruction:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Step instructions
+          example: "Preheat oven to 375°F (190°C)"
+        optional:
+          type: boolean
+          description: Whether this step is optional
+          example: false
+        timerSeconds:
+          type: integer
+          minimum: 0
+          description: Timer in seconds for this step
+          example: 300
+        createdAt:
+          type: string
+          format: date-time
+          description: The creation timestamp
+          example: "2024-08-28T10:30:00Z"
+
+    RecipeTagDto:
+      type: object
+      required:
+        - tagId
+        - name
+      properties:
+        tagId:
+          type: integer
+          format: int64
+          description: The tag ID
+          example: 201
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: The tag name
+          example: "dessert"
+
+    CollectionTagDto:
+      type: object
+      required:
+        - tagId
+        - name
+      properties:
+        tagId:
+          type: integer
+          format: int64
+          description: The tag ID
+          example: 201
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: The tag name
+          example: "dessert"
+
+    MediaDto:
+      type: object
+      required:
+        - mediaId
+        - userId
+        - mediaType
+        - processingStatus
+      properties:
+        mediaId:
+          type: integer
+          format: int64
+          description: Media identifier
+          example: 701
+        userId:
+          type: string
+          format: uuid
+          description: UUID of the user who owns the media
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        mediaType:
+          $ref: "#/components/schemas/MediaType"
+        originalFilename:
+          type: string
+          description: Original filename
+          example: "cookies.jpg"
+        fileSize:
+          type: integer
+          format: int64
+          minimum: 0
+          description: File size in bytes
+          example: 1048576
+        contentHash:
+          type: string
+          description: Content hash for integrity checking
+          example: "abc123def456"
+        processingStatus:
+          $ref: "#/components/schemas/ProcessingStatus"
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-08-28T11:05:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-08-28T11:05:00Z"
+
+    PageMediaDto:
+      type: object
+      description: Paginated media response matching Spring Page structure
+      properties:
+        content:
+          type: array
+          description: Media items for current page
+          items:
+            $ref: "#/components/schemas/MediaDto"
+        pageable:
+          type: object
+          description: Pagination information
+          properties:
+            pageNumber:
+              type: integer
+              description: Current page number (0-based)
+            pageSize:
+              type: integer
+              description: Size of the page
+            sort:
+              type: object
+              description: Sort information
+              properties:
+                sorted:
+                  type: boolean
+                unsorted:
+                  type: boolean
+                empty:
+                  type: boolean
+            offset:
+              type: integer
+              format: int64
+              description: Offset of the first item
+            paged:
+              type: boolean
+              description: Whether pagination is enabled
+            unpaged:
+              type: boolean
+              description: Whether pagination is disabled
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of elements
+        totalPages:
+          type: integer
+          description: Total number of pages
+        last:
+          type: boolean
+          description: Whether this is the last page
+        first:
+          type: boolean
+          description: Whether this is the first page
+        numberOfElements:
+          type: integer
+          description: Number of elements in current page
+        size:
+          type: integer
+          description: Size of the page
+        number:
+          type: integer
+          description: Current page number (0-based)
+        sort:
+          type: object
+          description: Sort information
+          properties:
+            sorted:
+              type: boolean
+            unsorted:
+              type: boolean
+            empty:
+              type: boolean
+        empty:
+          type: boolean
+          description: Whether the page is empty
+
+    HealthResponse:
+      type: object
+      description: Spring Boot Actuator health response
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, DEGRADED, WARNING, OUT_OF_SERVICE, UNKNOWN]
+          description: Overall health status
+          example: UP
+        components:
+          type: object
+          description: Individual component health details
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [UP, DOWN, DEGRADED, WARNING, OUT_OF_SERVICE, UNKNOWN]
+              details:
+                type: object
+                additionalProperties: true
+                description: Component-specific health details
+          example:
+            databaseHealthIndicator:
+              status: UP
+              details:
+                database: PostgreSQL
+                status: connected
+                connectionRetryEnabled: true
+                lastSuccessfulConnection: "2024-08-28T10:30:00"
+            diskSpaceHealthIndicator:
+              status: UP
+              details:
+                disk.usage.percentage: "45.67%"
+                disk.free.space: "120.45 GB"
+                disk.total.space: "220.00 GB"
+            memoryHealthIndicator:
+              status: UP
+              details:
+                memory.heap.usage.percentage: "67.23%"
+                memory.heap.used: "512.34 MB"
+                memory.heap.max: "762.00 MB"
+            recipeScraperHealth:
+              status: UP
+              details:
+                status: available
+                responseTime: "245ms"
+                baseUrl: "http://sous-chef-proxy.local"
+        groups:
+          type: object
+          description: Health indicator groups
+          properties:
+            liveness:
+              type: object
+              properties:
+                status:
+                  type: string
+                components:
+                  type: object
+                  additionalProperties: true
+            readiness:
+              type: object
+              properties:
+                status:
+                  type: string
+                components:
+                  type: object
+                  additionalProperties: true
+
+    InfoResponse:
+      type: object
+      description: Application information response
+      properties:
+        app:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "recipe-management-service"
+            version:
+              type: string
+              example: "1.0.0"
+            description:
+              type: string
+              example: "Recipe Management Service API"
+        build:
+          type: object
+          properties:
+            version:
+              type: string
+            time:
+              type: string
+              format: date-time
+            artifact:
+              type: string
+            name:
+              type: string
+            group:
+              type: string
+        java:
+          type: object
+          properties:
+            version:
+              type: string
+              example: "21.0.2"
+            vendor:
+              type: string
+              example: "Eclipse Adoptium"
+        os:
+          type: object
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+            arch:
+              type: string
+
+    MetricsResponse:
+      type: object
+      description: Available metrics list
+      properties:
+        names:
+          type: array
+          items:
+            type: string
+          example:
+            - "jvm.memory.used"
+            - "jvm.memory.max"
+            - "http.server.requests"
+            - "system.cpu.usage"
+            - "jdbc.connections.active"
+            - "external.service.calls"
+            - "external.service.failures"
+            - "external.service.response.time"
+            - "shopping.list.generations"
+            - "shopping.list.with.pricing"
+
+    MetricResponse:
+      type: object
+      description: Specific metric details
+      properties:
+        name:
+          type: string
+          description: Metric name
+          example: "jvm.memory.used"
+        description:
+          type: string
+          description: Metric description
+          example: "The amount of used memory"
+        baseUnit:
+          type: string
+          description: Base unit of measurement
+          example: "bytes"
+        measurements:
+          type: array
+          items:
+            type: object
+            properties:
+              statistic:
+                type: string
+                example: "VALUE"
+              value:
+                type: number
+                example: 1234567890
+        availableTags:
+          type: array
+          items:
+            type: object
+            properties:
+              tag:
+                type: string
+                example: "area"
+              values:
+                type: array
+                items:
+                  type: string
+                example: ["heap", "nonheap"]
+
+    EnvironmentResponse:
+      type: object
+      description: Environment properties response
+      properties:
+        activeProfiles:
+          type: array
+          items:
+            type: string
+          example: ["default"]
+        propertySources:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "applicationConfig: [classpath:/application.yml]"
+              properties:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                    origin:
+                      type: string
+                    sensitive:
+                      type: boolean
+                example:
+                  spring.application.name:
+                    value: "recipe-management-service"
+                    origin: "class path resource [application.yml] - 19:7"
+                    sensitive: false
+                  server.port:
+                    value: "8080"
+                    origin: "class path resource [application.yml] - 4:8"
+                    sensitive: false
+                  POSTGRES_PASSWORD:
+                    value: "******"
+                    origin: "System Environment"
+                    sensitive: true
+
+    PropertyResponse:
+      type: object
+      description: Single property response
+      properties:
+        property:
+          type: object
+          properties:
+            source:
+              type: string
+              example: "applicationConfig: [classpath:/application.yml]"
+            value:
+              type: string
+              example: "recipe-management-service"
+        activeProfiles:
+          type: array
+          items:
+            type: string
+        propertySources:
+          type: array
+          items:
+            type: string
+
+    ConfigPropsResponse:
+      type: object
+      description: Configuration properties response
+      properties:
+        contexts:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              beans:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    prefix:
+                      type: string
+                      example: "server"
+                    properties:
+                      type: object
+                      additionalProperties: true
+                      example:
+                        port: 8080
+                        error:
+                          include-message: "always"
+                          include-binding-errors: "always"
+                        servlet:
+                          context-path: "/api/v1/recipe-management"
+              parentId:
+                type: [string, "null"]
+          example:
+            application:
+              beans:
+                server:
+                  prefix: "server"
+                  properties:
+                    port: 8080
+                    servlet:
+                      context-path: "/api/v1/recipe-management"
+                management:
+                  prefix: "management"
+                  properties:
+                    endpoints:
+                      web:
+                        exposure:
+                          include: ["health", "info", "prometheus", "metrics"]
+                        base-path: "/actuator"
+                spring.application:
+                  prefix: "spring.application"
+                  properties:
+                    name: "recipe-management-service"
+              parentId: null
+
+    IngredientCommentDto:
+      type: object
+      required:
+        - commentId
+        - recipeId
+        - userId
+        - commentText
+        - createdAt
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: Comment identifier
+          example: 301
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        userId:
+          type: string
+          format: uuid
+          description: UUID of user who wrote the comment
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        commentText:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Comment text content
+          example: "Make sure to sift for best results"
+        isPublic:
+          type: boolean
+          description: Whether comment is public or private
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Comment creation timestamp
+          example: "2024-08-28T10:35:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-08-28T10:35:00Z"
+
+    RecipeFavoriteDto:
+      type: object
+      required:
+        - recipeId
+        - userId
+        - favoritedAt
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        userId:
+          type: string
+          format: uuid
+          description: UUID of user who favorited the recipe
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        favoritedAt:
+          type: string
+          format: date-time
+          description: Timestamp when recipe was favorited
+          example: "2024-08-28T10:35:00Z"
+
+    CollectionFavoriteDto:
+      type: object
+      required:
+        - collectionId
+        - userId
+        - favoritedAt
+      properties:
+        collectionId:
+          type: integer
+          format: int64
+          description: Collection identifier
+          example: 301
+        userId:
+          type: string
+          format: uuid
+          description: UUID of user who favorited the collection
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        favoritedAt:
+          type: string
+          format: date-time
+          description: Timestamp when collection was favorited
+          example: "2024-08-28T10:35:00Z"
+
+    RecipeRevisionDto:
+      type: object
+      required:
+        - revisionId
+        - recipeId
+        - userId
+        - revisionCategory
+        - revisionType
+        - createdAt
+      properties:
+        revisionId:
+          type: integer
+          format: int64
+          description: Revision identifier
+          example: 501
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        userId:
+          type: string
+          format: uuid
+          description: UUID of user who made the revision
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        revisionCategory:
+          $ref: "#/components/schemas/RevisionCategory"
+        revisionType:
+          $ref: "#/components/schemas/RevisionType"
+        previousData:
+          type: string
+          description: Previous data before revision
+          example: "Original recipe data"
+        newData:
+          type: string
+          description: New data after revision
+          example: "Updated recipe data"
+        changeComment:
+          type: string
+          description: Comment describing the change
+          example: "Updated serving size"
+        createdAt:
+          type: string
+          format: date-time
+          description: Revision creation timestamp
+          example: "2024-08-28T10:35:00Z"
+
+    ReviewDto:
+      type: object
+      required:
+        - reviewId
+        - userId
+        - rating
+        - createdAt
+      properties:
+        reviewId:
+          type: integer
+          format: int64
+          description: Review identifier
+          example: 501
+        recipeId:
+          type: integer
+          format: int64
+          description: ID of the recipe being reviewed
+          example: 123
+        userId:
+          type: string
+          format: uuid
+          description: ID of the user who created the review
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        rating:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 5
+          description: Rating given to the recipe (1-5 scale)
+          example: 4.5
+        comment:
+          type: string
+          maxLength: 2000
+          description: Optional comment text for the review
+          example: "Absolutely delicious! My family loved these cookies."
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the review was created
+          example: "2024-08-28T10:55:00Z"
+
+    StepCommentDto:
+      type: object
+      required:
+        - commentId
+        - stepId
+        - userId
+        - commentText
+        - createdAt
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: The unique identifier for the comment
+          example: 401
+        recipeId:
+          type: integer
+          format: int64
+          description: The recipe ID this comment belongs to
+          example: 123
+        stepId:
+          type: integer
+          format: int64
+          description: The step ID this comment belongs to
+          example: 101
+        userId:
+          type: string
+          format: uuid
+          description: The ID of the user who created this comment
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        commentText:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: The text content of the comment
+          example: "Don't forget to preheat early"
+        isPublic:
+          type: boolean
+          description: Whether this comment is public or private
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: When this comment was created
+          example: "2024-08-28T10:40:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: When this comment was last updated
+          example: "2024-08-28T10:45:00Z"
+
+    RecipeCommentDto:
+      type: object
+      required:
+        - commentId
+        - recipeId
+        - userId
+        - commentText
+        - isPublic
+        - createdAt
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: Unique comment identifier
+          example: 501
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        userId:
+          type: string
+          format: uuid
+          description: UUID of the user who wrote the comment
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        commentText:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Comment text content
+          example: >-
+            This recipe is absolutely delicious! I made it for my family
+            and everyone loved it.
+        isPublic:
+          type: boolean
+          description: Whether the comment is publicly visible
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Comment creation timestamp
+          example: "2024-08-28T10:40:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-08-28T10:40:00Z"
+
+    CreateRecipeRequest:
+      type: object
+      required:
+        - title
+        - description
+        - servings
+        - ingredients
+        - steps
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Recipe title
+          example: "Chocolate Chip Cookies"
+        description:
+          type: string
+          maxLength: 2000
+          description: Recipe description
+          example: "Classic homemade chocolate chip cookies"
+        servings:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 1000
+          description: Number of servings
+          example: 4
+        preparationTime:
+          type: integer
+          minimum: 0
+          description: Preparation time in minutes
+          example: 15
+        cookingTime:
+          type: integer
+          minimum: 0
+          description: Cooking time in minutes
+          example: 12
+        difficulty:
+          $ref: "#/components/schemas/DifficultyLevel"
+        ingredients:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreateRecipeIngredientRequest"
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreateRecipeStepRequest"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeTagDto"
+
+    CreateRecipeIngredientRequest:
+      type: object
+      required:
+        - ingredientName
+        - quantity
+        - unit
+      properties:
+        ingredientId:
+          type: integer
+          format: int64
+          description: The ingredient ID (optional, for referencing existing ingredients)
+          example: 789
+        ingredientName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The ingredient name
+          example: "All-purpose flour"
+        quantity:
+          type: number
+          format: decimal
+          exclusiveMinimum: 0
+          description: The quantity of the ingredient
+          example: 2.25
+        unit:
+          $ref: "#/components/schemas/IngredientUnit"
+        isOptional:
+          type: boolean
+          description: Whether the ingredient is optional
+          example: false
+        notes:
+          type: string
+          maxLength: 500
+          description: Notes about the ingredient
+          example: "Sifted"
+
+    CreateRecipeStepRequest:
+      type: object
+      required:
+        - stepNumber
+        - instruction
+      properties:
+        stepNumber:
+          type: integer
+          minimum: 1
+          description: Step sequence number
+          example: 1
+        instruction:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Step instructions
+          example: "Preheat oven to 375°F (190°C)"
+        optional:
+          type: boolean
+          description: Whether this step is optional
+          example: false
+        timerSeconds:
+          type: integer
+          minimum: 0
+          description: Timer in seconds for this step
+          example: 300
+
+    UpdateRecipeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Recipe title
+        description:
+          type: string
+          maxLength: 2000
+          description: Recipe description
+        servings:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 1000
+          description: Number of servings
+        preparationTime:
+          type: integer
+          minimum: 0
+          description: Preparation time in minutes
+        cookingTime:
+          type: integer
+          minimum: 0
+          description: Cooking time in minutes
+        difficulty:
+          $ref: "#/components/schemas/DifficultyLevel"
+
+    SearchRecipesRequest:
+      type: object
+      properties:
+        recipeNameQuery:
+          type: string
+          description: Text search query for recipe title and description
+          example: "chocolate chip"
+        ingredients:
+          type: array
+          items:
+            type: string
+          description: List of ingredient names to search for
+          example: ["flour", "chocolate"]
+        ingredientMatchMode:
+          $ref: "#/components/schemas/IngredientMatchMode"
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tag names to search for
+          example: ["dessert"]
+        difficulty:
+          $ref: "#/components/schemas/DifficultyLevel"
+        maxPreparationTime:
+          type: integer
+          minimum: 0
+          description: Maximum preparation time in minutes
+          example: 30
+        maxCookingTime:
+          type: integer
+          minimum: 0
+          description: Maximum cooking time in minutes
+          example: 60
+        minServings:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Minimum number of servings
+          example: 2
+        maxServings:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Maximum number of servings
+          example: 8
+
+    SearchRecipesResponse:
+      type: object
+      required:
+        - content
+        - totalElements
+        - totalPages
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeDto"
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of matching recipes
+        totalPages:
+          type: integer
+          description: Total number of pages
+        first:
+          type: boolean
+          description: Whether this is the first page
+        last:
+          type: boolean
+          description: Whether this is the last page
+        numberOfElements:
+          type: integer
+          description: Number of elements in current page
+
+    RecipeIngredientsResponse:
+      type: object
+      required:
+        - recipeId
+        - ingredients
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+        ingredients:
+          type: array
+          items:
+            type: object
+            allOf:
+              - $ref: "#/components/schemas/RecipeIngredientDto"
+              - type: object
+                properties:
+                  comments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IngredientCommentDto"
+
+    ShoppingListResponse:
+      type: object
+      required:
+        - recipeId
+        - recipeTitle
+        - items
+        - generatedAt
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+        recipeTitle:
+          type: string
+          description: Recipe title
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShoppingListItemDto"
+        generatedAt:
+          type: string
+          format: date-time
+          description: Shopping list generation timestamp
+
+    ShoppingListItemDto:
+      type: object
+      required:
+        - ingredientName
+        - totalQuantity
+        - unit
+      properties:
+        ingredientId:
+          type: integer
+          format: int64
+          description: The ingredient ID
+          example: 789
+        ingredientName:
+          type: string
+          description: The ingredient name
+          example: "All-purpose flour"
+        totalQuantity:
+          type: number
+          format: decimal
+          description: The total quantity needed for this ingredient
+          example: 2.25
+        unit:
+          $ref: "#/components/schemas/IngredientUnit"
+        isOptional:
+          type: boolean
+          description: Whether the ingredient is optional
+          example: false
+        estimatedPrice:
+          type: number
+          format: decimal
+          description: The estimated price for this ingredient
+          example: 3.99
+
+    AddIngredientCommentRequest:
+      type: object
+      required:
+        - comment
+      properties:
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: The comment text to add
+
+    EditIngredientCommentRequest:
+      type: object
+      required:
+        - commentId
+        - comment
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: Comment identifier
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Updated comment text
+
+    DeleteIngredientCommentRequest:
+      type: object
+      required:
+        - commentId
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: Comment identifier
+
+    IngredientCommentResponse:
+      type: object
+      properties:
+        comment:
+          $ref: "#/components/schemas/IngredientCommentDto"
+        status:
+          type: string
+          description: Operation status
+          example: "success"
+
+    StepResponse:
+      type: object
+      required:
+        - recipeId
+        - steps
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+        steps:
+          type: array
+          items:
+            type: object
+            allOf:
+              - $ref: "#/components/schemas/RecipeStepDto"
+              - type: object
+                properties:
+                  comments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StepCommentDto"
+
+    AddStepCommentRequest:
+      type: object
+      required:
+        - comment
+      properties:
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: The comment text to add
+        isPublic:
+          type: boolean
+          description: Whether this comment should be public or private
+          default: true
+
+    EditStepCommentRequest:
+      type: object
+      required:
+        - commentId
+        - comment
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: Comment identifier
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Updated comment text
+
+    DeleteStepCommentRequest:
+      type: object
+      required:
+        - commentId
+      properties:
+        commentId:
+          type: integer
+          format: int64
+          description: Comment identifier
+
+    StepCommentResponse:
+      type: object
+      properties:
+        stepId:
+          type: integer
+          format: int64
+          description: Step identifier
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/StepCommentDto"
+
+    AddRecipeCommentRequest:
+      type: object
+      required:
+        - commentText
+      properties:
+        commentText:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Comment text content
+          example: "This recipe is amazing! Highly recommend it."
+        isPublic:
+          type: boolean
+          description: Whether the comment should be publicly visible
+          default: true
+          example: true
+
+    EditRecipeCommentRequest:
+      type: object
+      required:
+        - commentText
+      properties:
+        commentText:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Updated comment text
+          example: "Updated: This recipe is even better than I thought!"
+
+    RecipeCommentsResponse:
+      type: object
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        comments:
+          type: array
+          description: List of comments for the recipe
+          items:
+            $ref: "#/components/schemas/RecipeCommentDto"
+
+    TagResponse:
+      type: object
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeTagDto"
+        tag:
+          $ref: "#/components/schemas/RecipeTagDto"
+        addedAt:
+          type: string
+          format: date-time
+          description: Tag addition timestamp
+        removedAt:
+          type: string
+          format: date-time
+          description: Tag removal timestamp
+        removedTag:
+          $ref: "#/components/schemas/RecipeTagDto"
+
+    CollectionTagResponse:
+      type: object
+      required:
+        - collectionId
+        - tags
+      properties:
+        collectionId:
+          type: integer
+          format: int64
+          description: Collection identifier
+        tags:
+          type: array
+          description: List of tags for the collection
+          items:
+            $ref: "#/components/schemas/CollectionTagDto"
+
+    AddTagRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: The name of the tag to add
+
+    RemoveTagRequest:
+      type: object
+      required:
+        - tagName
+      properties:
+        tagName:
+          type: string
+          description: Tag name to remove
+
+    ReviewResponse:
+      type: object
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+        averageRating:
+          type: number
+          format: double
+          description: Average rating
+        reviewCount:
+          type: integer
+          description: Number of reviews
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewDto"
+
+    AddReviewRequest:
+      type: object
+      required:
+        - rating
+      properties:
+        rating:
+          type: number
+          format: decimal
+          minimum: 0.0
+          maximum: 5.0
+          description: Rating for the recipe (0.0 to 5.0 scale)
+        comment:
+          type: string
+          maxLength: 2000
+          description: Optional comment for the review
+
+    EditReviewRequest:
+      type: object
+      required:
+        - rating
+      properties:
+        rating:
+          type: number
+          format: decimal
+          minimum: 0.0
+          maximum: 5.0
+          description: Updated rating (0.0 to 5.0 scale)
+        comment:
+          type: string
+          maxLength: 2000
+          description: Updated comment
+
+    RecipeRevisionsResponse:
+      type: object
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+        revisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevisionDto"
+
+    StepRevisionsResponse:
+      type: object
+      properties:
+        stepId:
+          type: integer
+          format: int64
+          description: Step identifier
+        revisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevisionDto"
+
+    IngredientRevisionsResponse:
+      type: object
+      properties:
+        ingredientId:
+          type: integer
+          format: int64
+          description: Ingredient identifier
+        revisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevisionDto"
+
+    RevisionDto:
+      type: object
+      required:
+        - revisionId
+        - revisionType
+        - category
+        - createdBy
+        - createdAt
+      properties:
+        revisionId:
+          type: integer
+          format: int64
+          description: Revision identifier
+        revisionType:
+          $ref: "#/components/schemas/RevisionType"
+        category:
+          $ref: "#/components/schemas/RevisionCategory"
+        changes:
+          type: object
+          additionalProperties: true
+          description: Change details
+        createdBy:
+          type: integer
+          format: int64
+          description: User who made the change
+        createdAt:
+          type: string
+          format: date-time
+          description: Revision timestamp
+
+    MediaUploadRequest:
+      type: object
+      required:
+        - file
+        - originalFilename
+        - mediaType
+        - fileSize
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Media file to upload
+        originalFilename:
+          type: string
+          description: Original filename
+        mediaType:
+          $ref: "#/components/schemas/MediaType"
+        fileSize:
+          type: integer
+          format: int64
+          minimum: 1
+          description: File size in bytes
+        contentHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+          description: Optional SHA-256 content hash
+
+    CreateMediaResponse:
+      type: object
+      properties:
+        mediaId:
+          type: integer
+          format: int64
+          description: Created media identifier
+        recipeId:
+          type: integer
+          format: int64
+          description: Associated recipe ID
+        ingredientId:
+          type: integer
+          format: int64
+          description: Associated ingredient ID (if applicable)
+        stepId:
+          type: integer
+          format: int64
+          description: Associated step ID (if applicable)
+        originalFilename:
+          type: string
+          description: Original filename
+        mediaType:
+          $ref: "#/components/schemas/MediaType"
+        mediaFormat:
+          $ref: "#/components/schemas/MediaFormat"
+        fileSize:
+          type: integer
+          format: int64
+          description: File size in bytes
+        contentHash:
+          type: string
+          description: Content hash
+        processingStatus:
+          $ref: "#/components/schemas/ProcessingStatus"
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Upload timestamp
+
+    DeleteMediaResponse:
+      type: object
+      properties:
+        mediaId:
+          type: integer
+          format: int64
+          description: Deleted media identifier
+        recipeId:
+          type: integer
+          format: int64
+          description: Associated recipe ID
+        deleted:
+          type: boolean
+          description: Whether deletion was successful
+        deletedAt:
+          type: string
+          format: date-time
+          description: Deletion timestamp
+
+    DifficultyLevel:
+      type: string
+      enum: [BEGINNER, EASY, MEDIUM, HARD, EXPERT]
+      description: Recipe difficulty level
+      example: EASY
+
+    IngredientMatchMode:
+      type: string
+      enum: [AND, OR]
+      description: Logic operator for ingredient matching in recipe searches
+      example: AND
+
+    IngredientUnit:
+      type: string
+      enum:
+        - G
+        - KG
+        - OZ
+        - LB
+        - ML
+        - L
+        - CUP
+        - TBSP
+        - TSP
+        - PIECE
+        - CLOVE
+        - SLICE
+        - PINCH
+        - CAN
+        - BOTTLE
+        - PACKET
+        - UNIT
+      description: Ingredient measurement unit
+      example: CUP
+
+    MediaType:
+      type: string
+      enum:
+        - IMAGE_JPEG
+        - IMAGE_PNG
+        - IMAGE_GIF
+        - IMAGE_WEBP
+        - IMAGE_AVIF
+        - IMAGE_SVG_XML
+        - IMAGE_HEIC
+        - IMAGE_TIFF
+        - VIDEO_MP4
+        - VIDEO_WEBM
+        - VIDEO_OGG
+        - VIDEO_QUICKTIME
+      description: Media MIME type
+      example: IMAGE_JPEG
+
+    MediaFormat:
+      type: string
+      enum: [JPEG, PNG, WEBP, AVIF, GIF, MP4, WEBM, MOV, AVI, MP3, WAV, FLAC, OGG]
+      description: Media file format
+      example: JPEG
+
+    ProcessingStatus:
+      type: string
+      enum: [INITIATED, UPLOADING, PROCESSING, COMPLETE, FAILED, EXPIRED]
+      description: Media processing status
+      example: COMPLETE
+
+    RevisionType:
+      type: string
+      enum: [ADD, UPDATE, DELETE]
+      description: Type of revision change
+      example: UPDATE
+
+    RevisionCategory:
+      type: string
+      enum: [INGREDIENT, STEP]
+      description: Category of revised entity
+      example: INGREDIENT
+
+    CollectionVisibility:
+      type: string
+      enum: [PUBLIC, PRIVATE, FRIENDS_ONLY]
+      description: |
+        Controls who can VIEW a collection:
+        - PUBLIC: Anyone can view
+        - PRIVATE: Only owner and collaborators can view
+        - FRIENDS_ONLY: Only owner, collaborators, and friends can view
+      example: PUBLIC
+
+    CollaborationMode:
+      type: string
+      enum: [OWNER_ONLY, ALL_USERS, SPECIFIC_USERS]
+      description: |
+        Controls who can EDIT a collection (add/remove recipes):
+        - OWNER_ONLY: Only the owner can edit
+        - ALL_USERS: Any authenticated user can edit
+        - SPECIFIC_USERS: Only users in collection_collaborators table can edit
+      example: OWNER_ONLY
+
+    CreateCollectionRequest:
+      type: object
+      required:
+        - name
+        - visibility
+        - collaborationMode
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Collection name
+          example: "My Favorite Desserts"
+        description:
+          type: string
+          maxLength: 2000
+          description: Collection description
+          example: "Collection of my go-to dessert recipes"
+        visibility:
+          $ref: "#/components/schemas/CollectionVisibility"
+        collaborationMode:
+          $ref: "#/components/schemas/CollaborationMode"
+        recipeIds:
+          type: array
+          description: Optional list of recipe IDs to add to the collection during creation
+          items:
+            type: integer
+            format: int64
+          example: [123, 456, 789]
+        collaboratorIds:
+          type: array
+          description: |
+            Optional list of user IDs to add as collaborators during creation.
+            Only applicable when collaborationMode is SPECIFIC_USERS.
+          items:
+            type: string
+            format: uuid
+          example: ["123e4567-e89b-12d3-a456-426614174000", "456e7890-e89b-12d3-a456-426614174000"]
+        tags:
+          type: array
+          description: |
+            Optional list of tag names to associate with the collection during creation.
+            Tags will be created if they don't already exist.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          example: ["dessert", "quick-meals", "family-favorites"]
+
+    UpdateCollectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Collection name
+        description:
+          type: string
+          maxLength: 2000
+          description: Collection description
+        visibility:
+          $ref: "#/components/schemas/CollectionVisibility"
+        collaborationMode:
+          $ref: "#/components/schemas/CollaborationMode"
+
+    SearchCollectionsRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Text search query for collection name or description
+          example: "dessert"
+        visibility:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionVisibility"
+          description: Filter by visibility types
+        collaborationMode:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollaborationMode"
+          description: Filter by collaboration modes
+        ownerUserId:
+          type: string
+          format: uuid
+          description: Filter by collection owner
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        minRecipeCount:
+          type: integer
+          minimum: 0
+          description: Minimum number of recipes in collection
+          example: 1
+        maxRecipeCount:
+          type: integer
+          minimum: 0
+          description: Maximum number of recipes in collection
+          example: 100
+
+    AddCollaboratorRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: UUID of user to add as collaborator
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+    UpdateRecipeOrderRequest:
+      type: object
+      required:
+        - displayOrder
+      properties:
+        displayOrder:
+          type: integer
+          minimum: 1
+          description: New display order position
+          example: 15
+
+    ReorderRecipesRequest:
+      type: object
+      required:
+        - recipes
+      properties:
+        recipes:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - recipeId
+              - displayOrder
+            properties:
+              recipeId:
+                type: integer
+                format: int64
+                description: Recipe identifier
+                example: 123
+              displayOrder:
+                type: integer
+                minimum: 1
+                description: New display order
+                example: 10
+
+    CollectionDto:
+      type: object
+      required:
+        - collectionId
+        - userId
+        - name
+        - visibility
+        - collaborationMode
+        - recipeCount
+        - collaboratorCount
+        - createdAt
+        - updatedAt
+      properties:
+        collectionId:
+          type: integer
+          format: int64
+          description: Unique collection identifier
+          example: 301
+        userId:
+          type: string
+          format: uuid
+          description: UUID of the collection owner
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Collection name
+          example: "My Favorite Desserts"
+        description:
+          type: string
+          description: Collection description
+          example: "Collection of my go-to dessert recipes"
+        visibility:
+          $ref: "#/components/schemas/CollectionVisibility"
+        collaborationMode:
+          $ref: "#/components/schemas/CollaborationMode"
+        recipeCount:
+          type: integer
+          minimum: 0
+          description: Number of recipes in collection
+          example: 12
+        collaboratorCount:
+          type: integer
+          minimum: 0
+          description: Number of collaborators
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-08-28T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-08-28T10:30:00Z"
+        tags:
+          type: array
+          description: Tags associated with this collection
+          items:
+            $ref: "#/components/schemas/CollectionTagDto"
+
+    CollectionDetailsDto:
+      type: object
+      required:
+        - collectionId
+        - userId
+        - name
+        - visibility
+        - collaborationMode
+        - createdAt
+        - updatedAt
+        - recipes
+        - collaborators
+      properties:
+        collectionId:
+          type: integer
+          format: int64
+          description: Unique collection identifier
+          example: 301
+        userId:
+          type: string
+          format: uuid
+          description: UUID of the collection owner
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Collection name
+          example: "My Favorite Desserts"
+        description:
+          type: string
+          description: Collection description
+          example: "Collection of my go-to dessert recipes"
+        visibility:
+          $ref: "#/components/schemas/CollectionVisibility"
+        collaborationMode:
+          $ref: "#/components/schemas/CollaborationMode"
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-08-28T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-08-28T10:30:00Z"
+        recipes:
+          type: array
+          description: Recipes in collection, ordered by displayOrder
+          items:
+            $ref: "#/components/schemas/CollectionRecipeDto"
+        collaborators:
+          type: array
+          description: Collaborators for this collection
+          items:
+            $ref: "#/components/schemas/CollaboratorDto"
+        tags:
+          type: array
+          description: Tags associated with this collection
+          items:
+            $ref: "#/components/schemas/CollectionTagDto"
+
+    CollectionRecipeDto:
+      type: object
+      required:
+        - recipeId
+        - recipeTitle
+        - displayOrder
+        - addedBy
+        - addedAt
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+          description: Recipe identifier
+          example: 123
+        recipeTitle:
+          type: string
+          description: Recipe title
+          example: "Chocolate Chip Cookies"
+        recipeDescription:
+          type: string
+          description: Recipe description
+          example: "Classic homemade cookies"
+        displayOrder:
+          type: integer
+          minimum: 1
+          description: Display order within collection
+          example: 10
+        addedBy:
+          type: string
+          format: uuid
+          description: UUID of user who added the recipe
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        addedAt:
+          type: string
+          format: date-time
+          description: Timestamp when recipe was added
+          example: "2024-08-28T10:35:00Z"
+
+    CollaboratorDto:
+      type: object
+      required:
+        - userId
+        - username
+        - grantedBy
+        - grantedAt
+      properties:
+        collectionId:
+          type: integer
+          format: int64
+          description: The collection ID
+          example: 100
+        userId:
+          type: string
+          format: uuid
+          description: The collaborator user ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          description: The collaborator username
+          example: "john_doe"
+        grantedBy:
+          type: string
+          format: uuid
+          description: The user ID who granted access
+          example: "456e7890-e89b-12d3-a456-426614174000"
+        grantedByUsername:
+          type: string
+          description: The username of the user who granted access
+          example: "admin_user"
+        grantedAt:
+          type: string
+          format: date-time
+          description: The timestamp when access was granted
+          example: "2024-08-28T10:40:00Z"
+
+    PageCollectionDto:
+      type: object
+      description: |
+        Paginated collection response representing Spring Data's Page<CollectionDto>.
+        This schema matches the native Spring Page structure serialized to JSON.
+      properties:
+        content:
+          type: array
+          description: Collection items for current page
+          items:
+            $ref: "#/components/schemas/CollectionDto"
+        pageable:
+          type: object
+          description: Pagination information
+          properties:
+            pageNumber:
+              type: integer
+              description: Current page number (0-based)
+            pageSize:
+              type: integer
+              description: Size of the page
+            sort:
+              type: object
+              description: Sort information
+              properties:
+                sorted:
+                  type: boolean
+                unsorted:
+                  type: boolean
+                empty:
+                  type: boolean
+            offset:
+              type: integer
+              format: int64
+              description: Offset of the first item
+            paged:
+              type: boolean
+              description: Whether pagination is enabled
+            unpaged:
+              type: boolean
+              description: Whether pagination is disabled
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of elements
+        totalPages:
+          type: integer
+          description: Total number of pages
+        last:
+          type: boolean
+          description: Whether this is the last page
+        first:
+          type: boolean
+          description: Whether this is the first page
+        numberOfElements:
+          type: integer
+          description: Number of elements in current page
+        size:
+          type: integer
+          description: Size of the page
+        number:
+          type: integer
+          description: Current page number (0-based)
+        sort:
+          type: object
+          description: Sort information
+          properties:
+            sorted:
+              type: boolean
+            unsorted:
+              type: boolean
+            empty:
+              type: boolean
+        empty:
+          type: boolean
+          description: Whether the page is empty
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+        - path
+        - status
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of when the error occurred
+          example: "2024-08-28T10:30:00.000"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 404
+        error:
+          type: string
+          description: Error title
+          example: "Not Found"
+        message:
+          type: string
+          description: Error message
+          example: "Recipe with ID 123 not found"
+        path:
+          type: string
+          description: Request path that caused the error
+          example: "/recipes/123"
+        requestId:
+          type: string
+          description: Request ID for tracking
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Optional validation details
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 400
+            error: "Bad Request"
+            message: "Invalid request parameters"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes"
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 401
+            error: "Unauthorized"
+            message: "JWT token is missing or invalid"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 403
+            error: "Forbidden"
+            message: "You don't have permission to access this resource"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes/123"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 404
+            error: "Not Found"
+            message: "Recipe with ID 123 not found"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes/123"
+
+    Conflict:
+      description: Resource already exists or conflicts with current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 409
+            error: "Conflict"
+            message: "User has already reviewed this recipe"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes/123/review"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 422
+            error: "Validation Error"
+            message: "Request validation failed"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes"
+            details:
+              title: "Title is required"
+              servings: "Servings must be positive"
+
+    PayloadTooLarge:
+      description: File size exceeds limit
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 413
+            error: "Payload Too Large"
+            message: "File size exceeds maximum limit of 10MB"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes/123/media"
+
+    UnsupportedMediaType:
+      description: Unsupported media type
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 415
+            error: "Unsupported Media Type"
+            message: "Media type not supported"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes/123/media"
+
+    InternalServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            status: 500
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
+            timestamp: "2024-08-28T10:30:00Z"
+            path: "/recipes"
+
+externalDocs:
+  description: Recipe Management Service Documentation
+  url: https://github.com/recipe-web-app/recipe-management-service/blob/main/API.md
