@@ -58,6 +58,8 @@ dependencies = [
   "orjson>=3.10.0",
   "email-validator>=2.2.0",
   "tenacity>=9.0.0",
+  # Recipe Scraping
+  "recipe-scrapers>=15.11.0",
   # Configuration
   "pyyaml>=6.0",
 ]
@@ -297,6 +299,8 @@ module = [
   "opentelemetry_api.*",
   "httpx",
   "httpx.*",
+  "recipe_scrapers",
+  "recipe_scrapers.*",
 ]
 ignore_missing_imports = true
 
@@ -364,7 +368,7 @@ exclude_lines = [
 ]
 fail_under = 90
 show_missing = true
-skip_covered = true
+skip_covered = false
 
 # =============================================================================
 # bandit - Security Linting

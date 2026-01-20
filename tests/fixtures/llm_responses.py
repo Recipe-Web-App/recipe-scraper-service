@@ -92,11 +92,32 @@ MALFORMED_JSON_RESPONSE: dict[str, Any] = create_ollama_response(
 )
 
 
+# Ingredient batch parsing response (matches ParsedIngredientList schema)
+INGREDIENT_BATCH_PARSING_RESPONSE: dict[str, Any] = create_ollama_response(
+    content="""{
+    "ingredients": [
+        {"name": "all-purpose flour", "quantity": 2.25, "unit": "CUP", "is_optional": false, "notes": null},
+        {"name": "butter", "quantity": 1.0, "unit": "CUP", "is_optional": false, "notes": "softened"},
+        {"name": "granulated sugar", "quantity": 0.75, "unit": "CUP", "is_optional": false, "notes": null},
+        {"name": "brown sugar", "quantity": 0.75, "unit": "CUP", "is_optional": false, "notes": "packed"},
+        {"name": "eggs", "quantity": 2.0, "unit": "PIECE", "is_optional": false, "notes": "large"},
+        {"name": "vanilla extract", "quantity": 1.0, "unit": "TSP", "is_optional": false, "notes": null},
+        {"name": "baking soda", "quantity": 1.0, "unit": "TSP", "is_optional": false, "notes": null},
+        {"name": "salt", "quantity": 1.0, "unit": "TSP", "is_optional": false, "notes": null},
+        {"name": "chocolate chips", "quantity": 2.0, "unit": "CUP", "is_optional": false, "notes": null}
+    ]
+}""",
+    prompt_tokens=180,
+    completion_tokens=245,
+)
+
+
 def get_recorded_response(name: str) -> dict[str, Any]:
     """Get a recorded response by name."""
     responses = {
         "recipe_extraction": RECIPE_EXTRACTION_RESPONSE,
         "ingredient_parsing": INGREDIENT_PARSING_RESPONSE,
+        "ingredient_batch_parsing": INGREDIENT_BATCH_PARSING_RESPONSE,
         "simple_text": SIMPLE_TEXT_RESPONSE,
         "malformed_json": MALFORMED_JSON_RESPONSE,
     }

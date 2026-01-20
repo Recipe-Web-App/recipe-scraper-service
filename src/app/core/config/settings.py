@@ -219,6 +219,32 @@ class FeaturesSettings(BaseModel):
     flags_enabled: bool = True
 
 
+class ScrapingSettings(BaseModel):
+    """Recipe scraping configuration."""
+
+    fetch_timeout: float = 30.0
+    max_retries: int = 2
+    cache_enabled: bool = True
+    cache_ttl: int = 86400  # 24 hours
+    cache_max_items: int = 1000
+
+
+class RecipeManagementServiceSettings(BaseModel):
+    """Recipe Management Service client configuration."""
+
+    url: str | None = None
+    timeout: float = 10.0
+    max_retries: int = 2
+
+
+class DownstreamServicesSettings(BaseModel):
+    """Configuration for downstream service clients."""
+
+    recipe_management: RecipeManagementServiceSettings = (
+        RecipeManagementServiceSettings()
+    )
+
+
 # =============================================================================
 # Main Settings Class
 # =============================================================================
@@ -266,6 +292,8 @@ class Settings(BaseSettings):
     observability: ObservabilitySettings = ObservabilitySettings()
     features: FeaturesSettings = FeaturesSettings()
     llm: LLMSettings = LLMSettings()
+    scraping: ScrapingSettings = ScrapingSettings()
+    downstream_services: DownstreamServicesSettings = DownstreamServicesSettings()
 
     # =========================================================================
     # Secrets (from .env only - never in YAML)

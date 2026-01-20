@@ -60,7 +60,7 @@ class HeaderAuthProvider:
         self.user_id_header = user_id_header
         self.roles_header = roles_header
         self.permissions_header = permissions_header
-        self.default_roles = default_roles or ["user"]
+        self.default_roles = default_roles if default_roles is not None else ["user"]
         self._initialized = False
 
     @property
