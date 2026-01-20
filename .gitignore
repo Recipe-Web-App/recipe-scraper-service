@@ -141,9 +141,6 @@ tmp/
 .temp/
 temp/
 
-# uv
-uv.lock
-
 # Alembic
 alembic/versions/*.pyc
 
