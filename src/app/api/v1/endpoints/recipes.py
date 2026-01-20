@@ -6,7 +6,7 @@ the Recipe Management Service.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -17,28 +17,11 @@ from app.api.dependencies import (
 )
 from app.auth.dependencies import CurrentUser, RequirePermissions
 from app.auth.permissions import Permission
-from app.llm.prompts import IngredientUnit as ParsedIngredientUnit  # noqa: TC001
+from app.mappers import build_downstream_recipe_request, build_recipe_response
 from app.observability.logging import get_logger
 from app.parsing.exceptions import IngredientParsingError
 from app.parsing.ingredient import IngredientParser  # noqa: TC001
-from app.schemas import (
-    CreateRecipeRequest,
-    CreateRecipeResponse,
-    Ingredient,
-    Recipe,
-    RecipeStep,
-)
-
-# These imports are needed at runtime for FastAPI dependency injection type resolution
-from app.services.recipe_management import (
-    CreateRecipeIngredientRequest,
-    CreateRecipeStepRequest,
-    IngredientUnit,
-    RecipeResponse,
-)
-from app.services.recipe_management import (
-    CreateRecipeRequest as DownstreamRecipeRequest,
-)
+from app.schemas import CreateRecipeRequest, CreateRecipeResponse
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
 from app.services.recipe_management.exceptions import (
     RecipeManagementError,
@@ -54,144 +37,9 @@ from app.services.scraping.exceptions import (
 from app.services.scraping.service import RecipeScraperService  # noqa: TC001
 
 
-if TYPE_CHECKING:
-    from app.llm.prompts import ParsedIngredient
-    from app.services.scraping.models import ScrapedRecipe
-
-
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["Recipes"])
-
-
-# --- Helper Functions ---
-
-
-def _map_unit(unit: ParsedIngredientUnit) -> IngredientUnit:
-    """Map parsed ingredient unit to downstream service unit.
-
-    Args:
-        unit: Unit from LLM parsing.
-
-    Returns:
-        Corresponding IngredientUnit for downstream service.
-    """
-    # Direct mapping since both enums have the same values
-    return IngredientUnit(unit.value)
-
-
-def _build_downstream_request(
-    scraped: ScrapedRecipe,
-    parsed_ingredients: list[ParsedIngredient],
-) -> DownstreamRecipeRequest:
-    """Build downstream recipe request from scraped and parsed data.
-
-    Args:
-        scraped: Raw scraped recipe data.
-        parsed_ingredients: LLM-parsed ingredients.
-
-    Returns:
-        Request schema for downstream Recipe Management Service.
-    """
-    # Build ingredients list (using aliases for Pydantic model construction)
-    ingredients = [
-        CreateRecipeIngredientRequest.model_validate(
-            {
-                "ingredientName": ing.name,
-                "quantity": ing.quantity,
-                "unit": _map_unit(ing.unit),
-                "isOptional": ing.is_optional,
-                "notes": ing.notes,
-            }
-        )
-        for ing in parsed_ingredients
-    ]
-
-    # Build steps list
-    steps = [
-        CreateRecipeStepRequest.model_validate(
-            {
-                "stepNumber": idx + 1,
-                "instruction": instruction,
-            }
-        )
-        for idx, instruction in enumerate(scraped.instructions)
-    ]
-
-    # Parse servings (default to 1 if not available)
-    servings = scraped.parse_servings() or 1.0
-
-    return DownstreamRecipeRequest.model_validate(
-        {
-            "title": scraped.title,
-            "description": scraped.description or "",
-            "servings": servings,
-            "preparationTime": scraped.prep_time,
-            "cookingTime": scraped.cook_time,
-            "ingredients": ingredients,
-            "steps": steps,
-        }
-    )
-
-
-def _build_response(
-    downstream_response: RecipeResponse,
-    scraped: ScrapedRecipe,
-    parsed_ingredients: list[ParsedIngredient],
-) -> CreateRecipeResponse:
-    """Build endpoint response from downstream response and parsed data.
-
-    Args:
-        downstream_response: Response from Recipe Management Service.
-        scraped: Original scraped recipe data.
-        parsed_ingredients: Parsed ingredients.
-
-    Returns:
-        CreateRecipeResponse for the client.
-    """
-    # Build ingredient list for response (using model_validate for aliases)
-    ingredients = [
-        Ingredient.model_validate(
-            {
-                "name": ing.name,
-                "quantity": {
-                    "amount": ing.quantity,
-                    "measurement": ing.unit.value,
-                },
-            }
-        )
-        for ing in parsed_ingredients
-    ]
-
-    # Build steps for response
-    steps = [
-        RecipeStep.model_validate(
-            {
-                "stepNumber": idx + 1,
-                "instruction": instruction,
-            }
-        )
-        for idx, instruction in enumerate(scraped.instructions)
-    ]
-
-    recipe = Recipe.model_validate(
-        {
-            "recipeId": downstream_response.id,
-            "title": downstream_response.title,
-            "description": scraped.description,
-            "originUrl": scraped.source_url,
-            "servings": scraped.parse_servings(),
-            "preparationTime": scraped.prep_time,
-            "cookingTime": scraped.cook_time,
-            "ingredients": ingredients,
-            "steps": steps,
-        }
-    )
-
-    return CreateRecipeResponse(recipe=recipe)
-
-
-# --- Endpoint ---
 
 
 @router.post(
@@ -316,7 +164,7 @@ async def create_recipe(
         ) from None
 
     # Step 3: Build downstream request and send to Recipe Management Service
-    downstream_request = _build_downstream_request(scraped, parsed_ingredients)
+    downstream_request = build_downstream_recipe_request(scraped, parsed_ingredients)
 
     # Extract auth token from request for forwarding
     auth_header = request.headers.get("Authorization", "")
@@ -364,4 +212,4 @@ async def create_recipe(
         user_id=user.id,
     )
 
-    return _build_response(downstream_response, scraped, parsed_ingredients)
+    return build_recipe_response(downstream_response, scraped, parsed_ingredients)

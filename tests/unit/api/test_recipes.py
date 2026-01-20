@@ -18,19 +18,15 @@ from app.api.dependencies import (
     get_recipe_management_client,
     get_scraper_service,
 )
-from app.api.v1.endpoints.recipes import (
-    _build_downstream_request,
-    _build_response,
-    _map_unit,
-    create_recipe,
-)
+from app.api.v1.endpoints.recipes import create_recipe
 from app.llm.prompts import IngredientUnit as ParsedIngredientUnit
 from app.llm.prompts import ParsedIngredient
+from app.mappers import build_downstream_recipe_request, build_recipe_response
 from app.parsing.exceptions import (
     IngredientParsingError,
 )
 from app.schemas import CreateRecipeRequest, CreateRecipeResponse
-from app.services.recipe_management import IngredientUnit, RecipeResponse
+from app.services.recipe_management import RecipeResponse
 from app.services.recipe_management.exceptions import (
     RecipeManagementResponseError,
     RecipeManagementUnavailableError,
@@ -45,25 +41,6 @@ from app.services.scraping.models import ScrapedRecipe
 
 
 pytestmark = pytest.mark.unit
-
-
-class TestUnitMapping:
-    """Tests for unit mapping function."""
-
-    def test_maps_cup_unit(self) -> None:
-        """Should map CUP unit correctly."""
-        result = _map_unit(ParsedIngredientUnit.CUP)
-        assert result == IngredientUnit.CUP
-
-    def test_maps_tsp_unit(self) -> None:
-        """Should map TSP unit correctly."""
-        result = _map_unit(ParsedIngredientUnit.TSP)
-        assert result == IngredientUnit.TSP
-
-    def test_maps_piece_unit(self) -> None:
-        """Should map PIECE unit correctly."""
-        result = _map_unit(ParsedIngredientUnit.PIECE)
-        assert result == IngredientUnit.PIECE
 
 
 class TestBuildDownstreamRequest:
@@ -94,7 +71,7 @@ class TestBuildDownstreamRequest:
             ),
         ]
 
-        result = _build_downstream_request(scraped, parsed_ingredients)
+        result = build_downstream_recipe_request(scraped, parsed_ingredients)
 
         assert result.title == "Test Recipe"
         assert result.description == "A test recipe"
@@ -122,7 +99,7 @@ class TestBuildDownstreamRequest:
             ),
         ]
 
-        result = _build_downstream_request(scraped, parsed_ingredients)
+        result = build_downstream_recipe_request(scraped, parsed_ingredients)
 
         assert result.servings == 1.0
 
@@ -144,7 +121,7 @@ class TestBuildDownstreamRequest:
             ),
         ]
 
-        result = _build_downstream_request(scraped, parsed_ingredients)
+        result = build_downstream_recipe_request(scraped, parsed_ingredients)
 
         assert result.description == ""
 
@@ -173,7 +150,7 @@ class TestBuildResponse:
             ),
         ]
 
-        result = _build_response(downstream, scraped, parsed)
+        result = build_recipe_response(downstream, scraped, parsed)
 
         assert isinstance(result, CreateRecipeResponse)
         assert result.recipe.recipe_id == 123
