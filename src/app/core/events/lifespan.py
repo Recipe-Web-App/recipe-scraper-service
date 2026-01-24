@@ -18,6 +18,7 @@ from app.llm.client.groq import GroqClient
 from app.llm.client.ollama import OllamaClient
 from app.observability.logging import get_logger, setup_logging
 from app.observability.tracing import shutdown_tracing
+from app.services.popular.service import PopularRecipesService
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.scraping.service import RecipeScraperService
 from app.workers.jobs import close_arq_pool, get_arq_pool
@@ -81,6 +82,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
     # Initialize Recipe Scraper Service (optional - non-critical)
     await _init_scraper_service(app, cache_client)
 
+    # Initialize Popular Recipes Service (optional - non-critical)
+    await _init_popular_recipes_service(app, cache_client)
+
     # Initialize Recipe Management Client (optional - non-critical)
     await _init_recipe_management_client(app)
 
@@ -135,6 +139,45 @@ async def _init_scraper_service(
         app.state.scraper_service = None
 
 
+async def _init_popular_recipes_service(
+    app: FastAPI, cache_client: Redis[bytes] | None
+) -> None:
+    """Initialize popular recipes service."""
+    settings = get_settings()
+    if not settings.scraping.popular_recipes.enabled:
+        logger.info("Popular recipes service disabled via configuration")
+        app.state.popular_recipes_service = None
+        return
+
+    # Get LLM client if LLM extraction is enabled
+    llm_client: LLMClientProtocol | None = None
+    if settings.scraping.popular_recipes.use_llm_extraction:
+        try:
+            llm_client = get_llm_client()
+        except RuntimeError:
+            logger.warning(
+                "LLM client not available - using regex extraction for popular recipes"
+            )
+
+    try:
+        popular_service = PopularRecipesService(
+            cache_client=cache_client,
+            llm_client=llm_client,
+        )
+        await popular_service.initialize()
+        app.state.popular_recipes_service = popular_service
+        logger.info(
+            "PopularRecipesService initialized",
+            use_llm_extraction=settings.scraping.popular_recipes.use_llm_extraction,
+            llm_available=llm_client is not None,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to initialize PopularRecipesService - popular recipes unavailable"
+        )
+        app.state.popular_recipes_service = None
+
+
 async def _init_recipe_management_client(app: FastAPI) -> None:
     """Initialize recipe management client."""
     try:
@@ -172,6 +215,14 @@ async def _shutdown(app: FastAPI) -> None:
     if hasattr(app.state, "scraper_service") and app.state.scraper_service:
         await app.state.scraper_service.shutdown()
         logger.debug("RecipeScraperService shutdown")
+
+    # Shutdown Popular Recipes Service
+    if (
+        hasattr(app.state, "popular_recipes_service")
+        and app.state.popular_recipes_service
+    ):
+        await app.state.popular_recipes_service.shutdown()
+        logger.debug("PopularRecipesService shutdown")
 
     # Shutdown LLM client
     await _shutdown_llm_client()
@@ -255,6 +306,7 @@ async def _init_llm_client(settings: Settings) -> None:
             cache_client=cache_client,
             cache_ttl=settings.llm.cache.ttl,
             cache_enabled=settings.llm.cache.enabled,
+            requests_per_minute=settings.llm.groq.requests_per_minute,
         )
         logger.info(
             "Groq fallback client configured",

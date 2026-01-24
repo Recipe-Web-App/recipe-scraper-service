@@ -15,10 +15,11 @@ from fastapi import HTTPException
 
 from app.api.dependencies import (
     get_ingredient_parser,
+    get_popular_recipes_service,
     get_recipe_management_client,
     get_scraper_service,
 )
-from app.api.v1.endpoints.recipes import create_recipe
+from app.api.v1.endpoints.recipes import create_recipe, get_popular_recipes
 from app.llm.prompts import IngredientUnit as ParsedIngredientUnit
 from app.llm.prompts import ParsedIngredient
 from app.mappers import build_downstream_recipe_request, build_recipe_response
@@ -26,6 +27,7 @@ from app.parsing.exceptions import (
     IngredientParsingError,
 )
 from app.schemas import CreateRecipeRequest, CreateRecipeResponse
+from app.schemas.recipe import PopularRecipe, RecipeEngagementMetrics
 from app.services.recipe_management import RecipeResponse
 from app.services.recipe_management.exceptions import (
     RecipeManagementResponseError,
@@ -629,3 +631,162 @@ class TestCreateRecipeRequestSchema:
             recipe_url="https://example.com/recipe2",  # type: ignore[arg-type]
         )
         assert request2.recipe_url is not None
+
+
+# =============================================================================
+# Popular Recipes Endpoint Tests
+# =============================================================================
+
+
+class TestGetPopularRecipesEndpoint:
+    """Tests for get_popular_recipes endpoint."""
+
+    @pytest.fixture
+    def mock_popular_service(self) -> MagicMock:
+        """Create a mock popular recipes service."""
+        return AsyncMock()
+
+    @pytest.mark.asyncio
+    async def test_returns_popular_recipes(
+        self, mock_popular_service: MagicMock
+    ) -> None:
+        """Should return list of popular recipes."""
+        mock_recipes = [
+            PopularRecipe(
+                recipe_name="Recipe 1",
+                url="https://test.com/recipe1",
+                source="TestSource",
+                raw_rank=1,
+                metrics=RecipeEngagementMetrics(),
+                normalized_score=0.95,
+            ),
+            PopularRecipe(
+                recipe_name="Recipe 2",
+                url="https://test.com/recipe2",
+                source="TestSource",
+                raw_rank=2,
+                metrics=RecipeEngagementMetrics(),
+                normalized_score=0.90,
+            ),
+        ]
+        mock_popular_service.get_popular_recipes = AsyncMock(
+            return_value=(mock_recipes, 100)
+        )
+
+        response = await get_popular_recipes(
+            popular_service=mock_popular_service,
+            limit=50,
+            offset=0,
+            count_only=False,
+        )
+
+        assert len(response.recipes) == 2
+        assert response.count == 100
+        assert response.limit == 50
+        assert response.offset == 0
+        assert response.recipes[0].recipe_name == "Recipe 1"
+        assert response.recipes[0].url == "https://test.com/recipe1"
+
+    @pytest.mark.asyncio
+    async def test_returns_count_only(self, mock_popular_service: MagicMock) -> None:
+        """Should return only count when count_only is True."""
+        mock_popular_service.get_popular_recipes = AsyncMock(return_value=([], 500))
+
+        response = await get_popular_recipes(
+            popular_service=mock_popular_service,
+            limit=50,
+            offset=0,
+            count_only=True,
+        )
+
+        assert response.recipes == []
+        assert response.count == 500
+        mock_popular_service.get_popular_recipes.assert_called_once_with(
+            limit=50, offset=0, count_only=True
+        )
+
+    @pytest.mark.asyncio
+    async def test_passes_pagination_parameters(
+        self, mock_popular_service: MagicMock
+    ) -> None:
+        """Should pass pagination parameters to service."""
+        mock_popular_service.get_popular_recipes = AsyncMock(return_value=([], 0))
+
+        await get_popular_recipes(
+            popular_service=mock_popular_service,
+            limit=25,
+            offset=50,
+            count_only=False,
+        )
+
+        mock_popular_service.get_popular_recipes.assert_called_once_with(
+            limit=25, offset=50, count_only=False
+        )
+
+    @pytest.mark.asyncio
+    async def test_converts_to_web_recipe_format(
+        self, mock_popular_service: MagicMock
+    ) -> None:
+        """Should convert PopularRecipe to WebRecipe for response."""
+        mock_recipes = [
+            PopularRecipe(
+                recipe_name="Full Recipe",
+                url="https://test.com/full",
+                source="TestSource",
+                raw_rank=1,
+                metrics=RecipeEngagementMetrics(
+                    rating=4.5,
+                    rating_count=1000,
+                    favorites=500,
+                    reviews=200,
+                ),
+                normalized_score=0.95,
+            ),
+        ]
+        mock_popular_service.get_popular_recipes = AsyncMock(
+            return_value=(mock_recipes, 1)
+        )
+
+        response = await get_popular_recipes(
+            popular_service=mock_popular_service,
+            limit=50,
+            offset=0,
+            count_only=False,
+        )
+
+        # WebRecipe should only have recipe_name and url
+        web_recipe = response.recipes[0]
+        assert web_recipe.recipe_name == "Full Recipe"
+        assert web_recipe.url == "https://test.com/full"
+        # Should not have internal fields
+        assert not hasattr(web_recipe, "source")
+        assert not hasattr(web_recipe, "raw_rank")
+        assert not hasattr(web_recipe, "metrics")
+        assert not hasattr(web_recipe, "normalized_score")
+
+
+class TestGetPopularRecipesServiceDependency:
+    """Tests for popular recipes service dependency."""
+
+    @pytest.mark.asyncio
+    async def test_returns_service_from_app_state(self) -> None:
+        """Should return service from app state."""
+        mock_service = MagicMock()
+        mock_request = MagicMock()
+        mock_request.app.state.popular_recipes_service = mock_service
+
+        result = await get_popular_recipes_service(mock_request)
+
+        assert result is mock_service
+
+    @pytest.mark.asyncio
+    async def test_raises_503_when_service_not_available(self) -> None:
+        """Should raise 503 when service not in app state."""
+        mock_request = MagicMock()
+        mock_request.app.state.popular_recipes_service = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_popular_recipes_service(mock_request)
+
+        assert exc_info.value.status_code == 503
+        assert "Popular recipes service" in exc_info.value.detail

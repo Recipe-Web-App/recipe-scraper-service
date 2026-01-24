@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 from prometheus_client import REGISTRY
+from redis.asyncio import Redis
 from testcontainers.redis import RedisContainer
 
 import app.cache.redis as redis_module
@@ -54,6 +55,19 @@ def redis_url(redis_container: RedisContainer) -> str:
     host = redis_container.get_container_host_ip()
     port = redis_container.get_exposed_port(6379)
     return f"redis://{host}:{port}"
+
+
+@pytest.fixture
+async def cache(redis_url: str) -> AsyncGenerator[Redis[bytes]]:
+    """Create a Redis client connected to the test container.
+
+    This fixture provides a real Redis client for integration tests.
+    """
+    client: Redis[bytes] = Redis.from_url(redis_url, decode_responses=False)
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 @pytest.fixture

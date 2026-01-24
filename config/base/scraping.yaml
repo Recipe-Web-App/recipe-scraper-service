@@ -4,3 +4,45 @@ scraping:
   cache_enabled: true
   cache_ttl: 86400 # 24 hours
   cache_max_items: 1000
+
+  # Popular recipes aggregation settings
+  popular_recipes:
+    enabled: true
+    cache_ttl: 86400 # 24 hours
+    cache_key: "popular_recipes"
+    target_total: 20
+    fetch_timeout: 30.0
+    max_concurrent_fetches: 5
+
+    # LLM-based extraction settings
+    use_llm_extraction: true
+    llm_extraction_max_html_chars: 8000 # Max chars per batch (Groq API limits)
+    llm_extraction_min_confidence: 0.5
+    llm_extraction_chunk_size: 50 # Links per LLM batch
+
+    # Limit control: fetch metrics for up to this many links per source
+    # (then score and return only top max_recipes)
+    max_links_to_process: 100
+
+    # Scoring algorithm weights (sum to 1.0)
+    scoring:
+      rating_weight: 0.35
+      rating_count_weight: 0.25
+      favorites_weight: 0.25
+      reviews_weight: 0.10
+      position_weight: 0.05
+
+    sources:
+      - name: "Taste of Home"
+        base_url: "https://www.tasteofhome.com"
+        popular_endpoint: "/collection/our-100-highest-rated-recipes-ever/"
+        enabled: true
+        max_recipes: 15
+        source_weight: 1.0
+
+      - name: "AllRecipes"
+        base_url: "https://www.allrecipes.com"
+        popular_endpoint: "/recipes/84/healthy-recipes/"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95

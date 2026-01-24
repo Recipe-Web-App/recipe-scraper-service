@@ -77,20 +77,16 @@ else
 fi
 
 print_separator "="
-echo -e "${CYAN}Building Docker image: ${FULL_IMAGE_NAME}${NC}"
+echo -e "${CYAN}Building Docker image directly in Minikube: ${FULL_IMAGE_NAME}${NC}"
 print_separator "-"
 
-docker build -t "$FULL_IMAGE_NAME" .
-print_status "ok" "Docker image built successfully"
+# Build directly in Minikube's Docker daemon (most reliable method)
+eval "$(minikube docker-env)"
+docker build -t "$FULL_IMAGE_NAME" --target development .
+print_status "ok" "Docker image built in Minikube"
 
-print_separator "="
-echo -e "${CYAN}Loading image into Minikube...${NC}"
-print_separator "-"
-
-# Remove old image if exists
-minikube ssh "docker rmi -f $FULL_IMAGE_NAME" 2>/dev/null || true
-minikube image load "$FULL_IMAGE_NAME"
-print_status "ok" "Image loaded into Minikube"
+# Reset to host Docker daemon
+eval "$(minikube docker-env --unset)"
 
 print_separator "="
 echo -e "${CYAN}Deploying with Kustomize...${NC}"

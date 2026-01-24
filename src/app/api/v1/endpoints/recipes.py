@@ -1,17 +1,19 @@
-"""Recipe creation endpoint.
+"""Recipe endpoints.
 
-Provides POST /recipes for scraping a recipe URL and saving to
-the Recipe Management Service.
+Provides:
+- POST /recipes for scraping a recipe URL and saving to the Recipe Management Service
+- GET /recipes/popular for fetching popular recipes from aggregated sources
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.api.dependencies import (
     get_ingredient_parser,
+    get_popular_recipes_service,
     get_recipe_management_client,
     get_scraper_service,
 )
@@ -21,7 +23,13 @@ from app.mappers import build_downstream_recipe_request, build_recipe_response
 from app.observability.logging import get_logger
 from app.parsing.exceptions import IngredientParsingError
 from app.parsing.ingredient import IngredientParser  # noqa: TC001
-from app.schemas import CreateRecipeRequest, CreateRecipeResponse
+from app.schemas import (
+    CreateRecipeRequest,
+    CreateRecipeResponse,
+    PopularRecipesResponse,
+)
+from app.schemas.ingredient import WebRecipe
+from app.services.popular.service import PopularRecipesService  # noqa: TC001
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
 from app.services.recipe_management.exceptions import (
     RecipeManagementError,
@@ -213,3 +221,92 @@ async def create_recipe(
     )
 
     return build_recipe_response(downstream_response, scraped, parsed_ingredients)
+
+
+@router.get(
+    "/recipes/popular",
+    response_model=PopularRecipesResponse,
+    summary="Get popular recipes from the internet",
+    description=(
+        "Returns a paginated list of popular recipes aggregated from multiple "
+        "curated sources. Recipes are ranked by a normalized popularity score "
+        "based on ratings, reviews, and engagement metrics. Results are cached "
+        "and refreshed periodically."
+    ),
+    responses={
+        503: {
+            "description": "Popular recipes service unavailable",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Popular recipes service not available"}
+                }
+            },
+        },
+    },
+)
+async def get_popular_recipes(
+    popular_service: Annotated[
+        PopularRecipesService, Depends(get_popular_recipes_service)
+    ],
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description="Maximum number of recipes to return",
+        ),
+    ] = 50,
+    offset: Annotated[
+        int,
+        Query(
+            ge=0,
+            description="Starting index for pagination",
+        ),
+    ] = 0,
+    count_only: Annotated[
+        bool,
+        Query(
+            alias="countOnly",
+            description="If true, returns only the count without recipe data",
+        ),
+    ] = False,
+) -> PopularRecipesResponse:
+    """Get popular recipes from aggregated sources.
+
+    This endpoint returns trending and popular recipes from multiple curated
+    recipe websites. Recipes are scored using a normalized popularity algorithm
+    that considers ratings, review counts, and engagement metrics.
+
+    Results are cached for 24 hours to ensure fast response times.
+
+    Args:
+        popular_service: Service for fetching popular recipes.
+        limit: Maximum number of recipes to return (1-100).
+        offset: Starting index for pagination.
+        count_only: If True, return only count without recipe data.
+
+    Returns:
+        Paginated list of popular recipes.
+    """
+    logger.debug(
+        "Fetching popular recipes",
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+    )
+
+    recipes, total_count = await popular_service.get_popular_recipes(
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+    )
+
+    # Convert PopularRecipe to WebRecipe for response
+    web_recipes = [WebRecipe(recipe_name=r.recipe_name, url=r.url) for r in recipes]
+
+    return PopularRecipesResponse(
+        recipes=web_recipes,
+        limit=limit,
+        offset=offset,
+        count=total_count,
+    )

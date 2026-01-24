@@ -16,6 +16,7 @@ from app.parsing.ingredient import IngredientParser
 
 
 if TYPE_CHECKING:
+    from app.services.popular.service import PopularRecipesService
     from app.services.recipe_management.client import RecipeManagementClient
     from app.services.scraping.service import RecipeScraperService
 
@@ -83,3 +84,26 @@ async def get_ingredient_parser() -> IngredientParser:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Ingredient parsing service not available",
         ) from None
+
+
+async def get_popular_recipes_service(request: Request) -> PopularRecipesService:
+    """Get the popular recipes service from app state.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        Initialized PopularRecipesService.
+
+    Raises:
+        HTTPException: 503 if service is not initialized.
+    """
+    service: PopularRecipesService | None = getattr(
+        request.app.state, "popular_recipes_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Popular recipes service not available",
+        )
+    return service

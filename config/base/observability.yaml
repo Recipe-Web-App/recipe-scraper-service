@@ -1,6 +1,6 @@
 observability:
   tracing:
-    enabled: true
+    enabled: false
     otlp_endpoint: null
   metrics:
     enabled: true

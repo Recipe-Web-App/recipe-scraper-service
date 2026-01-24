@@ -10,6 +10,7 @@ import hashlib
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import httpx
+from aiolimiter import AsyncLimiter
 from pydantic import BaseModel
 
 from app.llm.exceptions import (
@@ -62,6 +63,7 @@ class GroqClient:
         cache_client: Redis[Any] | None = None,
         cache_ttl: int = 3600,
         cache_enabled: bool = True,
+        requests_per_minute: float = 30.0,
     ) -> None:
         """Initialize the Groq client.
 
@@ -74,6 +76,7 @@ class GroqClient:
             cache_client: Optional Redis client for caching responses.
             cache_ttl: Cache TTL in seconds (default: 3600 = 1 hour).
             cache_enabled: Whether to use caching (default: True).
+            requests_per_minute: Rate limit for API requests (default: 30, Groq free tier).
         """
         self.api_key = api_key
         self.model = model
@@ -84,6 +87,9 @@ class GroqClient:
         self.cache_ttl = cache_ttl
         self.cache_enabled = cache_enabled
         self._http_client: httpx.AsyncClient | None = None
+        # Prevent bursts: 1 request per (60/rpm) seconds instead of rpm requests per 60s
+        # With 30 RPM: allows 1 request every 2 seconds (no initial burst)
+        self._rate_limiter = AsyncLimiter(1, 60.0 / requests_per_minute)
 
     @property
     def chat_url(self) -> str:
@@ -196,6 +202,9 @@ class GroqClient:
         last_exception: Exception | None = None
 
         for attempt in range(self.max_retries + 1):
+            # Wait for rate limiter before making request
+            await self._rate_limiter.acquire()
+
             try:
                 response = await self._http_client.post(
                     self.chat_url,
