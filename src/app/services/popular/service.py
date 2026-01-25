@@ -261,6 +261,7 @@ class PopularRecipesService:
                     logger.warning(
                         "Failed to fetch source",
                         source=source.name,
+                        url=f"{source.base_url}{source.popular_endpoint}",
                         error=str(e),
                     )
                     return source.name, str(e)
@@ -371,9 +372,9 @@ class PopularRecipesService:
         links_to_process = recipe_links[: self._config.max_links_to_process]
 
         logger.info(
-            "Processing %d of %d links",
-            len(links_to_process),
-            len(recipe_links),
+            "Processing links",
+            processing=len(links_to_process),
+            total_links=len(recipe_links),
             source=source.name,
         )
 

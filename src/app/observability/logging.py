@@ -99,19 +99,28 @@ def _format_record_dev(record: Record) -> str:
     """Format log record for development (human-readable with context)."""
     context = _log_context.get() or {}
 
-    # Build context string
+    # Merge ContextVar context with record extras (keyword args passed to logger)
+    # Exclude internal loguru keys
+    extra = {
+        k: v
+        for k, v in record["extra"].items()
+        if k not in ("name",)  # 'name' is bound by get_logger
+    }
+    all_context = {**context, **extra}
+
+    # Build context string from all context
     context_str = ""
-    if context:
-        context_parts = [f"{k}={v}" for k, v in context.items()]
-        context_str = f" | {' '.join(context_parts)}"
+    if all_context:
+        context_parts = [f"{k}={v}" for k, v in all_context.items()]
+        context_str = " | " + " | ".join(context_parts)
 
     # Standard format with optional context
     fmt = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>"
-        f"{context_str} - "
-        "<level>{message}</level>\n"
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>"
+        f"{context_str}\n"
     )
 
     if record["exception"]:

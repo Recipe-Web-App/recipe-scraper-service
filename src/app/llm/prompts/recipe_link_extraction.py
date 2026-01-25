@@ -8,13 +8,15 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .base import BasePrompt
 
 
 class ExtractedRecipeLink(BaseModel):
     """A single recipe link extracted from HTML."""
+
+    model_config = ConfigDict(extra="ignore")
 
     recipe_name: str = Field(
         ...,
@@ -36,6 +38,8 @@ class ExtractedRecipeLink(BaseModel):
 
 class ExtractedRecipeLinkList(BaseModel):
     """Output schema for recipe link extraction."""
+
+    model_config = ConfigDict(extra="ignore")
 
     recipe_links: list[ExtractedRecipeLink] = Field(
         default_factory=list,

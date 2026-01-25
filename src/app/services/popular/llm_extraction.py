@@ -146,9 +146,9 @@ class RecipeLinkExtractor:
         chunks = self._chunk_links(all_links)
 
         logger.info(
-            "Processing %d links in %d batches",
-            len(all_links),
-            len(chunks),
+            "Processing links in batches",
+            link_count=len(all_links),
+            batch_count=len(chunks),
             base_url=base_url,
         )
 
@@ -166,10 +166,10 @@ class RecipeLinkExtractor:
             ) as e:
                 failed_batches += 1
                 logger.warning(
-                    "Batch %d/%d failed: %s",
-                    i + 1,
-                    len(chunks),
-                    e,
+                    "Batch failed",
+                    batch=i + 1,
+                    total_batches=len(chunks),
+                    error=str(e),
                     base_url=base_url,
                 )
                 # Continue with other batches - return partial results
@@ -177,9 +177,9 @@ class RecipeLinkExtractor:
         # Log summary of batch processing
         if failed_batches > 0:
             logger.warning(
-                "%d/%d batches failed, returning partial results",
-                failed_batches,
-                len(chunks),
+                "Batches failed, returning partial results",
+                failed_batches=failed_batches,
+                total_batches=len(chunks),
                 base_url=base_url,
                 successful_extractions=len(all_results),
             )
@@ -197,9 +197,9 @@ class RecipeLinkExtractor:
         links = self._filter_results_from_list(all_results, base_url)
 
         logger.info(
-            "LLM extraction: %d extracted, %d after filtering",
-            len(all_results),
-            len(links),
+            "LLM extraction complete",
+            extracted=len(all_results),
+            after_filtering=len(links),
             base_url=base_url,
         )
 
@@ -222,9 +222,9 @@ class RecipeLinkExtractor:
             Extracted recipe links from this batch.
         """
         logger.debug(
-            "Processing batch %d, %d chars",
-            batch_num,
-            len(chunk_html),
+            "Processing batch",
+            batch=batch_num,
+            chars=len(chunk_html),
             base_url=base_url,
         )
 
@@ -247,9 +247,9 @@ class RecipeLinkExtractor:
             result = ExtractedRecipeLinkList(**result)
 
         logger.debug(
-            "Batch %d extracted %d links",
-            batch_num,
-            len(result.recipe_links),
+            "Batch extracted links",
+            batch=batch_num,
+            links_extracted=len(result.recipe_links),
             base_url=base_url,
         )
 
@@ -449,7 +449,7 @@ class RecipeLinkExtractor:
 
             # Filter out category URLs
             if self._is_category_url(url):
-                logger.debug("Filtering category URL: %s", url)
+                logger.debug("Filtering category URL", url=url)
                 continue
 
             # Deduplicate

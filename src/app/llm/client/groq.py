@@ -7,6 +7,7 @@ Used as a fallback when local Ollama is unavailable.
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import httpx
@@ -257,6 +258,62 @@ class GroqClient:
         msg = "Max retries exceeded"
         raise LLMUnavailableError(msg) from last_exception
 
+    def _parse_structured_response(
+        self,
+        raw_response: str,
+        schema: type[T],
+    ) -> T:
+        """Parse structured JSON response with recovery for malformed LLM output.
+
+        Handles common LLM issues:
+        - List-wrapped responses (unwraps single-item arrays)
+        - Schema metadata echoed back ($defs, $schema)
+
+        Args:
+            raw_response: Raw JSON string from LLM.
+            schema: Pydantic model to validate against.
+
+        Returns:
+            Validated instance of the schema.
+
+        Raises:
+            LLMValidationError: If response cannot be parsed or validated.
+        """
+        try:
+            data = json.loads(raw_response)
+
+            # Unwrap list-wrapped responses (LLM sometimes wraps in array)
+            if isinstance(data, list) and len(data) == 1:
+                logger.debug(
+                    "Unwrapping list-wrapped LLM response",
+                    schema=schema.__name__,
+                )
+                data = data[0]
+
+            # Remove schema metadata that LLM sometimes echoes back
+            if isinstance(data, dict):
+                data.pop("$defs", None)
+                data.pop("$schema", None)
+
+            return schema.model_validate(data)
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "Failed to parse Groq response as JSON",
+                error=str(e),
+                raw_response=raw_response[:500],
+            )
+            msg = f"Response is not valid JSON: {e}"
+            raise LLMValidationError(msg) from e
+        except Exception as e:
+            logger.warning(
+                "Failed to parse structured Groq output",
+                schema=schema.__name__,
+                error=str(e),
+                raw_response=raw_response[:500],
+            )
+            msg = f"Response does not match {schema.__name__} schema: {e}"
+            raise LLMValidationError(msg) from e
+
     async def generate(
         self,
         prompt: str,
@@ -344,17 +401,7 @@ class GroqClient:
         # Parse structured output if schema provided
         parsed: Any = None
         if schema is not None:
-            try:
-                parsed = schema.model_validate_json(raw_response)
-            except Exception as e:
-                logger.warning(
-                    "Failed to parse structured Groq output",
-                    schema=schema.__name__,
-                    error=str(e),
-                    raw_response=raw_response[:500],
-                )
-                msg = f"Response does not match {schema.__name__} schema: {e}"
-                raise LLMValidationError(msg) from e
+            parsed = self._parse_structured_response(raw_response, schema)
 
         result = LLMCompletionResult(
             raw_response=raw_response,
