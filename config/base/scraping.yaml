@@ -11,9 +11,9 @@ scraping:
     cache_ttl: 86400 # 24 hours
     cache_key: "popular_recipes"
     refresh_threshold: 3600 # Refresh when TTL < 1 hour remaining
-    target_total: 20
+    target_total: 100
     fetch_timeout: 30.0
-    max_concurrent_fetches: 5
+    max_concurrent_fetches: 10
 
     # LLM-based extraction settings
     use_llm_extraction: true
@@ -34,16 +34,72 @@ scraping:
       position_weight: 0.05
 
     sources:
-      - name: "Taste of Home"
-        base_url: "https://www.tasteofhome.com"
-        popular_endpoint: "/collection/our-100-highest-rated-recipes-ever/"
+      - name: "Bon Appétit"
+        base_url: "https://www.bonappetit.com"
+        popular_endpoint: "/search?sort=mostPopular"
         enabled: true
-        max_recipes: 15
+        max_recipes: 10
         source_weight: 1.0
 
       - name: "AllRecipes"
         base_url: "https://www.allrecipes.com"
-        popular_endpoint: "/recipes/84/healthy-recipes/"
+        popular_endpoint: "/recipes"
+        enabled: true
+        max_recipes: 10
+        source_weight: 1.0
+
+      - name: "Epicurious"
+        base_url: "https://www.epicurious.com"
+        popular_endpoint: "/search?sort=mostPopular"
+        enabled: true
+        max_recipes: 10
+        source_weight: 1.0
+
+      - name: "Pinch of Yum"
+        base_url: "https://pinchofyum.com"
+        popular_endpoint: "/recipes/popular"
         enabled: true
         max_recipes: 10
         source_weight: 0.95
+
+      - name: "NYT Cooking"
+        base_url: "https://cooking.nytimes.com"
+        popular_endpoint: "/68861692-nyt-cooking/13395693-our-50-most-popular-recipes-of-all-time-so-far"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "Tasty"
+        base_url: "https://tasty.co"
+        popular_endpoint: "/latest"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "BBC Good Food"
+        base_url: "https://www.bbcgoodfood.com"
+        popular_endpoint: "/recipes/collection/most-popular-recipes"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.9
+
+      - name: "Sally's Baking Addiction"
+        base_url: "https://sallysbakingaddiction.com"
+        popular_endpoint: "/recipes/"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.9
+
+      - name: "Food Network"
+        base_url: "https://www.foodnetwork.com"
+        popular_endpoint: "/recipes/meals"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "Serious Eats"
+        base_url: "https://www.seriouseats.com"
+        popular_endpoint: "/all-recipes-5117985"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.9
