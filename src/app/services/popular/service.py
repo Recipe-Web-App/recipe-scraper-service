@@ -25,7 +25,10 @@ from app.services.popular.exceptions import (
     PopularRecipesFetchError,
     PopularRecipesParseError,
 )
-from app.services.popular.extraction import extract_engagement_metrics
+from app.services.popular.extraction import (
+    extract_engagement_metrics,
+    is_recipe_page,
+)
 from app.services.popular.llm_extraction import RecipeLinkExtractor
 
 
@@ -417,6 +420,15 @@ class PopularRecipesService:
                 try:
                     response = await self._http_client.get(url)  # type: ignore[union-attr]
                     if response.is_success:
+                        # Validate this is actually a recipe page
+                        if not is_recipe_page(response.text):
+                            logger.debug(
+                                "Skipping non-recipe page",
+                                url=url,
+                                source=source.name,
+                            )
+                            return None
+
                         metrics = extract_engagement_metrics(response.text)
                 except Exception:
                     # Log but continue - we'll use position-only scoring

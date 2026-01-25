@@ -7,6 +7,7 @@ Falls back to regex-based extraction on LLM failure.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -327,7 +328,7 @@ class RecipeLinkExtractor:
         links_data: list[str] = []
         for a in soup.find_all("a", href=True):
             href = a.get("href", "")
-            text = a.get_text(strip=True)
+            text = self._clean_link_text(a.get_text(strip=True))
 
             if not text or not href or len(text) < 3:
                 continue
@@ -397,10 +398,17 @@ class RecipeLinkExtractor:
     # Generic link text that should be replaced with URL-derived names
     _GENERIC_LINK_TEXT = (
         "get recipe",
+        "get the recipe",
         "view recipe",
+        "view the recipe",
         "see recipe",
+        "see the recipe",
         "read more",
         "view all",
+        "go to recipe",
+        "recipe",
+        "click here",
+        "learn more",
     )
 
     def _filter_results_from_list(
@@ -448,8 +456,10 @@ class RecipeLinkExtractor:
             if url in seen_urls:
                 continue
 
-            # Fix generic recipe names
-            name = link.recipe_name.strip()
+            # Clean and fix recipe names
+            name = self._clean_link_text(link.recipe_name.strip())
+
+            # Replace generic link text with URL-derived name
             if name.lower() in self._GENERIC_LINK_TEXT:
                 name = self._extract_name_from_url(url)
                 if not name:
@@ -463,6 +473,23 @@ class RecipeLinkExtractor:
             seen_urls.add(url)
 
         return links
+
+    def _clean_link_text(self, text: str) -> str:
+        """Clean link text by stripping rating/review suffixes.
+
+        Handles cases where recipe sites concatenate rating counts
+        to recipe names, e.g., "Turkey Chili2,332Ratings".
+
+        Args:
+            text: Raw link text extracted from HTML.
+
+        Returns:
+            Cleaned recipe name without rating/review suffixes.
+        """
+        # Strip patterns like "Turkey Chili2,332Ratings" or "Soup1,234 Reviews"
+        text = re.sub(r"[\d,]+\s*Ratings?$", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"[\d,]+\s*Reviews?$", "", text, flags=re.IGNORECASE)
+        return text.strip()
 
     def _is_category_url(self, url: str) -> bool:
         """Check if URL is a category page, not an individual recipe."""

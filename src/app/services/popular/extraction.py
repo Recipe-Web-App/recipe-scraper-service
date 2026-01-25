@@ -61,6 +61,49 @@ def extract_engagement_metrics(html: str) -> RecipeEngagementMetrics:
     return metrics
 
 
+def is_recipe_page(html: str) -> bool:
+    """Check if a page contains Recipe schema.org data.
+
+    Uses JSON-LD and microdata detection to identify actual recipe pages.
+    Category pages typically use CollectionPage or ItemList schema instead.
+
+    Args:
+        html: Raw HTML content of the page.
+
+    Returns:
+        True if page appears to be a recipe page, False otherwise.
+    """
+    # Check for Recipe JSON-LD (most reliable)
+    jsonld_recipe = _extract_jsonld_recipe(html)
+    if jsonld_recipe:
+        return True
+
+    # Check for Recipe microdata
+    soup = BeautifulSoup(html, "lxml")
+    recipe_itemtype = soup.find(
+        attrs={"itemtype": lambda x: x is not None and "Recipe" in str(x)}
+    )
+    if recipe_itemtype:
+        return True
+
+    # Fallback: check for recipe content structure
+    # (ingredients list + instructions = likely a recipe)
+    has_ingredients = soup.find(
+        attrs={"class": lambda x: x is not None and "ingredient" in str(x).lower()}
+    )
+    has_instructions = soup.find(
+        attrs={
+            "class": lambda x: x is not None
+            and any(
+                kw in str(x).lower()
+                for kw in ["instruction", "direction", "step", "method"]
+            )
+        }
+    )
+
+    return bool(has_ingredients and has_instructions)
+
+
 def extract_recipe_links(html: str, base_url: str) -> list[tuple[str, str]]:
     """Extract recipe links from a listing page.
 
@@ -77,6 +120,41 @@ def extract_recipe_links(html: str, base_url: str) -> list[tuple[str, str]]:
     recipes: list[tuple[str, str]] = []
     seen_urls: set[str] = set()
 
+    # Generic link text that should be replaced with URL-derived names
+    generic_link_text = {
+        "get recipe",
+        "get the recipe",
+        "view recipe",
+        "view the recipe",
+        "see recipe",
+        "see the recipe",
+        "read more",
+        "view all",
+        "go to recipe",
+        "recipe",
+        "click here",
+        "learn more",
+    }
+
+    def get_name_from_url(url: str) -> str | None:
+        """Extract recipe name from URL slug."""
+        path = urlparse(url).path.rstrip("/")
+        if not path:
+            return None
+        slug = path.split("/")[-1]
+        if not slug or len(slug) < 3:
+            return None
+        words = slug.replace("-", " ").replace("_", " ").split()
+        return " ".join(word.capitalize() for word in words)
+
+    def finalize_name(name: str | None, url: str) -> str | None:
+        """Finalize recipe name, replacing generic text with URL-derived name."""
+        if not name:
+            return get_name_from_url(url)
+        if name.lower() in generic_link_text:
+            return get_name_from_url(url)
+        return name
+
     # Common patterns for recipe links
     # Look for links within article/card containers
     containers = soup.find_all(
@@ -90,8 +168,8 @@ def extract_recipe_links(html: str, base_url: str) -> list[tuple[str, str]]:
             href = link.get("href")
             url = _resolve_url(str(href) if href else "", base_url)
             if url and url not in seen_urls:
-                name = _extract_recipe_name(link, container)
-                if name:
+                name = finalize_name(_extract_recipe_name(link, container), url)
+                if name and len(name) > 3:
                     recipes.append((name, url))
                     seen_urls.add(url)
 
@@ -102,7 +180,7 @@ def extract_recipe_links(html: str, base_url: str) -> list[tuple[str, str]]:
                 href = link.get("href")
                 url = _resolve_url(str(href) if href else "", base_url)
                 if url and url not in seen_urls:
-                    name = _extract_link_text(link)
+                    name = finalize_name(_extract_link_text(link), url)
                     if name and len(name) > 3:  # Filter out very short text
                         recipes.append((name, url))
                         seen_urls.add(url)
@@ -707,14 +785,24 @@ def _extract_recipe_name(link: Tag, container: Tag) -> str | None:
     if heading:
         text = heading.get_text(strip=True)
         if text:
-            return str(text)
+            # Clean rating/review suffixes
+            text = re.sub(r"[\d,]+\s*Ratings?$", "", text, flags=re.IGNORECASE)
+            text = re.sub(r"[\d,]+\s*Reviews?$", "", text, flags=re.IGNORECASE)
+            text = text.strip()
+            if text:
+                return str(text)
 
     # Try card title class
     title_elem = container.find(class_=re.compile(r"title|name|heading", re.IGNORECASE))
     if title_elem:
         text = title_elem.get_text(strip=True)
         if text:
-            return str(text)
+            # Clean rating/review suffixes
+            text = re.sub(r"[\d,]+\s*Ratings?$", "", text, flags=re.IGNORECASE)
+            text = re.sub(r"[\d,]+\s*Reviews?$", "", text, flags=re.IGNORECASE)
+            text = text.strip()
+            if text:
+                return str(text)
 
     return None
 
@@ -728,29 +816,40 @@ def _extract_link_text(link: Tag) -> str | None:
     Returns:
         Link text or None.
     """
+    text: str | None = None
+
     # Try direct text
-    text = link.get_text(strip=True)
-    if text:
-        return str(text)
+    raw_text = link.get_text(strip=True)
+    if raw_text:
+        text = str(raw_text)
 
     # Try title attribute
-    title = link.get("title")
-    if title:
-        return str(title)
+    if not text:
+        title = link.get("title")
+        if title:
+            text = str(title)
 
     # Try aria-label
-    aria_label = link.get("aria-label")
-    if aria_label:
-        return str(aria_label)
+    if not text:
+        aria_label = link.get("aria-label")
+        if aria_label:
+            text = str(aria_label)
 
     # Try img alt text
-    img = link.find("img")
-    if img and isinstance(img, Tag):
-        alt = img.get("alt")
-        if alt:
-            return str(alt)
+    if not text:
+        img = link.find("img")
+        if img and isinstance(img, Tag):
+            alt = img.get("alt")
+            if alt:
+                text = str(alt)
 
-    return None
+    # Clean rating/review suffixes if we found text
+    if text:
+        text = re.sub(r"[\d,]+\s*Ratings?$", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"[\d,]+\s*Reviews?$", "", text, flags=re.IGNORECASE)
+        text = text.strip()
+
+    return text if text else None
 
 
 # =============================================================================

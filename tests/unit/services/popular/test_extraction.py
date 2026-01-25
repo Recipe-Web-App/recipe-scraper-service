@@ -7,6 +7,7 @@ import pytest
 from app.services.popular.extraction import (
     extract_engagement_metrics,
     extract_recipe_links,
+    is_recipe_page,
 )
 
 
@@ -474,3 +475,96 @@ class TestExtractRecipeLinks:
         links = extract_recipe_links(html, "https://example.com")
 
         assert len(links) == 1
+
+
+class TestIsRecipePage:
+    """Tests for recipe page validation function."""
+
+    def test_is_recipe_page_with_jsonld(self) -> None:
+        """Should return True when page has Recipe JSON-LD."""
+        html = """
+        <html>
+        <head>
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Recipe",
+            "name": "Chocolate Cake",
+            "aggregateRating": {"ratingValue": 4.5}
+        }
+        </script>
+        </head>
+        <body><h1>Chocolate Cake</h1></body>
+        </html>
+        """
+        assert is_recipe_page(html) is True
+
+    def test_is_recipe_page_with_microdata(self) -> None:
+        """Should return True when page has Recipe microdata."""
+        html = """
+        <html>
+        <body>
+        <div itemscope itemtype="https://schema.org/Recipe">
+            <h1 itemprop="name">Apple Pie</h1>
+        </div>
+        </body>
+        </html>
+        """
+        assert is_recipe_page(html) is True
+
+    def test_is_recipe_page_with_content_structure(self) -> None:
+        """Should return True when page has ingredients and instructions."""
+        html = """
+        <html>
+        <body>
+            <h1>Banana Bread</h1>
+            <div class="recipe-ingredients">
+                <ul><li>2 bananas</li></ul>
+            </div>
+            <div class="recipe-instructions">
+                <ol><li>Mix ingredients</li></ol>
+            </div>
+        </body>
+        </html>
+        """
+        assert is_recipe_page(html) is True
+
+    def test_is_recipe_page_category_returns_false(self) -> None:
+        """Should return False for category/collection pages."""
+        html = """
+        <html>
+        <head>
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": "Healthy Breakfast Recipes"
+        }
+        </script>
+        </head>
+        <body>
+            <h1>Healthy Breakfast Recipes</h1>
+            <div class="recipe-list">
+                <a href="/recipe/1">Recipe 1</a>
+                <a href="/recipe/2">Recipe 2</a>
+            </div>
+        </body>
+        </html>
+        """
+        assert is_recipe_page(html) is False
+
+    def test_is_recipe_page_empty_returns_false(self) -> None:
+        """Should return False for empty HTML."""
+        assert is_recipe_page("") is False
+
+    def test_is_recipe_page_no_schema_no_structure_returns_false(self) -> None:
+        """Should return False when no recipe indicators present."""
+        html = """
+        <html>
+        <body>
+            <h1>About Us</h1>
+            <p>Welcome to our website.</p>
+        </body>
+        </html>
+        """
+        assert is_recipe_page(html) is False

@@ -676,3 +676,63 @@ class TestExtractedRecipeLinkSchema:
         assert len(result.recipe_links) == 2
         assert result.recipe_links[0].recipe_name == "Recipe 1"
         assert result.recipe_links[1].confidence == 0.8
+
+
+class TestCleanLinkText:
+    """Tests for link text cleaning functionality."""
+
+    def test_clean_link_text_strips_ratings(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should strip rating count suffixes from recipe names."""
+        result = extractor._clean_link_text("Simple Turkey Chili2,332Ratings")
+        assert result == "Simple Turkey Chili"
+
+    def test_clean_link_text_strips_ratings_with_spaces(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should strip rating count with spaces."""
+        result = extractor._clean_link_text("Chicken Soup 1,234 Ratings")
+        assert result == "Chicken Soup"
+
+    def test_clean_link_text_strips_reviews(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should strip review count suffixes from recipe names."""
+        result = extractor._clean_link_text("Best Pancakes1,234 Reviews")
+        assert result == "Best Pancakes"
+
+    def test_clean_link_text_strips_singular_rating(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should strip singular 'Rating' suffix."""
+        result = extractor._clean_link_text("New Recipe1Rating")
+        assert result == "New Recipe"
+
+    def test_clean_link_text_preserves_normal_names(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should preserve recipe names without rating suffixes."""
+        result = extractor._clean_link_text("Classic Banana Bread")
+        assert result == "Classic Banana Bread"
+
+    def test_clean_link_text_preserves_numbers_in_names(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should preserve numbers that are part of recipe names."""
+        result = extractor._clean_link_text("7-Layer Dip")
+        assert result == "7-Layer Dip"
+
+    def test_clean_link_text_handles_empty_string(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should handle empty strings gracefully."""
+        result = extractor._clean_link_text("")
+        assert result == ""
+
+    def test_clean_link_text_case_insensitive(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should match rating/review patterns case-insensitively."""
+        result = extractor._clean_link_text("Taco Soup500RATINGS")
+        assert result == "Taco Soup"
