@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import orjson
 import pytest
 from fastapi import HTTPException
 
@@ -27,7 +28,11 @@ from app.parsing.exceptions import (
     IngredientParsingError,
 )
 from app.schemas import CreateRecipeRequest, CreateRecipeResponse
-from app.schemas.recipe import PopularRecipe, RecipeEngagementMetrics
+from app.schemas.recipe import (
+    PopularRecipe,
+    PopularRecipesData,
+    RecipeEngagementMetrics,
+)
 from app.services.recipe_management import RecipeResponse
 from app.services.recipe_management.exceptions import (
     RecipeManagementResponseError,
@@ -639,46 +644,62 @@ class TestCreateRecipeRequestSchema:
 
 
 class TestGetPopularRecipesEndpoint:
-    """Tests for get_popular_recipes endpoint."""
+    """Tests for get_popular_recipes endpoint.
+
+    The endpoint now reads directly from cache and returns 503 if cache is empty.
+    """
 
     @pytest.fixture
-    def mock_popular_service(self) -> MagicMock:
-        """Create a mock popular recipes service."""
+    def mock_cache_client(self) -> AsyncMock:
+        """Create a mock Redis cache client."""
         return AsyncMock()
 
-    @pytest.mark.asyncio
-    async def test_returns_popular_recipes(
-        self, mock_popular_service: MagicMock
-    ) -> None:
-        """Should return list of popular recipes."""
-        mock_recipes = [
-            PopularRecipe(
-                recipe_name="Recipe 1",
-                url="https://test.com/recipe1",
-                source="TestSource",
-                raw_rank=1,
-                metrics=RecipeEngagementMetrics(),
-                normalized_score=0.95,
-            ),
-            PopularRecipe(
-                recipe_name="Recipe 2",
-                url="https://test.com/recipe2",
-                source="TestSource",
-                raw_rank=2,
-                metrics=RecipeEngagementMetrics(),
-                normalized_score=0.90,
-            ),
-        ]
-        mock_popular_service.get_popular_recipes = AsyncMock(
-            return_value=(mock_recipes, 100)
+    @pytest.fixture
+    def sample_cached_data(self) -> PopularRecipesData:
+        """Create sample cached data."""
+        return PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Recipe 1",
+                    url="https://test.com/recipe1",
+                    source="TestSource",
+                    raw_rank=1,
+                    metrics=RecipeEngagementMetrics(),
+                    normalized_score=0.95,
+                ),
+                PopularRecipe(
+                    recipe_name="Recipe 2",
+                    url="https://test.com/recipe2",
+                    source="TestSource",
+                    raw_rank=2,
+                    metrics=RecipeEngagementMetrics(),
+                    normalized_score=0.90,
+                ),
+            ],
+            total_count=100,
+            sources_fetched=["TestSource"],
         )
 
-        response = await get_popular_recipes(
-            popular_service=mock_popular_service,
-            limit=50,
-            offset=0,
-            count_only=False,
+    @pytest.mark.asyncio
+    async def test_returns_popular_recipes_from_cache(
+        self,
+        mock_cache_client: AsyncMock,
+        sample_cached_data: PopularRecipesData,
+    ) -> None:
+        """Should return list of popular recipes from cache."""
+        # Setup mock to return cached data
+        mock_cache_client.get = AsyncMock(
+            return_value=orjson.dumps(sample_cached_data.model_dump())
         )
+
+        with patch("app.api.v1.endpoints.recipes.get_settings") as mock_settings:
+            mock_settings.return_value.scraping.popular_recipes.cache_key = "test"
+            response = await get_popular_recipes(
+                cache_client=mock_cache_client,
+                limit=50,
+                offset=0,
+                count_only=False,
+            )
 
         assert len(response.recipes) == 2
         assert response.count == 100
@@ -688,71 +709,89 @@ class TestGetPopularRecipesEndpoint:
         assert response.recipes[0].url == "https://test.com/recipe1"
 
     @pytest.mark.asyncio
-    async def test_returns_count_only(self, mock_popular_service: MagicMock) -> None:
+    async def test_returns_count_only(
+        self,
+        mock_cache_client: AsyncMock,
+        sample_cached_data: PopularRecipesData,
+    ) -> None:
         """Should return only count when count_only is True."""
-        mock_popular_service.get_popular_recipes = AsyncMock(return_value=([], 500))
-
-        response = await get_popular_recipes(
-            popular_service=mock_popular_service,
-            limit=50,
-            offset=0,
-            count_only=True,
+        mock_cache_client.get = AsyncMock(
+            return_value=orjson.dumps(sample_cached_data.model_dump())
         )
+
+        with patch("app.api.v1.endpoints.recipes.get_settings") as mock_settings:
+            mock_settings.return_value.scraping.popular_recipes.cache_key = "test"
+            response = await get_popular_recipes(
+                cache_client=mock_cache_client,
+                limit=50,
+                offset=0,
+                count_only=True,
+            )
 
         assert response.recipes == []
-        assert response.count == 500
-        mock_popular_service.get_popular_recipes.assert_called_once_with(
-            limit=50, offset=0, count_only=True
-        )
+        assert response.count == 100
 
     @pytest.mark.asyncio
-    async def test_passes_pagination_parameters(
-        self, mock_popular_service: MagicMock
+    async def test_applies_pagination_parameters(
+        self,
+        mock_cache_client: AsyncMock,
+        sample_cached_data: PopularRecipesData,
     ) -> None:
-        """Should pass pagination parameters to service."""
-        mock_popular_service.get_popular_recipes = AsyncMock(return_value=([], 0))
-
-        await get_popular_recipes(
-            popular_service=mock_popular_service,
-            limit=25,
-            offset=50,
-            count_only=False,
+        """Should apply pagination to cached recipes."""
+        mock_cache_client.get = AsyncMock(
+            return_value=orjson.dumps(sample_cached_data.model_dump())
         )
 
-        mock_popular_service.get_popular_recipes.assert_called_once_with(
-            limit=25, offset=50, count_only=False
-        )
+        with patch("app.api.v1.endpoints.recipes.get_settings") as mock_settings:
+            mock_settings.return_value.scraping.popular_recipes.cache_key = "test"
+            response = await get_popular_recipes(
+                cache_client=mock_cache_client,
+                limit=1,
+                offset=1,
+                count_only=False,
+            )
+
+        # Should return second recipe only (offset=1, limit=1)
+        assert len(response.recipes) == 1
+        assert response.recipes[0].recipe_name == "Recipe 2"
+        assert response.limit == 1
+        assert response.offset == 1
 
     @pytest.mark.asyncio
     async def test_converts_to_web_recipe_format(
-        self, mock_popular_service: MagicMock
+        self, mock_cache_client: AsyncMock
     ) -> None:
         """Should convert PopularRecipe to WebRecipe for response."""
-        mock_recipes = [
-            PopularRecipe(
-                recipe_name="Full Recipe",
-                url="https://test.com/full",
-                source="TestSource",
-                raw_rank=1,
-                metrics=RecipeEngagementMetrics(
-                    rating=4.5,
-                    rating_count=1000,
-                    favorites=500,
-                    reviews=200,
+        cached_data = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Full Recipe",
+                    url="https://test.com/full",
+                    source="TestSource",
+                    raw_rank=1,
+                    metrics=RecipeEngagementMetrics(
+                        rating=4.5,
+                        rating_count=1000,
+                        favorites=500,
+                        reviews=200,
+                    ),
+                    normalized_score=0.95,
                 ),
-                normalized_score=0.95,
-            ),
-        ]
-        mock_popular_service.get_popular_recipes = AsyncMock(
-            return_value=(mock_recipes, 1)
+            ],
+            total_count=1,
+        )
+        mock_cache_client.get = AsyncMock(
+            return_value=orjson.dumps(cached_data.model_dump())
         )
 
-        response = await get_popular_recipes(
-            popular_service=mock_popular_service,
-            limit=50,
-            offset=0,
-            count_only=False,
-        )
+        with patch("app.api.v1.endpoints.recipes.get_settings") as mock_settings:
+            mock_settings.return_value.scraping.popular_recipes.cache_key = "test"
+            response = await get_popular_recipes(
+                cache_client=mock_cache_client,
+                limit=50,
+                offset=0,
+                count_only=False,
+            )
 
         # WebRecipe should only have recipe_name and url
         web_recipe = response.recipes[0]
@@ -763,6 +802,56 @@ class TestGetPopularRecipesEndpoint:
         assert not hasattr(web_recipe, "raw_rank")
         assert not hasattr(web_recipe, "metrics")
         assert not hasattr(web_recipe, "normalized_score")
+
+    @pytest.mark.asyncio
+    async def test_returns_503_on_cache_miss(
+        self, mock_cache_client: AsyncMock
+    ) -> None:
+        """Should return 503 with Retry-After when cache is empty."""
+        mock_cache_client.get = AsyncMock(return_value=None)
+
+        with (
+            patch("app.api.v1.endpoints.recipes.get_settings") as mock_settings,
+            patch(
+                "app.api.v1.endpoints.recipes.enqueue_popular_recipes_refresh"
+            ) as mock_enqueue,
+        ):
+            mock_settings.return_value.scraping.popular_recipes.cache_key = "test"
+            mock_enqueue.return_value = None
+
+            response = await get_popular_recipes(
+                cache_client=mock_cache_client,
+                limit=50,
+                offset=0,
+                count_only=False,
+            )
+
+        # Should be a JSONResponse with 503 status
+        assert response.status_code == 503
+        assert response.headers.get("retry-after") == "60"
+        mock_enqueue.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_503_when_no_cache_client(self) -> None:
+        """Should return 503 when cache client is None."""
+        with (
+            patch("app.api.v1.endpoints.recipes.get_settings") as mock_settings,
+            patch(
+                "app.api.v1.endpoints.recipes.enqueue_popular_recipes_refresh"
+            ) as mock_enqueue,
+        ):
+            mock_settings.return_value.scraping.popular_recipes.cache_key = "test"
+            mock_enqueue.return_value = None
+
+            response = await get_popular_recipes(
+                cache_client=None,
+                limit=50,
+                offset=0,
+                count_only=False,
+            )
+
+        assert response.status_code == 503
+        mock_enqueue.assert_called_once()
 
 
 class TestGetPopularRecipesServiceDependency:

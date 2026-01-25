@@ -11,11 +11,14 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Request, status
 
+from app.cache.redis import get_cache_client
 from app.core.events.lifespan import get_llm_client
 from app.parsing.ingredient import IngredientParser
 
 
 if TYPE_CHECKING:
+    from redis.asyncio import Redis
+
     from app.services.popular.service import PopularRecipesService
     from app.services.recipe_management.client import RecipeManagementClient
     from app.services.scraping.service import RecipeScraperService
@@ -107,3 +110,15 @@ async def get_popular_recipes_service(request: Request) -> PopularRecipesService
             detail="Popular recipes service not available",
         )
     return service
+
+
+async def get_redis_cache_client() -> Redis[bytes] | None:
+    """Get the Redis cache client.
+
+    Returns:
+        Redis cache client if available, None otherwise.
+    """
+    try:
+        return await get_cache_client()
+    except Exception:
+        return None

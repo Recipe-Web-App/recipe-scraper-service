@@ -7,18 +7,21 @@ Provides:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
+import orjson
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from starlette.responses import JSONResponse
 
 from app.api.dependencies import (
     get_ingredient_parser,
-    get_popular_recipes_service,
     get_recipe_management_client,
+    get_redis_cache_client,
     get_scraper_service,
 )
 from app.auth.dependencies import CurrentUser, RequirePermissions
 from app.auth.permissions import Permission
+from app.core.config import get_settings
 from app.mappers import build_downstream_recipe_request, build_recipe_response
 from app.observability.logging import get_logger
 from app.parsing.exceptions import IngredientParsingError
@@ -29,7 +32,7 @@ from app.schemas import (
     PopularRecipesResponse,
 )
 from app.schemas.ingredient import WebRecipe
-from app.services.popular.service import PopularRecipesService  # noqa: TC001
+from app.schemas.recipe import PopularRecipesData
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
 from app.services.recipe_management.exceptions import (
     RecipeManagementError,
@@ -43,6 +46,7 @@ from app.services.scraping.exceptions import (
     ScrapingTimeoutError,
 )
 from app.services.scraping.service import RecipeScraperService  # noqa: TC001
+from app.workers.jobs import enqueue_popular_recipes_refresh
 
 
 logger = get_logger(__name__)
@@ -231,23 +235,29 @@ async def create_recipe(
         "Returns a paginated list of popular recipes aggregated from multiple "
         "curated sources. Recipes are ranked by a normalized popularity score "
         "based on ratings, reviews, and engagement metrics. Results are cached "
-        "and refreshed periodically."
+        "and refreshed periodically by a background worker."
     ),
     responses={
         503: {
-            "description": "Popular recipes service unavailable",
+            "description": "Popular recipes cache is being refreshed",
+            "headers": {
+                "Retry-After": {
+                    "description": "Suggested wait time in seconds before retrying",
+                    "schema": {"type": "integer"},
+                }
+            },
             "content": {
                 "application/json": {
-                    "example": {"detail": "Popular recipes service not available"}
+                    "example": {
+                        "detail": "Popular recipes are being refreshed. Please retry shortly."
+                    }
                 }
             },
         },
     },
 )
 async def get_popular_recipes(
-    popular_service: Annotated[
-        PopularRecipesService, Depends(get_popular_recipes_service)
-    ],
+    cache_client: Annotated[Any, Depends(get_redis_cache_client)],
     limit: Annotated[
         int,
         Query(
@@ -270,43 +280,79 @@ async def get_popular_recipes(
             description="If true, returns only the count without recipe data",
         ),
     ] = False,
-) -> PopularRecipesResponse:
-    """Get popular recipes from aggregated sources.
+) -> PopularRecipesResponse | JSONResponse:
+    """Get popular recipes from cache.
 
-    This endpoint returns trending and popular recipes from multiple curated
-    recipe websites. Recipes are scored using a normalized popularity algorithm
-    that considers ratings, review counts, and engagement metrics.
+    This endpoint returns cached popular recipes. If the cache is empty,
+    it returns 503 and triggers a background refresh job.
 
-    Results are cached for 24 hours to ensure fast response times.
+    The cache is proactively refreshed by a cron job before it expires,
+    so cache misses should be rare (only on cold start or cache failure).
 
     Args:
-        popular_service: Service for fetching popular recipes.
+        cache_client: Redis cache client.
         limit: Maximum number of recipes to return (1-100).
         offset: Starting index for pagination.
         count_only: If True, return only count without recipe data.
 
     Returns:
-        Paginated list of popular recipes.
+        Paginated list of popular recipes, or 503 if cache is cold.
     """
+    settings = get_settings()
+    config = settings.scraping.popular_recipes
+    cache_key = f"popular:{config.cache_key}"
+
     logger.debug(
-        "Fetching popular recipes",
+        "Fetching popular recipes from cache",
         limit=limit,
         offset=offset,
         count_only=count_only,
     )
 
-    recipes, total_count = await popular_service.get_popular_recipes(
-        limit=limit,
-        offset=offset,
-        count_only=count_only,
-    )
+    # Try to get from cache
+    if cache_client:
+        try:
+            cached_bytes = await cache_client.get(cache_key)
+            if cached_bytes:
+                data = PopularRecipesData.model_validate(orjson.loads(cached_bytes))
+                recipes = data.recipes
 
-    # Convert PopularRecipe to WebRecipe for response
-    web_recipes = [WebRecipe(recipe_name=r.recipe_name, url=r.url) for r in recipes]
+                # Apply pagination
+                paginated_recipes = recipes[offset : offset + limit]
 
-    return PopularRecipesResponse(
-        recipes=web_recipes,
-        limit=limit,
-        offset=offset,
-        count=total_count,
+                # Convert PopularRecipe to WebRecipe for response
+                web_recipes = (
+                    []
+                    if count_only
+                    else [
+                        WebRecipe(recipe_name=r.recipe_name, url=r.url)
+                        for r in paginated_recipes
+                    ]
+                )
+
+                logger.debug(
+                    "Returning cached popular recipes",
+                    total_count=data.total_count,
+                    returned_count=len(web_recipes),
+                )
+
+                return PopularRecipesResponse(
+                    recipes=web_recipes,
+                    limit=limit,
+                    offset=offset,
+                    count=data.total_count,
+                )
+        except Exception:
+            logger.exception("Error reading popular recipes from cache")
+
+    # Cache miss - enqueue background refresh and return 503
+    logger.info("Popular recipes cache miss, enqueueing refresh job")
+    await enqueue_popular_recipes_refresh()
+
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": "Popular recipes are being refreshed. Please retry shortly."
+        },
+        headers={"Retry-After": "60"},
     )

@@ -10,6 +10,7 @@ scraping:
     enabled: true
     cache_ttl: 86400 # 24 hours
     cache_key: "popular_recipes"
+    refresh_threshold: 3600 # Refresh when TTL < 1 hour remaining
     target_total: 20
     fetch_timeout: 30.0
     max_concurrent_fetches: 5

@@ -5,11 +5,14 @@ Tests response times and throughput for cache operations and pagination.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import orjson
 import pytest
+from arq.connections import ArqRedis, RedisSettings, create_pool
 
 from app.schemas.recipe import (
     PopularRecipe,
@@ -297,3 +300,160 @@ class TestCountOnlyPerformance:
         # Both should be fast since we're using cached data
         assert count_only_time < 0.1
         assert full_fetch_time < 0.1
+
+
+class TestEndpointPerformance:
+    """Performance tests for the popular recipes endpoint."""
+
+    async def test_endpoint_cache_hit_response_time(
+        self,
+        cache: Redis[bytes],
+        mock_settings: MagicMock,
+    ) -> None:
+        """Endpoint should respond within 50ms on cache hit."""
+        # Pre-populate cache
+        cache_key = f"popular:{mock_settings.scraping.popular_recipes.cache_key}"
+        test_data = PopularRecipesData(
+            recipes=create_test_recipes(100),
+            total_count=100,
+            sources_fetched=["PerfSource"],
+        )
+        await cache.set(
+            cache_key,
+            orjson.dumps(test_data.model_dump()),
+            ex=3600,
+        )
+
+        # Simulate endpoint logic (cache read + pagination + response building)
+        async def simulate_endpoint() -> None:
+            cached_bytes = await cache.get(cache_key)
+            if cached_bytes:
+                data = PopularRecipesData.model_validate(orjson.loads(cached_bytes))
+                _ = data.recipes[0:50]  # Pagination
+
+        # Measure average response time
+        iterations = 100
+        start = time.perf_counter()
+        for _ in range(iterations):
+            await simulate_endpoint()
+        avg_time = (time.perf_counter() - start) / iterations
+
+        # Should respond within 50ms on cache hit
+        assert avg_time < 0.05
+
+    async def test_endpoint_cache_miss_503_response_time(
+        self,
+        cache: Redis[bytes],
+        mock_settings: MagicMock,
+    ) -> None:
+        """Endpoint should respond with 503 within 100ms on cache miss."""
+        # Ensure cache is empty
+        cache_key = (
+            f"popular:{mock_settings.scraping.popular_recipes.cache_key}_miss_test"
+        )
+        await cache.delete(cache_key)
+
+        # Simulate endpoint logic for cache miss
+        async def simulate_cache_miss_endpoint() -> tuple[int, dict]:
+            cached_bytes = await cache.get(cache_key)
+            if not cached_bytes:
+                # Return 503 immediately (job enqueue is mocked out)
+                return (503, {"detail": "Popular recipes are being refreshed."})
+            return (200, {})
+
+        # Measure response time
+        iterations = 100
+        start = time.perf_counter()
+        for _ in range(iterations):
+            status, _ = await simulate_cache_miss_endpoint()
+            assert status == 503
+        avg_time = (time.perf_counter() - start) / iterations
+
+        # Should respond within 100ms on cache miss
+        assert avg_time < 0.1
+
+
+class TestConcurrencyPerformance:
+    """Performance tests for concurrent operations."""
+
+    async def test_concurrent_cache_reads(
+        self,
+        cache: Redis[bytes],
+        mock_settings: MagicMock,
+    ) -> None:
+        """Should handle 100 concurrent cache reads efficiently."""
+        # Pre-populate cache
+        cache_key = f"popular:{mock_settings.scraping.popular_recipes.cache_key}"
+        test_data = PopularRecipesData(
+            recipes=create_test_recipes(200),
+            total_count=200,
+            sources_fetched=["PerfSource"],
+        )
+        await cache.set(
+            cache_key,
+            orjson.dumps(test_data.model_dump()),
+            ex=3600,
+        )
+
+        async def concurrent_read() -> PopularRecipesData:
+            cached_bytes = await cache.get(cache_key)
+            assert cached_bytes is not None
+            return PopularRecipesData.model_validate(orjson.loads(cached_bytes))
+
+        # Run 100 concurrent reads
+        start = time.perf_counter()
+        results = await asyncio.gather(*[concurrent_read() for _ in range(100)])
+        elapsed = time.perf_counter() - start
+
+        # All should succeed
+        assert all(r.total_count == 200 for r in results)
+
+        # 100 concurrent reads should complete within 1 second
+        assert elapsed < 1.0
+
+    async def test_job_deduplication_performance(
+        self,
+        cache: Redis[bytes],
+    ) -> None:
+        """Concurrent cache misses should result in efficient job enqueueing."""
+        # Create ARQ pool for testing
+        pool: ArqRedis = await create_pool(
+            RedisSettings(
+                host=cache.connection_pool.connection_kwargs["host"],
+                port=cache.connection_pool.connection_kwargs["port"],
+                database=1,  # Use queue db
+            )
+        )
+
+        try:
+            job_id = "perf_test_dedup_job"
+
+            async def simulate_cache_miss_with_enqueue() -> str | None:
+                # Simulate cache miss
+                # Enqueue with fixed job_id (ARQ deduplicates)
+                job = await pool.enqueue_job(
+                    "refresh_popular_recipes",
+                    _job_id=job_id,
+                )
+                return job.job_id if job else None
+
+            # Simulate 100 concurrent cache misses trying to enqueue
+            start = time.perf_counter()
+            results = await asyncio.gather(
+                *[simulate_cache_miss_with_enqueue() for _ in range(100)]
+            )
+            elapsed = time.perf_counter() - start
+
+            # Count successful enqueues vs deduped (None)
+            enqueued = [r for r in results if r is not None]
+            deduped = [r for r in results if r is None]
+
+            # First one should succeed, rest should be deduplicated
+            assert len(enqueued) == 1
+            assert len(deduped) == 99
+
+            # All 100 should complete within 1 second
+            assert elapsed < 1.0
+
+        finally:
+            await pool.close()

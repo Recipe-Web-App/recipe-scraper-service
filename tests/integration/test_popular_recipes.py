@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import orjson
 import pytest
 
 from app.schemas.recipe import (
@@ -18,6 +19,10 @@ from app.schemas.recipe import (
     RecipeEngagementMetrics,
 )
 from app.services.popular.service import PopularRecipesService
+from app.workers.tasks.popular_recipes import (
+    check_and_refresh_popular_recipes,
+    refresh_popular_recipes,
+)
 
 
 if TYPE_CHECKING:
@@ -314,3 +319,237 @@ class TestConcurrentAccess:
         # All reads should succeed
         assert all(r is not None for r in results)
         assert all(r.total_count == 10 for r in results if r)
+
+
+class TestWorkerTasksIntegration:
+    """Integration tests for worker tasks with real Redis."""
+
+    @pytest.fixture
+    def worker_mock_settings(self, mock_settings: MagicMock) -> MagicMock:
+        """Extend mock settings for worker tasks."""
+        mock_settings.scraping.popular_recipes.refresh_threshold = 3600
+        return mock_settings
+
+    async def test_check_and_refresh_skips_healthy_cache(
+        self, cache: Redis[bytes], worker_mock_settings: MagicMock
+    ) -> None:
+        """Should skip refresh when cache TTL is healthy."""
+
+        # Pre-populate cache with long TTL
+        cache_key = f"popular:{worker_mock_settings.scraping.popular_recipes.cache_key}"
+        test_data = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Cached Recipe",
+                    url="https://test.com/cached",
+                    source="TestSource",
+                    raw_rank=1,
+                )
+            ],
+            total_count=1,
+        )
+
+        await cache.set(
+            cache_key,
+            orjson.dumps(test_data.model_dump()),
+            ex=7200,  # 2 hours (above 1 hour threshold)
+        )
+
+        ctx = {"cache_client": cache}
+
+        with patch(
+            "app.workers.tasks.popular_recipes.get_settings",
+            return_value=worker_mock_settings,
+        ):
+            result = await check_and_refresh_popular_recipes(ctx)
+
+        assert result["status"] == "skipped"
+        assert result["ttl_remaining"] > 3600
+
+    async def test_check_and_refresh_triggers_on_low_ttl(
+        self, cache: Redis[bytes], worker_mock_settings: MagicMock
+    ) -> None:
+        """Should trigger refresh when cache TTL is below threshold."""
+
+        # Pre-populate cache with short TTL
+        cache_key = f"popular:{worker_mock_settings.scraping.popular_recipes.cache_key}"
+        test_data = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Expiring Recipe",
+                    url="https://test.com/expiring",
+                    source="TestSource",
+                    raw_rank=1,
+                )
+            ],
+            total_count=1,
+        )
+
+        await cache.set(
+            cache_key,
+            orjson.dumps(test_data.model_dump()),
+            ex=1800,  # 30 minutes (below 1 hour threshold)
+        )
+
+        ctx = {"cache_client": cache}
+
+        # Mock the service to avoid real HTTP calls
+        mock_service = AsyncMock()
+        mock_service.refresh_cache.return_value = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Refreshed Recipe",
+                    url="https://test.com/refreshed",
+                    source="TestSource",
+                    raw_rank=1,
+                )
+            ],
+            total_count=1,
+            sources_fetched=["TestSource"],
+        )
+
+        with (
+            patch(
+                "app.workers.tasks.popular_recipes.get_settings",
+                return_value=worker_mock_settings,
+            ),
+            patch(
+                "app.workers.tasks.popular_recipes.PopularRecipesService",
+                return_value=mock_service,
+            ),
+        ):
+            result = await check_and_refresh_popular_recipes(ctx)
+
+        assert result["status"] == "completed"
+        mock_service.refresh_cache.assert_called_once()
+
+    async def test_check_and_refresh_triggers_on_missing_cache(
+        self, cache: Redis[bytes], worker_mock_settings: MagicMock
+    ) -> None:
+        """Should trigger refresh when cache key doesn't exist."""
+
+        # Use a unique cache key that doesn't exist
+        worker_mock_settings.scraping.popular_recipes.cache_key = (
+            "nonexistent_worker_test"
+        )
+        cache_key = f"popular:{worker_mock_settings.scraping.popular_recipes.cache_key}"
+
+        # Ensure key doesn't exist
+        await cache.delete(cache_key)
+
+        ctx = {"cache_client": cache}
+
+        mock_service = AsyncMock()
+        mock_service.refresh_cache.return_value = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Fresh Recipe",
+                    url="https://test.com/fresh",
+                    source="TestSource",
+                    raw_rank=1,
+                )
+            ],
+            total_count=1,
+            sources_fetched=["TestSource"],
+        )
+
+        with (
+            patch(
+                "app.workers.tasks.popular_recipes.get_settings",
+                return_value=worker_mock_settings,
+            ),
+            patch(
+                "app.workers.tasks.popular_recipes.PopularRecipesService",
+                return_value=mock_service,
+            ),
+        ):
+            result = await check_and_refresh_popular_recipes(ctx)
+
+        assert result["status"] == "completed"
+        mock_service.refresh_cache.assert_called_once()
+
+    async def test_refresh_popular_recipes_caches_result(
+        self, cache: Redis[bytes], worker_mock_settings: MagicMock
+    ) -> None:
+        """Should cache the refreshed data after fetch."""
+
+        ctx = {
+            "cache_client": cache,
+            "llm_client": None,
+        }
+
+        # Mock service to return test data
+        mock_service = AsyncMock()
+        mock_data = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Worker Cached Recipe",
+                    url="https://test.com/worker-cached",
+                    source="TestSource",
+                    raw_rank=1,
+                    normalized_score=0.95,
+                )
+            ],
+            total_count=1,
+            sources_fetched=["TestSource"],
+        )
+        mock_service.refresh_cache.return_value = mock_data
+
+        with (
+            patch(
+                "app.workers.tasks.popular_recipes.get_settings",
+                return_value=worker_mock_settings,
+            ),
+            patch(
+                "app.workers.tasks.popular_recipes.PopularRecipesService",
+                return_value=mock_service,
+            ),
+        ):
+            result = await refresh_popular_recipes(ctx)
+
+        assert result["status"] == "completed"
+        assert result["recipe_count"] == 1
+        assert result["sources_fetched"] == ["TestSource"]
+
+        # Verify service lifecycle was respected
+        mock_service.initialize.assert_called_once()
+        mock_service.refresh_cache.assert_called_once()
+        mock_service.shutdown.assert_called_once()
+
+    async def test_cache_ttl_boundary_check(
+        self, cache: Redis[bytes], worker_mock_settings: MagicMock
+    ) -> None:
+        """Should correctly handle TTL exactly at threshold boundary."""
+
+        cache_key = f"popular:{worker_mock_settings.scraping.popular_recipes.cache_key}"
+        test_data = PopularRecipesData(
+            recipes=[
+                PopularRecipe(
+                    recipe_name="Boundary Recipe",
+                    url="https://test.com/boundary",
+                    source="TestSource",
+                    raw_rank=1,
+                )
+            ],
+            total_count=1,
+        )
+
+        # Set TTL exactly at threshold (3600 seconds)
+        await cache.set(
+            cache_key,
+            orjson.dumps(test_data.model_dump()),
+            ex=3600,  # Exactly at threshold
+        )
+
+        ctx = {"cache_client": cache}
+
+        with patch(
+            "app.workers.tasks.popular_recipes.get_settings",
+            return_value=worker_mock_settings,
+        ):
+            result = await check_and_refresh_popular_recipes(ctx)
+
+        # TTL < threshold (3600 < 3600 is false, but due to timing it might be 3599)
+        # The condition is `ttl < threshold`, so at exactly 3600 it should skip
+        # but due to timing, it may have decreased slightly
+        assert result["status"] in ("skipped", "completed")

@@ -149,6 +149,21 @@ class PopularRecipesService:
             await self._cache_client.delete(cache_key)
             logger.info("Popular recipes cache invalidated")
 
+    async def refresh_cache(self) -> PopularRecipesData:
+        """Force refresh the cache by fetching fresh data.
+
+        Unlike get_popular_recipes which checks cache first, this method
+        always fetches fresh data from sources and updates the cache.
+        Used by background workers to proactively refresh before expiry.
+
+        Returns:
+            Freshly fetched and cached popular recipes data.
+        """
+        logger.info("Force refreshing popular recipes cache")
+        data = await self._fetch_all_sources()
+        await self._save_to_cache(data)
+        return data
+
     async def _get_or_refresh_cache(self) -> PopularRecipesData:
         """Get data from cache or fetch fresh data.
 

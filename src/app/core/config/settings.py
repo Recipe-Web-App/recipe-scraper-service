@@ -252,6 +252,7 @@ class PopularRecipesSettings(BaseModel):
     enabled: bool = True
     cache_ttl: int = 86400  # 24 hours
     cache_key: str = "popular_recipes"
+    refresh_threshold: int = 3600  # Refresh when TTL < 1 hour
     target_total: int = 500  # Target ~500 recipes total
     fetch_timeout: float = 30.0
     max_concurrent_fetches: int = 5
@@ -293,6 +294,24 @@ class DownstreamServicesSettings(BaseModel):
     recipe_management: RecipeManagementServiceSettings = (
         RecipeManagementServiceSettings()
     )
+
+
+class ArqJobIdsSettings(BaseModel):
+    """Centralized job IDs for ARQ background tasks.
+
+    Using fixed IDs enables job deduplication - if a job with the same ID
+    is already queued or in-progress, a new one won't be created.
+    """
+
+    popular_recipes_refresh: str = "popular_recipes_refresh"
+
+
+class ArqSettings(BaseModel):
+    """ARQ background worker configuration."""
+
+    job_ids: ArqJobIdsSettings = ArqJobIdsSettings()
+    queue_name: str = "scraper:queue:jobs"
+    health_check_key: str = "scraper:queue:health-check"
 
 
 # =============================================================================
@@ -344,6 +363,7 @@ class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     scraping: ScrapingSettings = ScrapingSettings()
     downstream_services: DownstreamServicesSettings = DownstreamServicesSettings()
+    arq: ArqSettings = ArqSettings()
 
     # =========================================================================
     # Secrets (from .env only - never in YAML)

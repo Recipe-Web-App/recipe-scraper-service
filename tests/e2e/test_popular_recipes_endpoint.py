@@ -1,6 +1,6 @@
 """End-to-end tests for popular recipes endpoint.
 
-Tests the full endpoint workflow with mocked HTTP responses.
+Tests the full endpoint workflow with mocked cache responses.
 """
 
 from __future__ import annotations
@@ -8,12 +8,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import orjson
 import pytest
 import respx
 from httpx import Response
 
+from app.api.dependencies import get_redis_cache_client
 from app.schemas.recipe import (
     PopularRecipe,
+    PopularRecipesData,
     RecipeEngagementMetrics,
 )
 from app.services.popular.service import PopularRecipesService
@@ -78,52 +81,68 @@ SAMPLE_RECIPE_HTML = """
 """
 
 
-class TestPopularRecipesEndpointE2E:
-    """E2E tests for the popular recipes endpoint."""
+def _create_mock_cache_client(cached_data: PopularRecipesData | None) -> AsyncMock:
+    """Create a mock cache client with optional cached data."""
+    mock_client = AsyncMock()
+    if cached_data:
+        mock_client.get = AsyncMock(return_value=orjson.dumps(cached_data.model_dump()))
+    else:
+        mock_client.get = AsyncMock(return_value=None)
+    return mock_client
 
-    @pytest.fixture
-    def mock_popular_service(self) -> MagicMock:
-        """Create a mock service with pre-populated data."""
-        service = AsyncMock()
-        service.get_popular_recipes = AsyncMock(
-            return_value=(
-                [
-                    PopularRecipe(
-                        recipe_name="E2E Recipe 1",
-                        url="https://test.com/recipe1",
-                        source="TestSource",
-                        raw_rank=1,
-                        metrics=RecipeEngagementMetrics(rating=4.8),
-                        normalized_score=0.95,
-                    ),
-                    PopularRecipe(
-                        recipe_name="E2E Recipe 2",
-                        url="https://test.com/recipe2",
-                        source="TestSource",
-                        raw_rank=2,
-                        metrics=RecipeEngagementMetrics(rating=4.5),
-                        normalized_score=0.90,
-                    ),
-                ],
-                100,  # total_count
-            )
-        )
-        return service
+
+def _create_sample_cached_data(
+    recipes: list[PopularRecipe] | None = None,
+    total_count: int = 100,
+) -> PopularRecipesData:
+    """Create sample cached data for testing."""
+    if recipes is None:
+        recipes = [
+            PopularRecipe(
+                recipe_name="E2E Recipe 1",
+                url="https://test.com/recipe1",
+                source="TestSource",
+                raw_rank=1,
+                metrics=RecipeEngagementMetrics(rating=4.8),
+                normalized_score=0.95,
+            ),
+            PopularRecipe(
+                recipe_name="E2E Recipe 2",
+                url="https://test.com/recipe2",
+                source="TestSource",
+                raw_rank=2,
+                metrics=RecipeEngagementMetrics(rating=4.5),
+                normalized_score=0.90,
+            ),
+        ]
+    return PopularRecipesData(
+        recipes=recipes,
+        total_count=total_count,
+        sources_fetched=["TestSource"],
+    )
+
+
+class TestPopularRecipesEndpointE2E:
+    """E2E tests for the popular recipes endpoint.
+
+    The endpoint now reads directly from cache and returns 503 if cache is empty.
+    """
 
     async def test_get_popular_recipes_returns_list(
         self,
         client: AsyncClient,
-        mock_popular_service: MagicMock,
     ) -> None:
-        """Should return list of popular recipes."""
-        # Patch the service in app state
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_popular_service,
-            create=True,
-        ):
+        """Should return list of popular recipes from cache."""
+        cached_data = _create_sample_cached_data()
+        mock_cache = _create_mock_cache_client(cached_data)
+
+        # Override the dependency at FastAPI level
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             response = await client.get("/api/v1/recipe-scraper/recipes/popular")
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 200
         data = response.json()
@@ -136,43 +155,43 @@ class TestPopularRecipesEndpointE2E:
     async def test_pagination_parameters(
         self,
         client: AsyncClient,
-        mock_popular_service: MagicMock,
     ) -> None:
         """Should accept pagination parameters."""
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_popular_service,
-            create=True,
-        ):
+        cached_data = _create_sample_cached_data()
+        mock_cache = _create_mock_cache_client(cached_data)
+
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             response = await client.get(
                 "/api/v1/recipe-scraper/recipes/popular",
-                params={"limit": 10, "offset": 20},
+                params={"limit": 10, "offset": 0},
             )
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 200
         data = response.json()
         assert data["limit"] == 10
-        assert data["offset"] == 20
+        assert data["offset"] == 0
 
     async def test_count_only_parameter(
         self,
         client: AsyncClient,
     ) -> None:
         """Should return only count when countOnly is true."""
-        mock_service = AsyncMock()
-        mock_service.get_popular_recipes = AsyncMock(return_value=([], 500))
+        cached_data = _create_sample_cached_data(total_count=500)
+        mock_cache = _create_mock_cache_client(cached_data)
 
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_service,
-            create=True,
-        ):
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             response = await client.get(
                 "/api/v1/recipe-scraper/recipes/popular",
                 params={"countOnly": "true"},
             )
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 200
         data = response.json()
@@ -182,40 +201,42 @@ class TestPopularRecipesEndpointE2E:
     async def test_limit_validation(
         self,
         client: AsyncClient,
-        mock_popular_service: MagicMock,
     ) -> None:
         """Should validate limit parameter bounds."""
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_popular_service,
-            create=True,
-        ):
+        cached_data = _create_sample_cached_data()
+        mock_cache = _create_mock_cache_client(cached_data)
+
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             # Limit too high
             response = await client.get(
                 "/api/v1/recipe-scraper/recipes/popular",
                 params={"limit": 200},
             )
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 422
 
     async def test_offset_validation(
         self,
         client: AsyncClient,
-        mock_popular_service: MagicMock,
     ) -> None:
         """Should validate offset parameter bounds."""
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_popular_service,
-            create=True,
-        ):
+        cached_data = _create_sample_cached_data()
+        mock_cache = _create_mock_cache_client(cached_data)
+
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             # Negative offset
             response = await client.get(
                 "/api/v1/recipe-scraper/recipes/popular",
                 params={"offset": -1},
             )
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 422
 
@@ -223,30 +244,37 @@ class TestPopularRecipesEndpointE2E:
         self,
         client: AsyncClient,
     ) -> None:
-        """Should return 503 when service is unavailable."""
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            None,
-            create=True,
-        ):
-            response = await client.get("/api/v1/recipe-scraper/recipes/popular")
+        """Should return 503 when cache is empty (triggers background refresh)."""
+        mock_cache = _create_mock_cache_client(None)
+
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
+            with patch(
+                "app.api.v1.endpoints.recipes.enqueue_popular_recipes_refresh",
+                return_value=None,
+            ):
+                response = await client.get("/api/v1/recipe-scraper/recipes/popular")
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 503
+        assert response.headers.get("retry-after") == "60"
 
     async def test_response_schema_format(
         self,
         client: AsyncClient,
-        mock_popular_service: MagicMock,
     ) -> None:
         """Should return response in correct schema format."""
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_popular_service,
-            create=True,
-        ):
+        cached_data = _create_sample_cached_data()
+        mock_cache = _create_mock_cache_client(cached_data)
+
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             response = await client.get("/api/v1/recipe-scraper/recipes/popular")
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 200
         data = response.json()
@@ -277,17 +305,16 @@ class TestPopularRecipesNoAuth:
         client: AsyncClient,
     ) -> None:
         """Should not require authentication header."""
-        mock_service = AsyncMock()
-        mock_service.get_popular_recipes = AsyncMock(return_value=([], 0))
+        cached_data = _create_sample_cached_data(recipes=[], total_count=0)
+        mock_cache = _create_mock_cache_client(cached_data)
 
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_service,
-            create=True,
-        ):
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             # Make request without any auth headers
             response = await client.get("/api/v1/recipe-scraper/recipes/popular")
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         # Should succeed without auth
         assert response.status_code == 200
@@ -363,16 +390,15 @@ class TestEmptyResults:
         client: AsyncClient,
     ) -> None:
         """Should return empty list when no recipes available."""
-        mock_service = AsyncMock()
-        mock_service.get_popular_recipes = AsyncMock(return_value=([], 0))
+        cached_data = _create_sample_cached_data(recipes=[], total_count=0)
+        mock_cache = _create_mock_cache_client(cached_data)
 
-        with patch.object(
-            client._transport.app.state,  # type: ignore[union-attr]
-            "popular_recipes_service",
-            mock_service,
-            create=True,
-        ):
+        app = client._transport.app  # type: ignore[union-attr]
+        app.dependency_overrides[get_redis_cache_client] = lambda: mock_cache
+        try:
             response = await client.get("/api/v1/recipe-scraper/recipes/popular")
+        finally:
+            app.dependency_overrides.pop(get_redis_cache_client, None)
 
         assert response.status_code == 200
         data = response.json()

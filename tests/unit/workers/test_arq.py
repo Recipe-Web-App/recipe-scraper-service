@@ -8,7 +8,7 @@ Tests cover:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -20,6 +20,8 @@ pytestmark = pytest.mark.unit
 
 def _create_mock_settings(
     password: str | None = None,
+    llm_enabled: bool = False,
+    groq_api_key: str | None = None,
 ) -> MagicMock:
     """Create mock settings with nested structure."""
     mock_settings = MagicMock()
@@ -31,6 +33,9 @@ def _create_mock_settings(
     mock_settings.logging.format = "json"
     mock_settings.is_development = False
     mock_settings.APP_ENV = "test"
+    mock_settings.redis_cache_url = "redis://localhost:6379/0"
+    mock_settings.llm.enabled = llm_enabled
+    mock_settings.GROQ_API_KEY = groq_api_key
     return mock_settings
 
 
@@ -79,10 +84,12 @@ class TestStartup:
         ctx: dict[str, MagicMock] = {}
         mock_settings = _create_mock_settings()
         mock_settings.logging.level = "DEBUG"
+        mock_redis = AsyncMock()
 
         with (
             patch("app.workers.arq.get_settings", return_value=mock_settings),
             patch("app.workers.arq.setup_logging") as mock_setup,
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
         ):
             await startup(ctx)
 
@@ -97,14 +104,48 @@ class TestStartup:
         """Should store settings in worker context."""
         ctx: dict[str, MagicMock] = {}
         mock_settings = _create_mock_settings()
+        mock_redis = AsyncMock()
 
         with (
             patch("app.workers.arq.get_settings", return_value=mock_settings),
             patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
         ):
             await startup(ctx)
 
             assert ctx["settings"] is mock_settings
+
+    @pytest.mark.asyncio
+    async def test_initializes_cache_client(self) -> None:
+        """Should initialize cache client in context."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings()
+        mock_redis = AsyncMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+        ):
+            await startup(ctx)
+
+            assert ctx["cache_client"] is mock_redis
+
+    @pytest.mark.asyncio
+    async def test_llm_client_none_when_disabled(self) -> None:
+        """Should set llm_client to None when LLM is disabled."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings(llm_enabled=False)
+        mock_redis = AsyncMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+        ):
+            await startup(ctx)
+
+            assert ctx["llm_client"] is None
 
 
 class TestShutdown:
