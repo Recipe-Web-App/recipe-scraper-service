@@ -27,14 +27,14 @@ prometheus-fastapi-instrumentator = ">=7.1.0,<8.0.0"
 slowapi = ">=0.1.9,<0.2.0"
 secure = ">=1.0.1,<2.0.0"
 pydantic-settings = "^2.12.0"
-sqlalchemy = "^2.0.45"
+sqlalchemy = "^2.0.46"
 psycopg2 = "^2.9.11"
 asyncpg = "^0.31.0"
 redis = "^7.1.0"
 uvicorn = { extras = ["standard"], version = "^0.40.0" }
 ingredient-parser-nlp = "^2.4.0"
 pyjwt = { extras = ["cryptography"], version = "^2.8.0" }
-python-multipart = "^0.0.21"
+python-multipart = "^0.0.22"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
