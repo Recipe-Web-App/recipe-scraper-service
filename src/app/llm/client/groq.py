@@ -6,10 +6,14 @@ Used as a fallback when local Ollama is unavailable.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import json
+import time
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import httpx
+from aiolimiter import AsyncLimiter
 from pydantic import BaseModel
 
 from app.llm.exceptions import (
@@ -62,6 +66,7 @@ class GroqClient:
         cache_client: Redis[Any] | None = None,
         cache_ttl: int = 3600,
         cache_enabled: bool = True,
+        requests_per_minute: float = 30.0,
     ) -> None:
         """Initialize the Groq client.
 
@@ -74,6 +79,7 @@ class GroqClient:
             cache_client: Optional Redis client for caching responses.
             cache_ttl: Cache TTL in seconds (default: 3600 = 1 hour).
             cache_enabled: Whether to use caching (default: True).
+            requests_per_minute: Rate limit for API requests (default: 30, Groq free tier).
         """
         self.api_key = api_key
         self.model = model
@@ -84,6 +90,19 @@ class GroqClient:
         self.cache_ttl = cache_ttl
         self.cache_enabled = cache_enabled
         self._http_client: httpx.AsyncClient | None = None
+        # Prevent bursts: 1 request per (60/rpm) seconds instead of rpm requests per 60s
+        # With 10 RPM: allows 1 request every 6 seconds (no initial burst)
+        self._requests_per_minute = requests_per_minute
+        self._rate_limit_period = 60.0 / requests_per_minute
+        self._rate_limiter = AsyncLimiter(1, self._rate_limit_period)
+        self._last_request_time: float | None = None
+        self._request_count = 0
+        logger.info(
+            "GroqClient rate limiter configured",
+            requests_per_minute=requests_per_minute,
+            period_seconds=self._rate_limit_period,
+            description=f"1 request per {self._rate_limit_period:.1f}s",
+        )
 
     @property
     def chat_url(self) -> str:
@@ -183,9 +202,45 @@ class GroqClient:
         except Exception as e:
             logger.warning("Failed to cache Groq completion", error=str(e))
 
+    async def _acquire_rate_limit(
+        self, context: str, request_num: int, attempt: int
+    ) -> None:
+        """Acquire rate limiter with logging."""
+        acquire_start = time.monotonic()
+
+        if self._last_request_time is not None:
+            time_since_last = acquire_start - self._last_request_time
+            logger.debug(
+                "Rate limiter: waiting to acquire",
+                context=context,
+                request_num=request_num,
+                time_since_last_request=f"{time_since_last:.2f}s",
+                required_gap=f"{self._rate_limit_period:.1f}s",
+            )
+        else:
+            logger.debug(
+                "Rate limiter: first request, acquiring immediately",
+                context=context,
+                request_num=request_num,
+            )
+
+        await self._rate_limiter.acquire()
+
+        wait_time = time.monotonic() - acquire_start
+        self._last_request_time = time.monotonic()
+
+        logger.info(
+            "Rate limiter: acquired",
+            context=context,
+            request_num=request_num,
+            wait_time=f"{wait_time:.2f}s",
+            attempt=attempt + 1,
+        )
+
     async def _execute_with_retry(
         self,
         request: GroqChatRequest,
+        context: str,
     ) -> GroqChatResponse:
         """Execute request with retry logic for transient failures."""
         if self._http_client is None:
@@ -196,24 +251,64 @@ class GroqClient:
         last_exception: Exception | None = None
 
         for attempt in range(self.max_retries + 1):
+            self._request_count += 1
+            request_num = self._request_count
+
+            await self._acquire_rate_limit(context, request_num, attempt)
+
             try:
+                request_start = time.monotonic()
                 response = await self._http_client.post(
                     self.chat_url,
                     json=request.model_dump(exclude_none=True),
                 )
 
+                request_duration = time.monotonic() - request_start
+
                 if response.status_code == 429:
-                    retry_after = response.headers.get("retry-after", "60")
-                    msg = f"Groq rate limit exceeded, retry after {retry_after}s"
+                    retry_after = int(response.headers.get("retry-after", "60"))
+
+                    # Retry with backoff if we have retries left
+                    if attempt < self.max_retries:
+                        logger.warning(
+                            "Groq rate limit hit, sleeping before retry",
+                            context=context,
+                            request_num=request_num,
+                            retry_after=retry_after,
+                            attempt=attempt + 1,
+                            max_retries=self.max_retries,
+                        )
+                        await asyncio.sleep(retry_after)
+                        continue  # Re-enters loop, re-acquires limiter
+
+                    # Exhausted retries
+                    logger.warning(
+                        "Groq rate limit hit, max retries exhausted",
+                        context=context,
+                        request_num=request_num,
+                        retry_after=retry_after,
+                        request_duration=f"{request_duration:.2f}s",
+                        status_code=response.status_code,
+                    )
+                    msg = f"Groq rate limit exceeded after {attempt + 1} attempts"
                     raise LLMRateLimitError(msg)
 
                 response.raise_for_status()
+                logger.info(
+                    "Groq request completed successfully",
+                    context=context,
+                    request_num=request_num,
+                    request_duration=f"{request_duration:.2f}s",
+                    status_code=response.status_code,
+                )
                 return GroqChatResponse.model_validate(response.json())
 
             except httpx.TimeoutException as e:
                 last_exception = e
                 logger.warning(
                     "Groq request timeout",
+                    context=context,
+                    request_num=request_num,
                     attempt=attempt + 1,
                     max_retries=self.max_retries,
                     timeout=self.timeout,
@@ -226,6 +321,8 @@ class GroqClient:
             except httpx.HTTPStatusError as e:
                 logger.exception(
                     "Groq request failed",
+                    context=context,
+                    request_num=request_num,
                     status_code=e.response.status_code,
                     url=self.chat_url,
                 )
@@ -236,6 +333,8 @@ class GroqClient:
                 last_exception = e
                 logger.warning(
                     "Groq connection error",
+                    context=context,
+                    request_num=request_num,
                     attempt=attempt + 1,
                     max_retries=self.max_retries,
                     error=str(e),
@@ -248,6 +347,62 @@ class GroqClient:
         msg = "Max retries exceeded"
         raise LLMUnavailableError(msg) from last_exception
 
+    def _parse_structured_response(
+        self,
+        raw_response: str,
+        schema: type[T],
+    ) -> T:
+        """Parse structured JSON response with recovery for malformed LLM output.
+
+        Handles common LLM issues:
+        - List-wrapped responses (unwraps single-item arrays)
+        - Schema metadata echoed back ($defs, $schema)
+
+        Args:
+            raw_response: Raw JSON string from LLM.
+            schema: Pydantic model to validate against.
+
+        Returns:
+            Validated instance of the schema.
+
+        Raises:
+            LLMValidationError: If response cannot be parsed or validated.
+        """
+        try:
+            data = json.loads(raw_response)
+
+            # Unwrap list-wrapped responses (LLM sometimes wraps in array)
+            if isinstance(data, list) and len(data) == 1:
+                logger.debug(
+                    "Unwrapping list-wrapped LLM response",
+                    schema=schema.__name__,
+                )
+                data = data[0]
+
+            # Remove schema metadata that LLM sometimes echoes back
+            if isinstance(data, dict):
+                data.pop("$defs", None)
+                data.pop("$schema", None)
+
+            return schema.model_validate(data)
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "Failed to parse Groq response as JSON",
+                error=str(e),
+                raw_response=raw_response[:500],
+            )
+            msg = f"Response is not valid JSON: {e}"
+            raise LLMValidationError(msg) from e
+        except Exception as e:
+            logger.warning(
+                "Failed to parse structured Groq output",
+                schema=schema.__name__,
+                error=str(e),
+                raw_response=raw_response[:500],
+            )
+            msg = f"Response does not match {schema.__name__} schema: {e}"
+            raise LLMValidationError(msg) from e
+
     async def generate(
         self,
         prompt: str,
@@ -257,6 +412,7 @@ class GroqClient:
         schema: type[T] | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,
     ) -> LLMCompletionResult:
         """Generate text completion from Groq.
 
@@ -267,6 +423,7 @@ class GroqClient:
             schema: Optional Pydantic model for structured JSON output.
             options: Model-specific options (temperature, etc.).
             skip_cache: If True, bypass cache for this request.
+            context: Optional context identifier for logging/tracing.
 
         Returns:
             LLMCompletionResult with raw response and optionally parsed output.
@@ -278,12 +435,27 @@ class GroqClient:
             LLMValidationError: If response doesn't match schema.
         """
         use_model = model or self.model
+        ctx = context or "unknown"
+
+        logger.debug(
+            "Groq generate called",
+            context=ctx,
+            model=use_model,
+            prompt_length=len(prompt),
+            has_schema=schema is not None,
+            skip_cache=skip_cache,
+        )
 
         # Check cache first
         cache_key = self._get_cache_key(prompt, use_model, schema, system)
         if not skip_cache:
             cached = await self._get_cached_result(cache_key)
             if cached is not None:
+                logger.debug(
+                    "Groq request served from cache",
+                    context=ctx,
+                    cache_key=cache_key[:20],
+                )
                 return cached
 
         # Build messages for chat API
@@ -328,24 +500,14 @@ class GroqClient:
         )
 
         # Execute with retry
-        response = await self._execute_with_retry(request)
+        response = await self._execute_with_retry(request, ctx)
 
         raw_response = response.choices[0].message.content
 
         # Parse structured output if schema provided
         parsed: Any = None
         if schema is not None:
-            try:
-                parsed = schema.model_validate_json(raw_response)
-            except Exception as e:
-                logger.warning(
-                    "Failed to parse structured Groq output",
-                    schema=schema.__name__,
-                    error=str(e),
-                    raw_response=raw_response[:500],
-                )
-                msg = f"Response does not match {schema.__name__} schema: {e}"
-                raise LLMValidationError(msg) from e
+            parsed = self._parse_structured_response(raw_response, schema)
 
         result = LLMCompletionResult(
             raw_response=raw_response,
@@ -360,6 +522,15 @@ class GroqClient:
         if not skip_cache:
             await self._cache_result(cache_key, result)
 
+        logger.debug(
+            "Groq generate completed",
+            context=ctx,
+            model=result.model,
+            prompt_tokens=result.prompt_tokens,
+            completion_tokens=result.completion_tokens,
+            cached=result.cached,
+        )
+
         return result
 
     async def generate_structured(
@@ -371,6 +542,7 @@ class GroqClient:
         system: str | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,
     ) -> T:
         """Generate structured output matching a Pydantic schema.
 
@@ -383,6 +555,7 @@ class GroqClient:
             system: Optional system prompt for context.
             options: Model-specific options.
             skip_cache: If True, bypass cache for this request.
+            context: Optional context identifier for logging/tracing.
 
         Returns:
             Instance of the schema class populated from LLM response.
@@ -397,6 +570,7 @@ class GroqClient:
             schema=schema,
             options=options,
             skip_cache=skip_cache,
+            context=context,
         )
 
         if result.parsed is None:

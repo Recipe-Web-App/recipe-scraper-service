@@ -48,6 +48,7 @@ class LLMClientProtocol(Protocol):
         schema: type[T] | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,
     ) -> LLMCompletionResult:
         """Generate text completion from the LLM.
 
@@ -58,6 +59,7 @@ class LLMClientProtocol(Protocol):
             schema: Optional Pydantic model for structured JSON output.
             options: Model-specific options (temperature, etc.).
             skip_cache: Bypass cache if True.
+            context: Optional context identifier for logging/tracing.
 
         Returns:
             LLMCompletionResult with raw_response and optionally parsed output.
@@ -79,6 +81,7 @@ class LLMClientProtocol(Protocol):
         system: str | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,
     ) -> T:
         """Generate structured output matching a Pydantic schema.
 
@@ -91,6 +94,7 @@ class LLMClientProtocol(Protocol):
             system: Optional system prompt for context.
             options: Model-specific options.
             skip_cache: If True, bypass cache for this request.
+            context: Optional context identifier for logging/tracing.
 
         Returns:
             Instance of the schema class populated from LLM response.

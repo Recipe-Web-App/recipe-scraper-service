@@ -93,6 +93,7 @@ class FallbackLLMClient:
         schema: type[T] | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,
     ) -> LLMCompletionResult:
         """Generate with automatic fallback on unavailability.
 
@@ -107,6 +108,7 @@ class FallbackLLMClient:
             schema: Optional Pydantic model for structured JSON output.
             options: Model-specific options (temperature, etc.).
             skip_cache: Bypass cache if True.
+            context: Optional context identifier for logging/tracing.
 
         Returns:
             LLMCompletionResult with raw_response and optionally parsed output.
@@ -124,16 +126,19 @@ class FallbackLLMClient:
                 schema=schema,
                 options=options,
                 skip_cache=skip_cache,
+                context=context,
             )
         except LLMUnavailableError as e:
             if not self.fallback_enabled or self.secondary is None:
                 logger.exception(
                     "Primary LLM unavailable, no fallback configured",
+                    context=context,
                 )
                 raise
 
             logger.warning(
                 "Primary LLM unavailable, falling back to secondary",
+                context=context,
                 primary_error=str(e),
             )
 
@@ -144,6 +149,7 @@ class FallbackLLMClient:
                 schema=schema,
                 options=options,
                 skip_cache=skip_cache,
+                context=context,
             )
 
     async def generate_structured(
@@ -155,6 +161,7 @@ class FallbackLLMClient:
         system: str | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,
     ) -> T:
         """Generate structured output with fallback.
 
@@ -165,6 +172,7 @@ class FallbackLLMClient:
             system: Optional system prompt for context.
             options: Model-specific options.
             skip_cache: If True, bypass cache for this request.
+            context: Optional context identifier for logging/tracing.
 
         Returns:
             Instance of the schema class populated from LLM response.
@@ -181,16 +189,19 @@ class FallbackLLMClient:
                 system=system,
                 options=options,
                 skip_cache=skip_cache,
+                context=context,
             )
         except LLMUnavailableError as e:
             if not self.fallback_enabled or self.secondary is None:
                 logger.exception(
                     "Primary LLM unavailable, no fallback configured",
+                    context=context,
                 )
                 raise
 
             logger.warning(
                 "Primary LLM unavailable, falling back to secondary",
+                context=context,
                 primary_error=str(e),
             )
 
@@ -201,4 +212,5 @@ class FallbackLLMClient:
                 system=system,
                 options=options,
                 skip_cache=skip_cache,
+                context=context,
             )

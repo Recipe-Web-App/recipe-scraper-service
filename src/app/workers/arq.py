@@ -14,18 +14,28 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from arq import cron
 from arq.connections import RedisSettings
+from redis.asyncio import Redis
 
 from app.core.config import get_settings
+from app.llm.client.fallback import FallbackLLMClient
+from app.llm.client.groq import GroqClient
+from app.llm.client.ollama import OllamaClient
 from app.observability.logging import get_logger, setup_logging
 from app.workers.tasks.example import (
     cleanup_expired_cache,
     process_recipe_scrape,
     send_notification,
 )
+from app.workers.tasks.popular_recipes import (
+    check_and_refresh_popular_recipes,
+    refresh_popular_recipes,
+)
 
 
 if TYPE_CHECKING:
     from arq.cron import CronJob
+
+    from app.llm.client.protocol import LLMClientProtocol
 
 
 logger = get_logger(__name__)
@@ -59,16 +69,103 @@ async def startup(ctx: dict[str, Any]) -> None:
     # Store settings in context for tasks
     ctx["settings"] = settings
 
+    # Initialize Redis cache client (uses cache DB, not queue DB)
+    ctx["cache_client"] = Redis.from_url(
+        settings.redis_cache_url,
+        decode_responses=False,  # Keep bytes for orjson
+    )
+    logger.debug("Initialized cache client for worker")
 
-async def shutdown(_ctx: dict[str, Any]) -> None:
+    # Initialize LLM client for recipe extraction
+    if settings.llm.enabled:
+        # Create primary client based on provider setting
+        primary: LLMClientProtocol
+        if settings.llm.provider == "groq":
+            if not settings.GROQ_API_KEY:
+                logger.warning(
+                    "Groq selected as primary but GROQ_API_KEY not set - LLM disabled"
+                )
+                ctx["llm_client"] = None
+                return
+            primary = GroqClient(
+                api_key=settings.GROQ_API_KEY,
+                model=settings.llm.groq.model,
+                timeout=settings.llm.groq.timeout,
+                max_retries=settings.llm.groq.max_retries,
+                requests_per_minute=settings.llm.groq.requests_per_minute,
+            )
+        else:
+            # Default to Ollama
+            primary = OllamaClient(
+                base_url=settings.llm.ollama.url,
+                model=settings.llm.ollama.model,
+                timeout=settings.llm.ollama.timeout,
+                max_retries=settings.llm.ollama.max_retries,
+            )
+        await primary.initialize()
+
+        # Create secondary client (Groq) if fallback enabled and API key present
+        secondary: LLMClientProtocol | None = None
+        if (
+            settings.llm.fallback.enabled
+            and settings.llm.fallback.secondary_provider == "groq"
+            and settings.GROQ_API_KEY
+            and settings.llm.provider != "groq"  # Don't use same provider for fallback
+        ):
+            secondary = GroqClient(
+                api_key=settings.GROQ_API_KEY,
+                model=settings.llm.groq.model,
+                timeout=settings.llm.groq.timeout,
+                max_retries=settings.llm.groq.max_retries,
+                requests_per_minute=settings.llm.groq.requests_per_minute,
+            )
+            await secondary.initialize()
+            logger.debug(
+                "Initialized Groq fallback client for worker",
+                model=settings.llm.groq.model,
+            )
+
+        ctx["llm_client"] = FallbackLLMClient(
+            primary=primary,
+            secondary=secondary,
+            fallback_enabled=settings.llm.fallback.enabled,
+        )
+        primary_model = (
+            settings.llm.groq.model
+            if settings.llm.provider == "groq"
+            else settings.llm.ollama.model
+        )
+        logger.info(
+            "Initialized LLM client for worker",
+            primary_provider=settings.llm.provider,
+            primary_model=primary_model,
+            fallback_enabled=settings.llm.fallback.enabled,
+            has_fallback=secondary is not None,
+        )
+    else:
+        ctx["llm_client"] = None
+        logger.debug("LLM client disabled")
+
+
+async def shutdown(ctx: dict[str, Any]) -> None:
     """Worker shutdown handler.
 
     Called when the worker stops. Use for cleanup.
 
     Args:
-        _ctx: Worker context dictionary (unused).
+        ctx: Worker context dictionary containing initialized resources.
     """
     logger.info("ARQ worker shutting down")
+
+    # Close cache client
+    if ctx.get("cache_client"):
+        await ctx["cache_client"].close()
+        logger.debug("Closed cache client")
+
+    # Close LLM client
+    if ctx.get("llm_client"):
+        await ctx["llm_client"].shutdown()
+        logger.debug("Closed LLM client")
 
 
 # Redis key names - must match Redis ACL pattern (scraper:*)
@@ -130,10 +227,14 @@ class WorkerSettings:
         send_notification,
         cleanup_expired_cache,
         process_recipe_scrape,
+        refresh_popular_recipes,
+        check_and_refresh_popular_recipes,
     ]
 
     # Cron jobs (scheduled tasks)
     cron_jobs: ClassVar[list[CronJob]] = [
         # Run cache cleanup every hour at minute 0
-        cron("app.workers.tasks.example.cleanup_expired_cache", hour=None, minute=0),
+        cron(cleanup_expired_cache, hour=None, minute=0),
+        # Check popular recipes cache TTL every 30 minutes
+        cron(check_and_refresh_popular_recipes, minute={0, 30}),
     ]

@@ -7,12 +7,20 @@ from app.llm.prompts.ingredient_parsing import (
     ParsedIngredient,
     ParsedIngredientList,
 )
+from app.llm.prompts.recipe_link_extraction import (
+    ExtractedRecipeLink,
+    ExtractedRecipeLinkList,
+    RecipeLinkExtractionPrompt,
+)
 
 
 __all__ = [
     "BasePrompt",
+    "ExtractedRecipeLink",
+    "ExtractedRecipeLinkList",
     "IngredientParsingPrompt",
     "IngredientUnit",
     "ParsedIngredient",
     "ParsedIngredientList",
+    "RecipeLinkExtractionPrompt",
 ]

@@ -186,6 +186,7 @@ class GroqSettings(BaseModel):
     model: str = "llama-3.1-8b-instant"
     timeout: float = 30.0
     max_retries: int = 2
+    requests_per_minute: float = 30.0  # Groq free tier rate limit
 
 
 class LLMFallbackSettings(BaseModel):
@@ -219,6 +220,55 @@ class FeaturesSettings(BaseModel):
     flags_enabled: bool = True
 
 
+class PopularRecipeScoringSettings(BaseModel):
+    """Weights for the popularity scoring algorithm.
+
+    These weights determine how different engagement metrics contribute
+    to the final popularity score. Weights are redistributed proportionally
+    when metrics are missing for a recipe.
+    """
+
+    rating_weight: float = 0.35  # Weight for star rating (0-5 scale)
+    rating_count_weight: float = 0.25  # Weight for number of ratings
+    favorites_weight: float = 0.25  # Weight for favorites/saves
+    reviews_weight: float = 0.10  # Weight for review count
+    position_weight: float = 0.05  # Weight for position on page (rank)
+
+
+class PopularRecipeSourceSettings(BaseModel):
+    """Configuration for a single popular recipe source."""
+
+    name: str  # Human-readable name (e.g., "AllRecipes")
+    base_url: str  # Base URL for the website
+    popular_endpoint: str  # Path to popular/trending page
+    enabled: bool = True
+    max_recipes: int = 100  # Max recipes to fetch from this source
+    source_weight: float = 1.0  # Base weight for this source (0-1)
+
+
+class PopularRecipesSettings(BaseModel):
+    """Popular recipes aggregation configuration."""
+
+    enabled: bool = True
+    cache_ttl: int = 86400  # 24 hours
+    cache_key: str = "popular_recipes"
+    refresh_threshold: int = 3600  # Refresh when TTL < 1 hour
+    target_total: int = 500  # Target ~500 recipes total
+    fetch_timeout: float = 30.0
+    max_concurrent_fetches: int = 5
+    sources: list[PopularRecipeSourceSettings] = []
+    scoring: PopularRecipeScoringSettings = PopularRecipeScoringSettings()
+
+    # LLM-based extraction settings
+    use_llm_extraction: bool = True  # Enable LLM-based recipe link extraction
+    llm_extraction_max_html_chars: int = 32000  # Max HTML size per batch (~8K tokens)
+    llm_extraction_min_confidence: float = 0.5  # Min confidence to include a link
+    llm_extraction_chunk_size: int = 50  # Links per LLM batch
+
+    # Limit control: fetch metrics for up to this many links per source
+    max_links_to_process: int = 100
+
+
 class ScrapingSettings(BaseModel):
     """Recipe scraping configuration."""
 
@@ -227,6 +277,7 @@ class ScrapingSettings(BaseModel):
     cache_enabled: bool = True
     cache_ttl: int = 86400  # 24 hours
     cache_max_items: int = 1000
+    popular_recipes: PopularRecipesSettings = PopularRecipesSettings()
 
 
 class RecipeManagementServiceSettings(BaseModel):
@@ -243,6 +294,24 @@ class DownstreamServicesSettings(BaseModel):
     recipe_management: RecipeManagementServiceSettings = (
         RecipeManagementServiceSettings()
     )
+
+
+class ArqJobIdsSettings(BaseModel):
+    """Centralized job IDs for ARQ background tasks.
+
+    Using fixed IDs enables job deduplication - if a job with the same ID
+    is already queued or in-progress, a new one won't be created.
+    """
+
+    popular_recipes_refresh: str = "popular_recipes_refresh"
+
+
+class ArqSettings(BaseModel):
+    """ARQ background worker configuration."""
+
+    job_ids: ArqJobIdsSettings = ArqJobIdsSettings()
+    queue_name: str = "scraper:queue:jobs"
+    health_check_key: str = "scraper:queue:health-check"
 
 
 # =============================================================================
@@ -294,6 +363,7 @@ class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     scraping: ScrapingSettings = ScrapingSettings()
     downstream_services: DownstreamServicesSettings = DownstreamServicesSettings()
+    arq: ArqSettings = ArqSettings()
 
     # =========================================================================
     # Secrets (from .env only - never in YAML)

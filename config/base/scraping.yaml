@@ -4,3 +4,102 @@ scraping:
   cache_enabled: true
   cache_ttl: 86400 # 24 hours
   cache_max_items: 1000
+
+  # Popular recipes aggregation settings
+  popular_recipes:
+    enabled: true
+    cache_ttl: 86400 # 24 hours
+    cache_key: "popular_recipes"
+    refresh_threshold: 3600 # Refresh when TTL < 1 hour remaining
+    target_total: 100
+    fetch_timeout: 30.0
+    max_concurrent_fetches: 3
+
+    # LLM-based extraction settings
+    use_llm_extraction: false # Disabled - regex fallback is more reliable
+    llm_extraction_max_html_chars: 8000 # Max chars per batch (Groq API limits)
+    llm_extraction_min_confidence: 0.5
+    llm_extraction_chunk_size: 50 # Links per LLM batch
+
+    # Limit control: fetch metrics for up to this many links per source
+    # (then score and return only top max_recipes)
+    max_links_to_process: 100
+
+    # Scoring algorithm weights (sum to 1.0)
+    scoring:
+      rating_weight: 0.35
+      rating_count_weight: 0.25
+      favorites_weight: 0.25
+      reviews_weight: 0.10
+      position_weight: 0.05
+
+    sources:
+      - name: "Bon Appétit"
+        base_url: "https://www.bonappetit.com"
+        popular_endpoint: "/search?sort=mostPopular"
+        enabled: true
+        max_recipes: 10
+        source_weight: 1.0
+
+      - name: "AllRecipes"
+        base_url: "https://www.allrecipes.com"
+        popular_endpoint: "/recipes"
+        enabled: true
+        max_recipes: 10
+        source_weight: 1.0
+
+      - name: "Epicurious"
+        base_url: "https://www.epicurious.com"
+        popular_endpoint: "/search?sort=mostPopular"
+        enabled: true
+        max_recipes: 10
+        source_weight: 1.0
+
+      - name: "Pinch of Yum"
+        base_url: "https://pinchofyum.com"
+        popular_endpoint: "/recipes/popular"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "NYT Cooking"
+        base_url: "https://cooking.nytimes.com"
+        popular_endpoint: "/68861692-nyt-cooking/13395693-our-50-most-popular-recipes-of-all-time-so-far"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "Tasty"
+        base_url: "https://tasty.co"
+        popular_endpoint: "/latest"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "BBC Good Food"
+        base_url: "https://www.bbcgoodfood.com"
+        popular_endpoint: "/recipes/collection/most-popular-recipes"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.9
+
+      - name: "Sally's Baking Addiction"
+        base_url: "https://sallysbakingaddiction.com"
+        popular_endpoint: "/recipe-index/"
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.9
+
+      - name: "Food Network"
+        base_url: "https://www.foodnetwork.com"
+        popular_endpoint: "/recipes/meals"
+        enabled: false # Returns 403
+        max_recipes: 10
+        source_weight: 0.95
+
+      - name: "Serious Eats"
+        base_url: "https://www.seriouseats.com"
+        popular_endpoint: "/recipes/?q="
+        enabled: true
+        max_recipes: 10
+        source_weight: 0.9

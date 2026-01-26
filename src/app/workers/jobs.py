@@ -12,6 +12,7 @@ from typing import Any
 from arq.connections import ArqRedis, create_pool
 from arq.jobs import Job
 
+from app.core.config import get_settings
 from app.observability.logging import get_logger
 from app.workers.arq import ARQ_QUEUE_NAME, get_redis_settings
 
@@ -190,3 +191,24 @@ async def get_job_status(job_id: str) -> dict[str, Any] | None:
     except Exception:
         logger.exception("Failed to get job status", job_id=job_id)
         return None
+
+
+async def enqueue_popular_recipes_refresh() -> Job | None:
+    """Enqueue popular recipes refresh job.
+
+    Uses a fixed job_id from config to prevent duplicate jobs.
+    ARQ behavior with fixed job_id:
+    - If job with this ID is already queued → returns existing job (no duplicate)
+    - If job with this ID is in-progress → returns existing job (no duplicate)
+    - If no job exists → creates new job
+
+    Returns:
+        Job instance if enqueued successfully.
+    """
+    settings = get_settings()
+    job_id = settings.arq.job_ids.popular_recipes_refresh
+
+    return await enqueue_job(
+        "refresh_popular_recipes",
+        _job_id=job_id,
+    )
