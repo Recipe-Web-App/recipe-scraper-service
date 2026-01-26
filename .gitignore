@@ -166,3 +166,6 @@ openapi.yaml
 
 # Serena
 .serena/
+
+# Beads
+.bv/
