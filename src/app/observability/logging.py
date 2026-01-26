@@ -109,9 +109,14 @@ def _format_record_dev(record: Record) -> str:
     all_context = {**context, **extra}
 
     # Build context string from all context
+    # Escape curly braces to prevent loguru format errors
+    def escape_braces(val: Any) -> str:
+        s = str(val)
+        return s.replace("{", "{{").replace("}", "}}")
+
     context_str = ""
     if all_context:
-        context_parts = [f"{k}={v}" for k, v in all_context.items()]
+        context_parts = [f"{k}={escape_braces(v)}" for k, v in all_context.items()]
         context_str = " | " + " | ".join(context_parts)
 
     # Standard format with optional context

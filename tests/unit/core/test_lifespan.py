@@ -31,6 +31,7 @@ def _create_mock_settings(
     *,
     auth_mode: str = "disabled",
     llm_enabled: bool = False,
+    llm_provider: str = "ollama",
     fallback_enabled: bool = False,
     groq_api_key: str | None = None,
 ) -> MagicMock:
@@ -52,7 +53,7 @@ def _create_mock_settings(
 
     # LLM settings
     mock_settings.llm.enabled = llm_enabled
-    mock_settings.llm.provider = "ollama"
+    mock_settings.llm.provider = llm_provider
     mock_settings.llm.cache.enabled = True
     mock_settings.llm.cache.ttl = 3600
     mock_settings.llm.ollama.url = "http://localhost:11434"
@@ -65,6 +66,7 @@ def _create_mock_settings(
     mock_settings.llm.groq.model = "llama3-8b-8192"
     mock_settings.llm.groq.timeout = 30.0
     mock_settings.llm.groq.max_retries = 3
+    mock_settings.llm.groq.requests_per_minute = 30.0
     mock_settings.GROQ_API_KEY = groq_api_key
 
     return mock_settings
@@ -609,6 +611,104 @@ class TestLLMClientInitialization:
             # Should still create client with cache_client=None
             call_kwargs = mock_ollama.call_args[1]
             assert call_kwargs["cache_client"] is None
+
+    @pytest.mark.asyncio
+    async def test_init_llm_client_groq_as_primary(self) -> None:
+        """Should create GroqClient as primary when provider is groq."""
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="groq",
+            groq_api_key="test-api-key",
+        )
+
+        with (
+            patch(
+                "app.core.events.lifespan.get_cache_client",
+                new_callable=AsyncMock,
+                return_value=MagicMock(),
+            ),
+            patch("app.core.events.lifespan.OllamaClient") as mock_ollama,
+            patch("app.core.events.lifespan.GroqClient") as mock_groq,
+            patch("app.core.events.lifespan.FallbackLLMClient") as mock_fallback,
+        ):
+            mock_client = MagicMock()
+            mock_client.initialize = AsyncMock()
+            mock_fallback.return_value = mock_client
+
+            await _init_llm_client(mock_settings)
+
+            # GroqClient should be created as primary
+            mock_groq.assert_called_once()
+            # OllamaClient should NOT be created
+            mock_ollama.assert_not_called()
+            # Verify GroqClient was passed as primary to FallbackLLMClient
+            call_kwargs = mock_fallback.call_args[1]
+            assert call_kwargs["primary"] is mock_groq.return_value
+
+    @pytest.mark.asyncio
+    async def test_init_llm_client_groq_primary_no_api_key(self) -> None:
+        """Should warn and return early when groq is primary but no API key."""
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="groq",
+            groq_api_key=None,
+        )
+
+        with (
+            patch(
+                "app.core.events.lifespan.get_cache_client",
+                new_callable=AsyncMock,
+                return_value=MagicMock(),
+            ),
+            patch("app.core.events.lifespan.OllamaClient") as mock_ollama,
+            patch("app.core.events.lifespan.GroqClient") as mock_groq,
+            patch("app.core.events.lifespan.FallbackLLMClient") as mock_fallback,
+            patch("app.core.events.lifespan.logger") as mock_logger,
+        ):
+            await _init_llm_client(mock_settings)
+
+            # Should warn about missing API key
+            mock_logger.warning.assert_called()
+            warning_call = mock_logger.warning.call_args[0][0]
+            assert "GROQ_API_KEY" in warning_call
+            # Neither client should be created
+            mock_groq.assert_not_called()
+            mock_ollama.assert_not_called()
+            mock_fallback.assert_not_called()
+            # LLM client should not be set
+            assert _LLMClientHolder.client is None
+
+    @pytest.mark.asyncio
+    async def test_init_llm_client_ollama_as_primary_explicit(self) -> None:
+        """Should create OllamaClient as primary when provider is ollama."""
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="ollama",
+        )
+
+        with (
+            patch(
+                "app.core.events.lifespan.get_cache_client",
+                new_callable=AsyncMock,
+                return_value=MagicMock(),
+            ),
+            patch("app.core.events.lifespan.OllamaClient") as mock_ollama,
+            patch("app.core.events.lifespan.GroqClient") as mock_groq,
+            patch("app.core.events.lifespan.FallbackLLMClient") as mock_fallback,
+        ):
+            mock_client = MagicMock()
+            mock_client.initialize = AsyncMock()
+            mock_fallback.return_value = mock_client
+
+            await _init_llm_client(mock_settings)
+
+            # OllamaClient should be created as primary
+            mock_ollama.assert_called_once()
+            # GroqClient should NOT be created (no fallback)
+            mock_groq.assert_not_called()
+            # Verify OllamaClient was passed as primary
+            call_kwargs = mock_fallback.call_args[1]
+            assert call_kwargs["primary"] is mock_ollama.return_value
 
 
 # =============================================================================

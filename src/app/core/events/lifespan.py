@@ -264,8 +264,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 async def _init_llm_client(settings: Settings) -> None:
     """Initialize the LLM client with optional fallback.
 
-    Creates primary (Ollama) and secondary (Groq) clients, wrapped in
-    FallbackLLMClient for automatic failover on connection errors.
+    Creates primary client based on settings.llm.provider (Groq or Ollama),
+    wrapped in FallbackLLMClient for automatic failover on connection errors.
 
     Args:
         settings: Application settings.
@@ -279,16 +279,34 @@ async def _init_llm_client(settings: Settings) -> None:
                 "Redis not available for LLM caching - continuing without cache"
             )
 
-    # Create primary client (Ollama)
-    primary = OllamaClient(
-        base_url=settings.llm.ollama.url,
-        model=settings.llm.ollama.model,
-        timeout=settings.llm.ollama.timeout,
-        max_retries=settings.llm.ollama.max_retries,
-        cache_client=cache_client,
-        cache_ttl=settings.llm.cache.ttl,
-        cache_enabled=settings.llm.cache.enabled,
-    )
+    # Create primary client based on provider setting
+    primary: LLMClientProtocol
+    if settings.llm.provider == "groq":
+        if not settings.GROQ_API_KEY:
+            logger.warning("Groq selected as primary but GROQ_API_KEY not set")
+            return
+        primary = GroqClient(
+            api_key=settings.GROQ_API_KEY,
+            model=settings.llm.groq.model,
+            base_url=settings.llm.groq.url,
+            timeout=settings.llm.groq.timeout,
+            max_retries=settings.llm.groq.max_retries,
+            cache_client=cache_client,
+            cache_ttl=settings.llm.cache.ttl,
+            cache_enabled=settings.llm.cache.enabled,
+            requests_per_minute=settings.llm.groq.requests_per_minute,
+        )
+    else:
+        # Default to Ollama
+        primary = OllamaClient(
+            base_url=settings.llm.ollama.url,
+            model=settings.llm.ollama.model,
+            timeout=settings.llm.ollama.timeout,
+            max_retries=settings.llm.ollama.max_retries,
+            cache_client=cache_client,
+            cache_ttl=settings.llm.cache.ttl,
+            cache_enabled=settings.llm.cache.enabled,
+        )
 
     # Create secondary client (Groq) if fallback enabled and API key present
     secondary: LLMClientProtocol | None = None
@@ -326,10 +344,15 @@ async def _init_llm_client(settings: Settings) -> None:
     )
     await _LLMClientHolder.client.initialize()
 
+    primary_model = (
+        settings.llm.groq.model
+        if settings.llm.provider == "groq"
+        else settings.llm.ollama.model
+    )
     logger.info(
         "LLM client initialized",
         primary_provider=settings.llm.provider,
-        primary_model=settings.llm.ollama.model,
+        primary_model=primary_model,
         fallback_enabled=settings.llm.fallback.enabled,
         has_fallback=secondary is not None,
     )

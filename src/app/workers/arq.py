@@ -35,6 +35,8 @@ from app.workers.tasks.popular_recipes import (
 if TYPE_CHECKING:
     from arq.cron import CronJob
 
+    from app.llm.client.protocol import LLMClientProtocol
+
 
 logger = get_logger(__name__)
 
@@ -75,33 +77,74 @@ async def startup(ctx: dict[str, Any]) -> None:
     logger.debug("Initialized cache client for worker")
 
     # Initialize LLM client for recipe extraction
-    if settings.llm.enabled and settings.GROQ_API_KEY:
-        primary = OllamaClient(
-            base_url=settings.llm.ollama.url,
-            model=settings.llm.ollama.model,
-            timeout=settings.llm.ollama.timeout,
-            max_retries=settings.llm.ollama.max_retries,
-        )
+    if settings.llm.enabled:
+        # Create primary client based on provider setting
+        primary: LLMClientProtocol
+        if settings.llm.provider == "groq":
+            if not settings.GROQ_API_KEY:
+                logger.warning(
+                    "Groq selected as primary but GROQ_API_KEY not set - LLM disabled"
+                )
+                ctx["llm_client"] = None
+                return
+            primary = GroqClient(
+                api_key=settings.GROQ_API_KEY,
+                model=settings.llm.groq.model,
+                timeout=settings.llm.groq.timeout,
+                max_retries=settings.llm.groq.max_retries,
+                requests_per_minute=settings.llm.groq.requests_per_minute,
+            )
+        else:
+            # Default to Ollama
+            primary = OllamaClient(
+                base_url=settings.llm.ollama.url,
+                model=settings.llm.ollama.model,
+                timeout=settings.llm.ollama.timeout,
+                max_retries=settings.llm.ollama.max_retries,
+            )
         await primary.initialize()
 
-        secondary = GroqClient(
-            api_key=settings.GROQ_API_KEY,
-            model=settings.llm.groq.model,
-            timeout=settings.llm.groq.timeout,
-            max_retries=settings.llm.groq.max_retries,
-            requests_per_minute=settings.llm.groq.requests_per_minute,
-        )
-        await secondary.initialize()
+        # Create secondary client (Groq) if fallback enabled and API key present
+        secondary: LLMClientProtocol | None = None
+        if (
+            settings.llm.fallback.enabled
+            and settings.llm.fallback.secondary_provider == "groq"
+            and settings.GROQ_API_KEY
+            and settings.llm.provider != "groq"  # Don't use same provider for fallback
+        ):
+            secondary = GroqClient(
+                api_key=settings.GROQ_API_KEY,
+                model=settings.llm.groq.model,
+                timeout=settings.llm.groq.timeout,
+                max_retries=settings.llm.groq.max_retries,
+                requests_per_minute=settings.llm.groq.requests_per_minute,
+            )
+            await secondary.initialize()
+            logger.debug(
+                "Initialized Groq fallback client for worker",
+                model=settings.llm.groq.model,
+            )
 
         ctx["llm_client"] = FallbackLLMClient(
             primary=primary,
             secondary=secondary,
             fallback_enabled=settings.llm.fallback.enabled,
         )
-        logger.debug("Initialized LLM client for worker")
+        primary_model = (
+            settings.llm.groq.model
+            if settings.llm.provider == "groq"
+            else settings.llm.ollama.model
+        )
+        logger.info(
+            "Initialized LLM client for worker",
+            primary_provider=settings.llm.provider,
+            primary_model=primary_model,
+            fallback_enabled=settings.llm.fallback.enabled,
+            has_fallback=secondary is not None,
+        )
     else:
         ctx["llm_client"] = None
-        logger.debug("LLM client disabled or no API key")
+        logger.debug("LLM client disabled")
 
 
 async def shutdown(ctx: dict[str, Any]) -> None:

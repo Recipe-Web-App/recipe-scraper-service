@@ -253,6 +253,7 @@ class OllamaClient:
         schema: type[T] | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,  # noqa: ARG002 - accepted for protocol compatibility
     ) -> LLMCompletionResult:
         """Generate text completion from the LLM.
 
@@ -263,6 +264,7 @@ class OllamaClient:
             schema: Optional Pydantic model for structured JSON output.
             options: Model-specific options (temperature, top_p, etc.).
             skip_cache: If True, bypass cache for this request.
+            context: Optional context identifier (unused, for protocol compatibility).
 
         Returns:
             LLMCompletionResult with raw response and optionally parsed output.
@@ -338,6 +340,7 @@ class OllamaClient:
         system: str | None = None,
         options: dict[str, Any] | None = None,
         skip_cache: bool = False,
+        context: str | None = None,  # noqa: ARG002 - accepted for protocol compatibility
     ) -> T:
         """Generate structured output matching a Pydantic schema.
 
@@ -350,6 +353,7 @@ class OllamaClient:
             system: Optional system prompt for context.
             options: Model-specific options.
             skip_cache: If True, bypass cache for this request.
+            context: Optional context identifier (unused, for protocol compatibility).
 
         Returns:
             Instance of the schema class populated from LLM response.

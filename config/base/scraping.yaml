@@ -13,10 +13,10 @@ scraping:
     refresh_threshold: 3600 # Refresh when TTL < 1 hour remaining
     target_total: 100
     fetch_timeout: 30.0
-    max_concurrent_fetches: 10
+    max_concurrent_fetches: 3
 
     # LLM-based extraction settings
-    use_llm_extraction: true
+    use_llm_extraction: false # Disabled - regex fallback is more reliable
     llm_extraction_max_html_chars: 8000 # Max chars per batch (Groq API limits)
     llm_extraction_min_confidence: 0.5
     llm_extraction_chunk_size: 50 # Links per LLM batch
@@ -85,7 +85,7 @@ scraping:
 
       - name: "Sally's Baking Addiction"
         base_url: "https://sallysbakingaddiction.com"
-        popular_endpoint: "/recipes/"
+        popular_endpoint: "/recipe-index/"
         enabled: true
         max_recipes: 10
         source_weight: 0.9
@@ -93,13 +93,13 @@ scraping:
       - name: "Food Network"
         base_url: "https://www.foodnetwork.com"
         popular_endpoint: "/recipes/meals"
-        enabled: true
+        enabled: false # Returns 403
         max_recipes: 10
         source_weight: 0.95
 
       - name: "Serious Eats"
         base_url: "https://www.seriouseats.com"
-        popular_endpoint: "/all-recipes-5117985"
+        popular_endpoint: "/recipes/?q="
         enabled: true
         max_recipes: 10
         source_weight: 0.9

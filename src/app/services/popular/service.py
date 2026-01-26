@@ -355,7 +355,9 @@ class PopularRecipesService:
             raise PopularRecipesParseError(msg, source=source.name)
 
         try:
-            recipe_links = await self._extractor.extract(html, source.base_url)
+            recipe_links = await self._extractor.extract(
+                html, source.base_url, source.name
+            )
         except Exception as e:
             msg = f"Failed to parse recipe links: {e}"
             raise PopularRecipesParseError(msg, source=source.name) from e

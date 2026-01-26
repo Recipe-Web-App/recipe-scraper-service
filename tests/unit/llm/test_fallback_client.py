@@ -356,6 +356,7 @@ class TestArgumentPassthrough:
             schema=SampleSchema,
             options={"temperature": 0.5},
             skip_cache=True,
+            context=None,
         )
 
         await client.shutdown()
@@ -382,6 +383,7 @@ class TestArgumentPassthrough:
             schema=None,
             options={"temperature": 0.5},
             skip_cache=False,
+            context=None,
         )
 
         await client.shutdown()

@@ -72,6 +72,7 @@ class RecipeLinkExtractor:
         self,
         html: str,
         base_url: str,
+        context: str = "unknown",
     ) -> list[tuple[str, str]]:
         """Extract recipe links from HTML.
 
@@ -80,19 +81,25 @@ class RecipeLinkExtractor:
         Args:
             html: Raw HTML content of the listing page.
             base_url: Base URL for resolving relative links.
+            context: Context identifier for logging (e.g., source name).
 
         Returns:
             List of (recipe_name, full_url) tuples.
         """
         if not self._use_llm:
-            logger.debug("LLM extraction disabled, using regex", base_url=base_url)
+            logger.debug(
+                "LLM extraction disabled, using regex",
+                context=context,
+                base_url=base_url,
+            )
             return extract_recipe_links(html, base_url)
 
         try:
-            return await self._extract_with_llm(html, base_url)
+            return await self._extract_with_llm(html, base_url, context)
         except (LLMUnavailableError, LLMTimeoutError, LLMRateLimitError) as e:
             logger.warning(
                 "LLM unavailable or rate limited, using regex fallback",
+                context=context,
                 error=str(e),
                 base_url=base_url,
             )
@@ -100,6 +107,7 @@ class RecipeLinkExtractor:
         except LLMValidationError as e:
             logger.warning(
                 "LLM response validation failed, using regex fallback",
+                context=context,
                 error=str(e),
                 base_url=base_url,
             )
@@ -107,6 +115,7 @@ class RecipeLinkExtractor:
         except Exception as e:
             logger.exception(
                 "Unexpected error in LLM extraction, using regex fallback",
+                context=context,
                 error=str(e),
                 base_url=base_url,
             )
@@ -116,12 +125,14 @@ class RecipeLinkExtractor:
         self,
         html: str,
         base_url: str,
+        context: str,
     ) -> list[tuple[str, str]]:
         """Extract recipe links using the LLM with batched requests.
 
         Args:
             html: Raw HTML content.
             base_url: Base URL for resolving relative links.
+            context: Context identifier for logging.
 
         Returns:
             List of (recipe_name, full_url) tuples.
@@ -139,7 +150,11 @@ class RecipeLinkExtractor:
         all_links = self._preprocess_html(html)
 
         if not all_links:
-            logger.warning("No links found after preprocessing", base_url=base_url)
+            logger.warning(
+                "No links found after preprocessing",
+                context=context,
+                base_url=base_url,
+            )
             return []
 
         # Split into chunks
@@ -147,6 +162,7 @@ class RecipeLinkExtractor:
 
         logger.info(
             "Processing links in batches",
+            context=context,
             link_count=len(all_links),
             batch_count=len(chunks),
             base_url=base_url,
@@ -157,7 +173,9 @@ class RecipeLinkExtractor:
         failed_batches = 0
         for i, chunk in enumerate(chunks):
             try:
-                result = await self._process_chunk(chunk, base_url, batch_num=i + 1)
+                result = await self._process_chunk(
+                    chunk, base_url, context, batch_num=i + 1
+                )
                 all_results.extend(result.recipe_links)
             except (
                 LLMUnavailableError,
@@ -167,6 +185,7 @@ class RecipeLinkExtractor:
                 failed_batches += 1
                 logger.warning(
                     "Batch failed",
+                    context=context,
                     batch=i + 1,
                     total_batches=len(chunks),
                     error=str(e),
@@ -178,6 +197,7 @@ class RecipeLinkExtractor:
         if failed_batches > 0:
             logger.warning(
                 "Batches failed, returning partial results",
+                context=context,
                 failed_batches=failed_batches,
                 total_batches=len(chunks),
                 base_url=base_url,
@@ -188,6 +208,7 @@ class RecipeLinkExtractor:
         if not all_results:
             logger.warning(
                 "All LLM batches failed or returned empty",
+                context=context,
                 base_url=base_url,
             )
             msg = "All LLM batches failed or returned empty"
@@ -198,6 +219,7 @@ class RecipeLinkExtractor:
 
         logger.info(
             "LLM extraction complete",
+            context=context,
             extracted=len(all_results),
             after_filtering=len(links),
             base_url=base_url,
@@ -209,6 +231,7 @@ class RecipeLinkExtractor:
         self,
         chunk_html: str,
         base_url: str,
+        context: str,
         batch_num: int,
     ) -> ExtractedRecipeLinkList:
         """Process a single chunk of links through the LLM.
@@ -216,16 +239,17 @@ class RecipeLinkExtractor:
         Args:
             chunk_html: HTML string containing links for this batch.
             base_url: Base URL for context.
+            context: Context identifier for logging.
             batch_num: Batch number for logging.
 
         Returns:
             Extracted recipe links from this batch.
         """
-        logger.debug(
-            "Processing batch",
+        logger.info(
+            "LLM batch: starting",
+            context=context,
             batch=batch_num,
             chars=len(chunk_html),
-            base_url=base_url,
         )
 
         if self._llm_client is None:
@@ -240,17 +264,18 @@ class RecipeLinkExtractor:
             schema=ExtractedRecipeLinkList,
             system=self._prompt.system_prompt,
             options=self._prompt.get_options(),
+            context=f"{context}:batch{batch_num}",
         )
 
         # Handle cached results (returned as dict) vs fresh results (Pydantic model)
         if isinstance(result, dict):
             result = ExtractedRecipeLinkList(**result)
 
-        logger.debug(
-            "Batch extracted links",
+        logger.info(
+            "LLM batch: completed",
+            context=context,
             batch=batch_num,
             links_extracted=len(result.recipe_links),
-            base_url=base_url,
         )
 
         return result

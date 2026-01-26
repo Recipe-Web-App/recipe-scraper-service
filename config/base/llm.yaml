@@ -19,7 +19,7 @@ llm:
   enabled: true
 
   # Primary LLM provider
-  provider: ollama
+  provider: groq
 
   # -----------------------------------------------------------------------------
   # Ollama (Primary - Local)
@@ -52,7 +52,7 @@ llm:
     model: llama-3.1-8b-instant
     timeout: 30.0
     max_retries: 2
-    requests_per_minute: 30.0 # Groq free tier rate limit
+    requests_per_minute: 10.0 # Conservative rate to avoid burst limits
 
   # -----------------------------------------------------------------------------
   # Fallback Configuration
@@ -61,7 +61,7 @@ llm:
   # Triggers: connection errors, timeouts
   # Does NOT trigger on: validation errors, rate limits, HTTP errors
   fallback:
-    enabled: true
+    enabled: false
     secondary_provider: groq
 
   # -----------------------------------------------------------------------------

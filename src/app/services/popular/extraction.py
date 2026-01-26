@@ -726,6 +726,10 @@ def _is_recipe_link(link: Tag) -> bool:
         r"/\d{4,}/[a-z]",  # /12345/recipe-name (4+ digit ID + name)
         r"-\d{5,}($|/|\?)",  # slug-1234567 (long ID suffix, like Serious Eats)
         r"-recipe-\d+",  # something-recipe-12345
+        # Additional patterns for broader coverage:
+        r"/recipes/\d+/[a-z]",  # NYT: /recipes/1234567/carbonara
+        r"/recipe/[a-z]+-[a-z]+",  # 2-word recipes: /recipe/beef-stew
+        r"^/[a-z]+-[a-z]+-[a-z]+/$",  # Simple 3-word slugs: /chocolate-chip-cookies/
     ]
     for pattern in recipe_url_patterns:
         if re.search(pattern, href, re.IGNORECASE):
