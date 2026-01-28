@@ -8,16 +8,20 @@ from pydantic import ValidationError
 from app.schemas.enums import (
     Allergen,
     Difficulty,
-    FoodGroup,
     HealthStatus,
     IngredientUnit,
+    NutrientUnit,
     NutriscoreGrade,
 )
 from app.schemas.health import HealthCheckItem, HealthCheckResponse
 from app.schemas.ingredient import Ingredient, Quantity, WebRecipe
 from app.schemas.nutrition import (
-    IngredientClassification,
+    Fats,
+    IngredientNutritionalInfoResponse,
     MacroNutrients,
+    Minerals,
+    NutrientValue,
+    Vitamins,
 )
 from app.schemas.recipe import (
     CreateRecipeRequest,
@@ -216,6 +220,53 @@ class TestRecipeSchemas:
         assert response.count == 100
 
 
+class TestNutrientUnit:
+    """Tests for NutrientUnit enum."""
+
+    def test_nutrient_unit_values(self):
+        """NutrientUnit should have correct values."""
+        assert NutrientUnit.GRAM == "GRAM"
+        assert NutrientUnit.MILLIGRAM == "MILLIGRAM"
+        assert NutrientUnit.MICROGRAM == "MICROGRAM"
+        assert NutrientUnit.KILOCALORIE == "KILOCALORIE"
+
+    def test_nutrient_unit_serialization(self):
+        """NutrientUnit should serialize to string value."""
+        value = NutrientValue(amount=100, measurement=NutrientUnit.GRAM)
+        data = value.model_dump()
+        assert data["measurement"] == "GRAM"
+
+
+class TestNutrientValue:
+    """Tests for NutrientValue schema."""
+
+    def test_nutrient_value_with_amount_and_unit(self):
+        """NutrientValue with amount and measurement."""
+        value = NutrientValue(amount=25.5, measurement=NutrientUnit.GRAM)
+        assert value.amount == 25.5
+        assert value.measurement == NutrientUnit.GRAM
+
+    def test_nutrient_value_amount_non_negative(self):
+        """Amount must be >= 0."""
+        value = NutrientValue(amount=0, measurement=NutrientUnit.GRAM)
+        assert value.amount == 0
+
+        with pytest.raises(ValidationError):
+            NutrientValue(amount=-1, measurement=NutrientUnit.GRAM)
+
+    def test_nutrient_value_amount_optional(self):
+        """Amount can be None."""
+        value = NutrientValue(amount=None, measurement=NutrientUnit.GRAM)
+        assert value.amount is None
+
+    def test_nutrient_value_serializes_to_camel_case(self):
+        """NutrientValue should serialize with camelCase."""
+        value = NutrientValue(amount=100, measurement=NutrientUnit.MILLIGRAM)
+        data = value.model_dump()
+        assert "amount" in data
+        assert "measurement" in data
+
+
 class TestNutritionSchemas:
     """Tests for nutrition-related schemas."""
 
@@ -223,41 +274,112 @@ class TestNutritionSchemas:
         """MacroNutrients has all optional fields."""
         macros = MacroNutrients()
         assert macros.calories is None
-        assert macros.protein_g is None
+        assert macros.protein is None
+        assert macros.sodium is None
+        assert macros.fiber is None
+        assert macros.sugar is None
 
-    def test_macro_nutrients_calories_constraint(self):
-        """Calories must be non-negative."""
-        macros = MacroNutrients(calories=100)
-        assert macros.calories == 100
-
-        with pytest.raises(ValidationError):
-            MacroNutrients(calories=-10)
-
-    def test_ingredient_classification_nutriscore_range(self):
-        """Nutriscore must be between -15 and 40."""
-        # Valid range
-        classification = IngredientClassification(nutriscore_score=-15)
-        assert classification.nutriscore_score == -15
-
-        classification = IngredientClassification(nutriscore_score=40)
-        assert classification.nutriscore_score == 40
-
-        # Out of range
-        with pytest.raises(ValidationError):
-            IngredientClassification(nutriscore_score=-16)
-
-        with pytest.raises(ValidationError):
-            IngredientClassification(nutriscore_score=41)
-
-    def test_ingredient_classification_with_enums(self):
-        """IngredientClassification accepts enum lists."""
-        classification = IngredientClassification(
-            allergies=[Allergen.MILK, Allergen.EGGS],
-            food_groups=[FoodGroup.DAIRY],
-            nutriscore_grade=NutriscoreGrade.B,
+    def test_macro_nutrients_with_nutrient_values(self):
+        """MacroNutrients accepts NutrientValue for all fields."""
+        macros = MacroNutrients(
+            calories=NutrientValue(amount=165, measurement=NutrientUnit.KILOCALORIE),
+            protein=NutrientValue(amount=31, measurement=NutrientUnit.GRAM),
+            carbs=NutrientValue(amount=0, measurement=NutrientUnit.GRAM),
+            sodium=NutrientValue(amount=74, measurement=NutrientUnit.MILLIGRAM),
         )
-        assert len(classification.allergies) == 2
-        assert classification.nutriscore_grade == NutriscoreGrade.B
+        assert macros.calories.amount == 165
+        assert macros.calories.measurement == NutrientUnit.KILOCALORIE
+        assert macros.protein.amount == 31
+        assert macros.sodium.amount == 74
+
+    def test_macro_nutrients_has_flattened_fiber_sugar(self):
+        """MacroNutrients has fiber and sugar as direct NutrientValue fields."""
+        macros = MacroNutrients(
+            fiber=NutrientValue(amount=5.5, measurement=NutrientUnit.GRAM),
+            sugar=NutrientValue(amount=12.0, measurement=NutrientUnit.GRAM),
+            added_sugar=NutrientValue(amount=8.0, measurement=NutrientUnit.GRAM),
+        )
+        assert macros.fiber.amount == 5.5
+        assert macros.sugar.amount == 12.0
+        assert macros.added_sugar.amount == 8.0
+
+    def test_fats_with_nutrient_values(self):
+        """Fats schema uses NutrientValue for all fat types."""
+        fats = Fats(
+            total=NutrientValue(amount=10.5, measurement=NutrientUnit.GRAM),
+            saturated=NutrientValue(amount=3.0, measurement=NutrientUnit.GRAM),
+            trans=NutrientValue(amount=0, measurement=NutrientUnit.GRAM),
+        )
+        assert fats.total.amount == 10.5
+        assert fats.saturated.amount == 3.0
+        assert fats.trans.amount == 0
+
+    def test_fats_no_omega_fields(self):
+        """Fats schema should not have omega3/6/9 fields."""
+        fats = Fats(total=NutrientValue(amount=10, measurement=NutrientUnit.GRAM))
+        assert not hasattr(fats, "omega3")
+        assert not hasattr(fats, "omega6")
+        assert not hasattr(fats, "omega9")
+
+    def test_vitamins_with_nutrient_values(self):
+        """Vitamins schema uses NutrientValue."""
+        vitamins = Vitamins(
+            vitamin_a=NutrientValue(amount=900, measurement=NutrientUnit.MICROGRAM),
+            vitamin_c=NutrientValue(amount=15000, measurement=NutrientUnit.MICROGRAM),
+            vitamin_d=NutrientValue(amount=20, measurement=NutrientUnit.MICROGRAM),
+        )
+        assert vitamins.vitamin_a.amount == 900
+        assert vitamins.vitamin_c.amount == 15000
+        assert vitamins.vitamin_c.measurement == NutrientUnit.MICROGRAM
+
+    def test_minerals_with_nutrient_values(self):
+        """Minerals schema uses NutrientValue."""
+        minerals = Minerals(
+            calcium=NutrientValue(amount=120, measurement=NutrientUnit.MILLIGRAM),
+            iron=NutrientValue(amount=2.1, measurement=NutrientUnit.MILLIGRAM),
+            zinc=NutrientValue(amount=1.0, measurement=NutrientUnit.MILLIGRAM),
+        )
+        assert minerals.calcium.amount == 120
+        assert minerals.iron.amount == 2.1
+
+    def test_minerals_no_sodium(self):
+        """Minerals should not have sodium (moved to MacroNutrients)."""
+        minerals = Minerals()
+        assert not hasattr(minerals, "sodium")
+        assert not hasattr(minerals, "sodium_mg")
+
+    def test_ingredient_nutritional_info_has_usda_description(self):
+        """IngredientNutritionalInfoResponse has usda_food_description field."""
+        response = IngredientNutritionalInfoResponse(
+            quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            usda_food_description="Chicken, breast, raw",
+        )
+        assert response.usda_food_description == "Chicken, breast, raw"
+
+    def test_ingredient_nutritional_info_no_classification(self):
+        """IngredientNutritionalInfoResponse should not have classification field."""
+        response = IngredientNutritionalInfoResponse(
+            quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+        )
+        assert not hasattr(response, "classification")
+
+    def test_full_response_serializes_to_camel_case(self):
+        """Full nutritional response serializes with camelCase."""
+        response = IngredientNutritionalInfoResponse(
+            quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            usda_food_description="Chicken, breast, raw",
+            macro_nutrients=MacroNutrients(
+                calories=NutrientValue(
+                    amount=165, measurement=NutrientUnit.KILOCALORIE
+                ),
+                protein=NutrientValue(amount=31, measurement=NutrientUnit.GRAM),
+            ),
+        )
+        data = response.model_dump()
+        assert "usdaFoodDescription" in data
+        assert "macroNutrients" in data
+        assert "calories" in data["macroNutrients"]
+        assert data["macroNutrients"]["calories"]["amount"] == 165
 
 
 class TestHealthSchemas:
