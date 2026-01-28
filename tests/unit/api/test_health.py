@@ -55,14 +55,20 @@ class TestReadinessCheck:
         mock_settings.app.version = "1.0.0"
         mock_settings.APP_ENV = "test"
 
-        with patch(
-            "app.api.v1.endpoints.health.check_redis_health",
-            return_value={"redis": "healthy"},
+        with (
+            patch(
+                "app.api.v1.endpoints.health.check_redis_health",
+                return_value={"redis": "healthy"},
+            ),
+            patch(
+                "app.api.v1.endpoints.health.check_database_health",
+                return_value={"database": "healthy"},
+            ),
         ):
             result = await readiness_check(mock_settings)
 
         assert result.status == "ready"
-        assert result.dependencies == {"redis": "healthy"}
+        assert result.dependencies == {"redis": "healthy", "database": "healthy"}
 
     @pytest.mark.asyncio
     async def test_returns_ready_when_not_initialized(self) -> None:
@@ -71,9 +77,15 @@ class TestReadinessCheck:
         mock_settings.app.version = "1.0.0"
         mock_settings.APP_ENV = "test"
 
-        with patch(
-            "app.api.v1.endpoints.health.check_redis_health",
-            return_value={"redis": "not_initialized"},
+        with (
+            patch(
+                "app.api.v1.endpoints.health.check_redis_health",
+                return_value={"redis": "not_initialized"},
+            ),
+            patch(
+                "app.api.v1.endpoints.health.check_database_health",
+                return_value={"database": "not_initialized"},
+            ),
         ):
             result = await readiness_check(mock_settings)
 
@@ -86,11 +98,17 @@ class TestReadinessCheck:
         mock_settings.app.version = "1.0.0"
         mock_settings.APP_ENV = "test"
 
-        with patch(
-            "app.api.v1.endpoints.health.check_redis_health",
-            return_value={"redis": "unhealthy"},
+        with (
+            patch(
+                "app.api.v1.endpoints.health.check_redis_health",
+                return_value={"redis": "unhealthy"},
+            ),
+            patch(
+                "app.api.v1.endpoints.health.check_database_health",
+                return_value={"database": "healthy"},
+            ),
         ):
             result = await readiness_check(mock_settings)
 
         assert result.status == "degraded"
-        assert result.dependencies == {"redis": "unhealthy"}
+        assert result.dependencies == {"redis": "unhealthy", "database": "healthy"}

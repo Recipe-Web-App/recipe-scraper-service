@@ -136,6 +136,20 @@ class RedisSettings(BaseModel):
     client_cache_max_age: int = 30
 
 
+class DatabaseSettings(BaseModel):
+    """PostgreSQL database configuration settings."""
+
+    host: str = "localhost"
+    port: int = 5432
+    name: str = "recipe_database"
+    db_schema: str = "recipe_manager"  # PostgreSQL schema
+    user: str | None = None  # PostgreSQL username
+    min_pool_size: int = 5  # Minimum connections in pool
+    max_pool_size: int = 20  # Maximum connections in pool
+    command_timeout: float = 30.0  # Query timeout in seconds
+    ssl: bool = False  # Enable SSL connection
+
+
 class RateLimitingSettings(BaseModel):
     """Rate limiting configuration."""
 
@@ -356,6 +370,7 @@ class Settings(BaseSettings):
     api: ApiSettings = ApiSettings()
     auth: AuthSettings = AuthSettings()
     redis: RedisSettings = RedisSettings()
+    database: DatabaseSettings = DatabaseSettings()
     rate_limiting: RateLimitingSettings = RateLimitingSettings()
     logging: LoggingSettings = LoggingSettings()
     observability: ObservabilitySettings = ObservabilitySettings()
@@ -370,6 +385,7 @@ class Settings(BaseSettings):
     # =========================================================================
     JWT_SECRET_KEY: str = ""
     REDIS_PASSWORD: str = ""
+    DATABASE_PASSWORD: str = ""
     AUTH_SERVICE_CLIENT_SECRET: str | None = None
     SENTRY_DSN: str | None = None
     GROQ_API_KEY: str = ""
@@ -469,6 +485,26 @@ class Settings(BaseSettings):
     def redis_rate_limit_url(self) -> str:
         """Build Redis rate limit connection URL."""
         return self._build_redis_url(self.redis.rate_limit_db)
+
+    @property
+    def database_url(self) -> str:
+        """Build PostgreSQL connection URL.
+
+        URL format: postgresql://[user:password@]host:port/database
+
+        Returns:
+            PostgreSQL connection URL string
+        """
+        auth_part = ""
+        if self.database.user and self.DATABASE_PASSWORD:
+            auth_part = f"{self.database.user}:{self.DATABASE_PASSWORD}@"
+        elif self.database.user:
+            auth_part = f"{self.database.user}@"
+
+        return (
+            f"postgresql://{auth_part}{self.database.host}:"
+            f"{self.database.port}/{self.database.name}"
+        )
 
     # =========================================================================
     # Environment Helpers

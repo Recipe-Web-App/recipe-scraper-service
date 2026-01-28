@@ -1,0 +1,10 @@
+database:
+  host: recipe-database-service.recipe-database.svc.cluster.local
+  port: 5432
+  name: recipe_database
+  db_schema: recipe_manager
+  user: recipe_management_user
+  min_pool_size: 5
+  max_pool_size: 20
+  command_timeout: 30.0
+  ssl: false

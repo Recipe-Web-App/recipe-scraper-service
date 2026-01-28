@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from app.auth.providers import initialize_auth_provider, shutdown_auth_provider
 from app.cache.redis import close_redis_pools, get_cache_client, init_redis_pools
 from app.core.config import AuthMode, Settings, get_settings
+from app.database import close_database_pool, init_database_pool
 from app.llm.client.fallback import FallbackLLMClient
 from app.llm.client.groq import GroqClient
 from app.llm.client.ollama import OllamaClient
@@ -64,6 +65,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
     # Initialize Redis connection pools
     cache_client = await _init_cache()
 
+    # Initialize database connection pool (non-critical)
+    await _init_database()
+
     # Initialize ARQ connection pool for job enqueuing
     await _init_arq()
 
@@ -107,6 +111,16 @@ async def _init_arq() -> None:
         await get_arq_pool()
     except Exception:
         logger.exception("Failed to initialize ARQ pool - background jobs unavailable")
+
+
+async def _init_database() -> None:
+    """Initialize database connection pool (non-critical)."""
+    try:
+        await init_database_pool()
+    except Exception:
+        logger.exception(
+            "Failed to initialize database - nutrition queries unavailable"
+        )
 
 
 async def _init_auth(settings: Settings, cache_client: Redis[bytes] | None) -> None:
@@ -235,6 +249,9 @@ async def _shutdown(app: FastAPI) -> None:
 
     # Close ARQ connection pool
     await close_arq_pool()
+
+    # Close database connection pool
+    await close_database_pool()
 
     # Close Redis connection pools
     await close_redis_pools()
