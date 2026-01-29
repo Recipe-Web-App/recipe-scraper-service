@@ -101,7 +101,7 @@ class NutritionData(BaseModel):
 # SQL query for fetching nutrition data
 _NUTRITION_QUERY = """
     SELECT
-        i.id AS ingredient_id,
+        i.ingredient_id,
         i.name AS ingredient_name,
         i.fdc_id,
         i.usda_food_description,
@@ -135,11 +135,15 @@ _NUTRITION_QUERY = """
         min.magnesium_mg,
         min.potassium_mg,
         min.zinc_mg
-    FROM ingredients i
-    LEFT JOIN nutrition_profiles np ON np.ingredient_id = i.id
-    LEFT JOIN macronutrients m ON m.nutrition_profile_id = np.id
-    LEFT JOIN vitamins v ON v.nutrition_profile_id = np.id
-    LEFT JOIN minerals min ON min.nutrition_profile_id = np.id
+    FROM recipe_manager.ingredients i
+    LEFT JOIN recipe_manager.nutrition_profiles np
+        ON np.ingredient_id = i.ingredient_id
+    LEFT JOIN recipe_manager.macronutrients m
+        ON m.nutrition_profile_id = np.nutrition_profile_id
+    LEFT JOIN recipe_manager.vitamins v
+        ON v.nutrition_profile_id = np.nutrition_profile_id
+    LEFT JOIN recipe_manager.minerals min
+        ON min.nutrition_profile_id = np.nutrition_profile_id
 """
 
 
@@ -262,8 +266,9 @@ class NutritionRepository:
                     # Query with modifier if provided
                     query = """
                         SELECT ip.gram_weight
-                        FROM ingredient_portions ip
-                        JOIN ingredients i ON i.id = ip.ingredient_id
+                        FROM recipe_manager.ingredient_portions ip
+                        JOIN recipe_manager.ingredients i
+                            ON i.ingredient_id = ip.ingredient_id
                         WHERE LOWER(i.name) = LOWER($1)
                           AND UPPER(ip.unit) = UPPER($2)
                           AND LOWER(ip.modifier) = LOWER($3)
@@ -275,8 +280,9 @@ class NutritionRepository:
                     # No modifier - prefer entries without modifier, then any
                     query = """
                         SELECT ip.gram_weight
-                        FROM ingredient_portions ip
-                        JOIN ingredients i ON i.id = ip.ingredient_id
+                        FROM recipe_manager.ingredient_portions ip
+                        JOIN recipe_manager.ingredients i
+                            ON i.ingredient_id = ip.ingredient_id
                         WHERE LOWER(i.name) = LOWER($1)
                           AND UPPER(ip.unit) = UPPER($2)
                         ORDER BY

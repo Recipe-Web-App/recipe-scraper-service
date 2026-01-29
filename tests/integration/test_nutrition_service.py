@@ -39,9 +39,12 @@ pytestmark = pytest.mark.integration
 # =============================================================================
 
 CREATE_TABLES_SQL = """
+-- Create schema
+CREATE SCHEMA IF NOT EXISTS recipe_manager;
+
 -- Ingredients table
-CREATE TABLE IF NOT EXISTS ingredients (
-    id BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS recipe_manager.ingredients (
+    ingredient_id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     fdc_id INTEGER,
     usda_food_description TEXT,
@@ -50,9 +53,10 @@ CREATE TABLE IF NOT EXISTS ingredients (
 );
 
 -- Nutrition profiles table
-CREATE TABLE IF NOT EXISTS nutrition_profiles (
-    id BIGSERIAL PRIMARY KEY,
-    ingredient_id BIGINT NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS recipe_manager.nutrition_profiles (
+    nutrition_profile_id BIGSERIAL PRIMARY KEY,
+    ingredient_id BIGINT NOT NULL
+        REFERENCES recipe_manager.ingredients(ingredient_id) ON DELETE CASCADE,
     serving_size_g DECIMAL(10,2) DEFAULT 100.00,
     data_source VARCHAR(50) DEFAULT 'USDA',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -61,9 +65,10 @@ CREATE TABLE IF NOT EXISTS nutrition_profiles (
 );
 
 -- Macronutrients table
-CREATE TABLE IF NOT EXISTS macronutrients (
-    id BIGSERIAL PRIMARY KEY,
-    nutrition_profile_id BIGINT NOT NULL REFERENCES nutrition_profiles(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS recipe_manager.macronutrients (
+    macronutrient_id BIGSERIAL PRIMARY KEY,
+    nutrition_profile_id BIGINT NOT NULL
+        REFERENCES recipe_manager.nutrition_profiles(nutrition_profile_id) ON DELETE CASCADE,
     calories_kcal DECIMAL(10,2),
     protein_g DECIMAL(10,2),
     carbs_g DECIMAL(10,2),
@@ -81,9 +86,10 @@ CREATE TABLE IF NOT EXISTS macronutrients (
 );
 
 -- Vitamins table
-CREATE TABLE IF NOT EXISTS vitamins (
-    id BIGSERIAL PRIMARY KEY,
-    nutrition_profile_id BIGINT NOT NULL REFERENCES nutrition_profiles(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS recipe_manager.vitamins (
+    vitamin_id BIGSERIAL PRIMARY KEY,
+    nutrition_profile_id BIGINT NOT NULL
+        REFERENCES recipe_manager.nutrition_profiles(nutrition_profile_id) ON DELETE CASCADE,
     vitamin_a_mcg DECIMAL(10,2),
     vitamin_b6_mcg DECIMAL(10,2),
     vitamin_b12_mcg DECIMAL(10,2),
@@ -95,9 +101,10 @@ CREATE TABLE IF NOT EXISTS vitamins (
 );
 
 -- Minerals table
-CREATE TABLE IF NOT EXISTS minerals (
-    id BIGSERIAL PRIMARY KEY,
-    nutrition_profile_id BIGINT NOT NULL REFERENCES nutrition_profiles(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS recipe_manager.minerals (
+    mineral_id BIGSERIAL PRIMARY KEY,
+    nutrition_profile_id BIGINT NOT NULL
+        REFERENCES recipe_manager.nutrition_profiles(nutrition_profile_id) ON DELETE CASCADE,
     calcium_mg DECIMAL(10,2),
     iron_mg DECIMAL(10,2),
     magnesium_mg DECIMAL(10,2),
@@ -107,9 +114,10 @@ CREATE TABLE IF NOT EXISTS minerals (
 );
 
 -- Ingredient portions table (for unit conversions)
-CREATE TABLE IF NOT EXISTS ingredient_portions (
+CREATE TABLE IF NOT EXISTS recipe_manager.ingredient_portions (
     id BIGSERIAL PRIMARY KEY,
-    ingredient_id BIGINT NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+    ingredient_id BIGINT NOT NULL
+        REFERENCES recipe_manager.ingredients(ingredient_id) ON DELETE CASCADE,
     portion_description VARCHAR(255) NOT NULL,
     unit VARCHAR(50) NOT NULL,
     modifier VARCHAR(100),
@@ -122,14 +130,14 @@ CREATE TABLE IF NOT EXISTS ingredient_portions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ingredient_portions_ingredient_id
-    ON ingredient_portions(ingredient_id);
+    ON recipe_manager.ingredient_portions(ingredient_id);
 CREATE INDEX IF NOT EXISTS idx_ingredient_portions_unit
-    ON ingredient_portions(unit);
+    ON recipe_manager.ingredient_portions(unit);
 """
 
 INSERT_TEST_DATA_SQL = """
 -- Insert test ingredients
-INSERT INTO ingredients (id, name, fdc_id, usda_food_description) VALUES
+INSERT INTO recipe_manager.ingredients (ingredient_id, name, fdc_id, usda_food_description) VALUES
     (1, 'flour', 169761, 'Wheat flour, white, all-purpose, enriched'),
     (2, 'sugar', 169655, 'Sugar, granulated'),
     (3, 'apple', 171688, 'Apples, raw, with skin'),
@@ -137,7 +145,7 @@ INSERT INTO ingredients (id, name, fdc_id, usda_food_description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- Insert nutrition profiles
-INSERT INTO nutrition_profiles (id, ingredient_id, serving_size_g, data_source) VALUES
+INSERT INTO recipe_manager.nutrition_profiles (nutrition_profile_id, ingredient_id, serving_size_g, data_source) VALUES
     (1, 1, 100.00, 'USDA'),
     (2, 2, 100.00, 'USDA'),
     (3, 3, 100.00, 'USDA'),
@@ -145,7 +153,7 @@ INSERT INTO nutrition_profiles (id, ingredient_id, serving_size_g, data_source) 
 ON CONFLICT (ingredient_id) DO NOTHING;
 
 -- Insert macronutrients (per 100g)
-INSERT INTO macronutrients (nutrition_profile_id, calories_kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g) VALUES
+INSERT INTO recipe_manager.macronutrients (nutrition_profile_id, calories_kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g) VALUES
     (1, 364, 10.3, 76.3, 1.0, 2.7, 0.3),   -- flour
     (2, 387, 0.0, 100.0, 0.0, 0.0, 100.0), -- sugar
     (3, 52, 0.3, 13.8, 0.2, 2.4, 10.4),    -- apple
@@ -153,19 +161,19 @@ INSERT INTO macronutrients (nutrition_profile_id, calories_kcal, protein_g, carb
 ON CONFLICT (nutrition_profile_id) DO NOTHING;
 
 -- Insert vitamins
-INSERT INTO vitamins (nutrition_profile_id, vitamin_c_mcg, vitamin_b6_mcg) VALUES
+INSERT INTO recipe_manager.vitamins (nutrition_profile_id, vitamin_c_mcg, vitamin_b6_mcg) VALUES
     (1, 0, 44),
     (3, 4600, 41)  -- apple has vitamin C
 ON CONFLICT (nutrition_profile_id) DO NOTHING;
 
 -- Insert minerals
-INSERT INTO minerals (nutrition_profile_id, calcium_mg, iron_mg, potassium_mg) VALUES
+INSERT INTO recipe_manager.minerals (nutrition_profile_id, calcium_mg, iron_mg, potassium_mg) VALUES
     (1, 15, 4.6, 107),
     (3, 6, 0.1, 107)  -- apple
 ON CONFLICT (nutrition_profile_id) DO NOTHING;
 
 -- Insert portion weights (for unit conversions)
-INSERT INTO ingredient_portions (ingredient_id, portion_description, unit, modifier, gram_weight) VALUES
+INSERT INTO recipe_manager.ingredient_portions (ingredient_id, portion_description, unit, modifier, gram_weight) VALUES
     (1, '1 cup', 'CUP', NULL, 125.0),           -- 1 cup flour = 125g
     (1, '1 tablespoon', 'TBSP', NULL, 7.8),     -- 1 tbsp flour = 7.8g
     (2, '1 cup', 'CUP', NULL, 200.0),           -- 1 cup sugar = 200g
