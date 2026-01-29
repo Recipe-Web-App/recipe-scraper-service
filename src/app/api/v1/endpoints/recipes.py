@@ -3,6 +3,7 @@
 Provides:
 - POST /recipes for scraping a recipe URL and saving to the Recipe Management Service
 - GET /recipes/popular for fetching popular recipes from aggregated sources
+- GET /recipes/{recipeId}/nutritional-info for fetching nutritional data for a recipe
 """
 
 from __future__ import annotations
@@ -10,11 +11,12 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 import orjson
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from starlette.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from starlette.responses import JSONResponse, Response
 
 from app.api.dependencies import (
     get_ingredient_parser,
+    get_nutrition_service,
     get_recipe_management_client,
     get_redis_cache_client,
     get_scraper_service,
@@ -31,13 +33,23 @@ from app.schemas import (
     CreateRecipeResponse,
     PopularRecipesResponse,
 )
-from app.schemas.ingredient import WebRecipe
+from app.schemas.enums import IngredientUnit
+from app.schemas.ingredient import Ingredient, Quantity, WebRecipe
+from app.schemas.nutrition import (
+    IngredientNutritionalInfoResponse,
+    RecipeNutritionalInfoResponse,
+)
 from app.schemas.recipe import PopularRecipesData
+from app.services.nutrition.service import NutritionService  # noqa: TC001
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
 from app.services.recipe_management.exceptions import (
     RecipeManagementError,
+    RecipeManagementNotFoundError,
     RecipeManagementUnavailableError,
     RecipeManagementValidationError,
+)
+from app.services.recipe_management.schemas import (
+    IngredientUnit as RecipeIngredientUnit,  # noqa: TC001
 )
 from app.services.scraping.exceptions import (
     RecipeNotFoundError,
@@ -356,3 +368,255 @@ async def get_popular_recipes(
         },
         headers={"Retry-After": "60"},
     )
+
+
+@router.get(
+    "/recipes/{recipeId}/nutritional-info",
+    response_model=RecipeNutritionalInfoResponse,
+    summary="Get nutritional info for a recipe",
+    description=(
+        "Returns comprehensive nutritional information for all ingredients "
+        "in the recipe, with options to include total aggregated values and "
+        "per-ingredient breakdowns."
+    ),
+    responses={
+        200: {
+            "description": "Nutritional information retrieved successfully",
+        },
+        206: {
+            "description": "Partial content - some ingredient nutritional data unavailable",
+            "headers": {
+                "X-Partial-Content": {
+                    "description": "Comma-separated list of missing ingredient IDs",
+                    "schema": {"type": "string"},
+                }
+            },
+        },
+        400: {
+            "description": "Invalid request parameters",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "BAD_REQUEST",
+                        "message": (
+                            "At least one of 'includeTotal' or 'includeIngredients' "
+                            "must be true."
+                        ),
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Resource not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "NOT_FOUND",
+                        "message": "Recipe with identifier '123' not found",
+                    }
+                }
+            },
+        },
+        422: {"description": "Request validation error"},
+    },
+)
+async def get_recipe_nutritional_info(
+    recipe_id: Annotated[int, Path(alias="recipeId", ge=1)],
+    user: Annotated[CurrentUser, Depends(RequirePermissions(Permission.RECIPE_READ))],
+    recipe_client: Annotated[
+        RecipeManagementClient, Depends(get_recipe_management_client)
+    ],
+    nutrition_service: Annotated[NutritionService, Depends(get_nutrition_service)],
+    request: Request,
+    include_total: Annotated[
+        bool,
+        Query(
+            alias="includeTotal",
+            description="Include aggregated nutritional totals",
+        ),
+    ] = True,
+    include_ingredients: Annotated[
+        bool,
+        Query(
+            alias="includeIngredients",
+            description="Include per-ingredient nutritional breakdown",
+        ),
+    ] = False,
+) -> Response:
+    """Get nutritional information for a recipe.
+
+    This endpoint fetches recipe details from the Recipe Management Service,
+    then calculates nutritional information for all ingredients using the
+    NutritionService. Supports filtering for totals only or per-ingredient
+    breakdown.
+
+    Args:
+        recipe_id: ID of the recipe.
+        user: Authenticated user with RECIPE_READ permission.
+        recipe_client: Client for Recipe Management Service.
+        nutrition_service: Service for nutritional calculations.
+        request: The incoming HTTP request.
+        include_total: Whether to include aggregated totals (default True).
+        include_ingredients: Whether to include per-ingredient data (default False).
+
+    Returns:
+        RecipeNutritionalInfoResponse with nutritional data.
+        Returns 206 with X-Partial-Content header if some ingredients missing.
+
+    Raises:
+        HTTPException: 400 if both flags are false.
+        HTTPException: 404 if recipe not found.
+        HTTPException: 503 if downstream service unavailable.
+    """
+    # Validate query parameters
+    if not include_total and not include_ingredients:
+        logger.warning(
+            "Invalid query params: both flags false",
+            recipe_id=recipe_id,
+            user_id=user.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "BAD_REQUEST",
+                "message": (
+                    "At least one of 'includeTotal' or 'includeIngredients' must be true."
+                ),
+            },
+        )
+
+    # Extract auth token for downstream call
+    auth_header = request.headers.get("Authorization", "")
+    auth_token = auth_header.replace("Bearer ", "") if auth_header else ""
+
+    logger.info(
+        "Fetching nutritional info for recipe",
+        recipe_id=recipe_id,
+        include_total=include_total,
+        include_ingredients=include_ingredients,
+        user_id=user.id,
+    )
+
+    # Step 1: Fetch recipe from Recipe Management Service
+    try:
+        recipe = await recipe_client.get_recipe(recipe_id, auth_token)
+    except RecipeManagementNotFoundError:
+        logger.info("Recipe not found", recipe_id=recipe_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "NOT_FOUND",
+                "message": f"Recipe with identifier '{recipe_id}' not found",
+            },
+        ) from None
+    except RecipeManagementUnavailableError:
+        logger.warning("Recipe Management Service unavailable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "SERVICE_UNAVAILABLE",
+                "message": "Recipe Management Service is not available",
+            },
+        ) from None
+    except RecipeManagementError as e:
+        logger.exception("Recipe Management Service error")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "error": "DOWNSTREAM_ERROR",
+                "message": f"Recipe Management Service error: {e}",
+            },
+        ) from None
+
+    # Step 2: Handle empty recipe (no ingredients)
+    if not recipe.ingredients:
+        logger.info("Recipe has no ingredients", recipe_id=recipe_id)
+        response_data = RecipeNutritionalInfoResponse(
+            ingredients=None,
+            missing_ingredients=None,
+            total=IngredientNutritionalInfoResponse(
+                quantity=Quantity(amount=0, measurement=IngredientUnit.G),
+                macro_nutrients=None,
+                vitamins=None,
+                minerals=None,
+            )
+            if include_total
+            else None,
+        )
+        return JSONResponse(
+            content=orjson.loads(
+                orjson.dumps(response_data.model_dump(by_alias=True, exclude_none=True))
+            ),
+            status_code=status.HTTP_200_OK,
+        )
+
+    # Step 3: Transform recipe ingredients to Ingredient schema for NutritionService
+    ingredients: list[Ingredient] = [
+        Ingredient(
+            ingredient_id=ing.ingredient_id or ing.id,
+            name=ing.ingredient_name,
+            quantity=Quantity(
+                amount=ing.quantity,
+                measurement=_map_ingredient_unit(ing.unit),
+            ),
+        )
+        for ing in recipe.ingredients
+    ]
+
+    # Step 4: Get nutritional data from NutritionService
+    nutrition_result = await nutrition_service.get_recipe_nutrition(ingredients)
+
+    # Step 5: Apply include flags to filter response
+    response_data = RecipeNutritionalInfoResponse(
+        ingredients=nutrition_result.ingredients if include_ingredients else None,
+        missing_ingredients=nutrition_result.missing_ingredients,
+        total=nutrition_result.total if include_total else None,
+    )
+
+    # Step 6: Determine status code and headers
+    response_content = orjson.loads(
+        orjson.dumps(response_data.model_dump(by_alias=True, exclude_none=True))
+    )
+
+    if nutrition_result.missing_ingredients:
+        # Some ingredients missing - return 206 Partial Content
+        missing_ids = ",".join(
+            str(ing_id) for ing_id in nutrition_result.missing_ingredients
+        )
+        logger.info(
+            "Returning partial nutritional info",
+            recipe_id=recipe_id,
+            missing_count=len(nutrition_result.missing_ingredients),
+            missing_ids=missing_ids,
+        )
+        return JSONResponse(
+            content=response_content,
+            status_code=status.HTTP_206_PARTIAL_CONTENT,
+            headers={"X-Partial-Content": missing_ids},
+        )
+
+    logger.info(
+        "Returning complete nutritional info",
+        recipe_id=recipe_id,
+        ingredient_count=len(recipe.ingredients),
+    )
+    return JSONResponse(
+        content=response_content,
+        status_code=status.HTTP_200_OK,
+    )
+
+
+def _map_ingredient_unit(unit: RecipeIngredientUnit) -> IngredientUnit:
+    """Map Recipe Management unit to schema IngredientUnit.
+
+    The Recipe Management Service uses its own IngredientUnit enum,
+    which needs to be mapped to the schema's IngredientUnit.
+
+    Args:
+        unit: Unit from Recipe Management Service.
+
+    Returns:
+        Corresponding schema IngredientUnit.
+    """
+    # Both enums use the same values, so direct mapping works
+    return IngredientUnit(unit.value)

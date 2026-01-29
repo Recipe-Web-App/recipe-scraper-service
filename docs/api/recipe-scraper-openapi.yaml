@@ -409,8 +409,8 @@ paths:
             X-Partial-Content:
               schema:
                 type: string
-                example: "true"
-              description: Indicates partial content response
+                example: "101,102,103"
+              description: Comma-separated list of ingredient IDs for which nutritional data is unavailable
           content:
             application/json:
               schema:

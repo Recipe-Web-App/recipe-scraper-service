@@ -48,3 +48,13 @@ class RecipeManagementValidationError(RecipeManagementResponseError):
     ) -> None:
         self.details = details
         super().__init__(status_code=422, message=message)
+
+
+class RecipeManagementNotFoundError(RecipeManagementResponseError):
+    """Raised when a requested resource is not found in Recipe Management Service.
+
+    This typically indicates a 404 response from the downstream service.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(status_code=404, message=message)
