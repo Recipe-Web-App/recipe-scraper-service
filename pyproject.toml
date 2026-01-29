@@ -63,6 +63,7 @@ dependencies = [
   # Configuration
   "pyyaml>=6.0",
   "aiolimiter>=1.2.1",
+  "pint>=0.25.2",
 ]
 
 [project.optional-dependencies]

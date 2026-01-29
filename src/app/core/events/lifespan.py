@@ -19,6 +19,7 @@ from app.llm.client.groq import GroqClient
 from app.llm.client.ollama import OllamaClient
 from app.observability.logging import get_logger, setup_logging
 from app.observability.tracing import shutdown_tracing
+from app.services.nutrition.service import NutritionService
 from app.services.popular.service import PopularRecipesService
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.scraping.service import RecipeScraperService
@@ -83,6 +84,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
                 "Failed to initialize LLM client - LLM features unavailable"
             )
 
+    # Initialize Nutrition Service (optional - non-critical)
+    await _init_nutrition_service(app, cache_client)
+
     # Initialize Recipe Scraper Service (optional - non-critical)
     await _init_scraper_service(app, cache_client)
 
@@ -135,6 +139,22 @@ async def _init_auth(settings: Settings, cache_client: Redis[bytes] | None) -> N
     except Exception:
         logger.exception("Failed to initialize auth provider")
         raise  # Auth is critical - don't continue without it
+
+
+async def _init_nutrition_service(
+    app: FastAPI, cache_client: Redis[bytes] | None
+) -> None:
+    """Initialize nutrition service."""
+    try:
+        nutrition_service = NutritionService(cache_client=cache_client)
+        await nutrition_service.initialize()
+        app.state.nutrition_service = nutrition_service
+        logger.info("NutritionService initialized")
+    except Exception:
+        logger.exception(
+            "Failed to initialize NutritionService - nutrition queries unavailable"
+        )
+        app.state.nutrition_service = None
 
 
 async def _init_scraper_service(
@@ -237,6 +257,11 @@ async def _shutdown(app: FastAPI) -> None:
     ):
         await app.state.popular_recipes_service.shutdown()
         logger.debug("PopularRecipesService shutdown")
+
+    # Shutdown Nutrition Service
+    if hasattr(app.state, "nutrition_service") and app.state.nutrition_service:
+        await app.state.nutrition_service.shutdown()
+        logger.debug("NutritionService shutdown")
 
     # Shutdown LLM client
     await _shutdown_llm_client()

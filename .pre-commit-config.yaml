@@ -80,6 +80,7 @@ repos:
           - opentelemetry-instrumentation-redis>=0.49b0
           - opentelemetry-exporter-otlp>=1.28.0
           - prometheus-fastapi-instrumentator>=7.0.0
+          - pint>=0.24
         pass_filenames: false
         entry: mypy src
 

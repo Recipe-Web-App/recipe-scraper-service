@@ -65,6 +65,20 @@ class MineralsData(BaseModel):
     zinc_mg: Decimal | None = None
 
 
+class PortionData(BaseModel):
+    """Portion weight data from database.
+
+    Represents a single portion measurement (e.g., "1 cup chopped" = 160g).
+    Data sourced from USDA FoodData Central Food Weights.
+    """
+
+    ingredient_id: int
+    portion_description: str
+    unit: str
+    modifier: str | None = None
+    gram_weight: Decimal
+
+
 class NutritionData(BaseModel):
     """Complete nutrition data for an ingredient."""
 
@@ -219,6 +233,82 @@ class NutritionRepository:
             return None
 
         return self._row_to_nutrition_data(row)
+
+    async def get_portion_weight(
+        self,
+        ingredient_name: str,
+        unit: str,
+        modifier: str | None = None,
+    ) -> Decimal | None:
+        """Get gram weight for a portion measurement.
+
+        Looks up portion data from the ingredient_portions table.
+        Used for converting volume and count units to grams.
+
+        Args:
+            ingredient_name: Ingredient name (case-insensitive match).
+            unit: Unit type (e.g., "CUP", "PIECE", "TBSP").
+            modifier: Optional modifier (e.g., "chopped", "medium", "sliced").
+
+        Returns:
+            Gram weight for the portion, or None if not found.
+
+        Note:
+            Gracefully handles missing ingredient_portions table by returning None.
+        """
+        try:
+            async with self.pool.acquire() as conn:
+                if modifier:
+                    # Query with modifier if provided
+                    query = """
+                        SELECT ip.gram_weight
+                        FROM ingredient_portions ip
+                        JOIN ingredients i ON i.id = ip.ingredient_id
+                        WHERE LOWER(i.name) = LOWER($1)
+                          AND UPPER(ip.unit) = UPPER($2)
+                          AND LOWER(ip.modifier) = LOWER($3)
+                        ORDER BY ip.sequence_number NULLS LAST
+                        LIMIT 1
+                    """
+                    row = await conn.fetchrow(query, ingredient_name, unit, modifier)
+                else:
+                    # No modifier - prefer entries without modifier, then any
+                    query = """
+                        SELECT ip.gram_weight
+                        FROM ingredient_portions ip
+                        JOIN ingredients i ON i.id = ip.ingredient_id
+                        WHERE LOWER(i.name) = LOWER($1)
+                          AND UPPER(ip.unit) = UPPER($2)
+                        ORDER BY
+                            CASE WHEN ip.modifier IS NULL THEN 0 ELSE 1 END,
+                            ip.sequence_number NULLS LAST
+                        LIMIT 1
+                    """
+                    row = await conn.fetchrow(query, ingredient_name, unit)
+
+            if row is None:
+                return None
+
+            return Decimal(str(row["gram_weight"]))
+
+        except Exception as e:
+            # Handle missing table or other database errors gracefully
+            error_msg = str(e).lower()
+            if "relation" in error_msg and "does not exist" in error_msg:
+                logger.debug(
+                    "ingredient_portions table not found, returning None",
+                    ingredient=ingredient_name,
+                    unit=unit,
+                )
+                return None
+            # Log but don't raise - fallback to default conversion
+            logger.warning(
+                "Error looking up portion weight",
+                ingredient=ingredient_name,
+                unit=unit,
+                error=str(e),
+            )
+            return None
 
     def _row_to_nutrition_data(self, row: Record) -> NutritionData:
         """Convert database row to NutritionData model.
