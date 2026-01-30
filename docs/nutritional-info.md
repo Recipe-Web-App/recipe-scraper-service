@@ -8,11 +8,12 @@ nutritional data for ingredients and recipes.
 1. [Overview](#1-overview)
 2. [API Endpoints](#2-api-endpoints)
 3. [Processing Flow](#3-processing-flow)
-4. [Unit Conversion](#4-unit-conversion)
-5. [Caching Strategy](#5-caching-strategy)
-6. [Database Schema](#6-database-schema)
-7. [Error Handling](#7-error-handling)
-8. [Data Attribution](#8-data-attribution)
+4. [Ingredient Name Matching](#4-ingredient-name-matching)
+5. [Unit Conversion](#5-unit-conversion)
+6. [Caching Strategy](#6-caching-strategy)
+7. [Database Schema](#7-database-schema)
+8. [Error Handling](#8-error-handling)
+9. [Data Attribution](#9-data-attribution)
 
 ---
 
@@ -165,8 +166,15 @@ sequenceDiagram
     else Cache Miss
         RC-->>NS: null
         NS->>NR: get_by_ingredient_name("flour")
-        NR->>DB: SELECT with JOINs
-        DB-->>NR: Raw nutrition data
+        NR->>DB: Exact match query
+        alt Exact Match Found
+            DB-->>NR: Raw nutrition data
+        else No Exact Match
+            DB-->>NR: null
+            NS->>NR: get_by_ingredient_name_fuzzy("flour")
+            NR->>DB: Fuzzy search (prefix/contains/trigram)
+            DB-->>NR: Best matching data
+        end
         NR-->>NS: NutritionData
         NS->>RC: SET nutrition:flour (TTL: 30 days)
     end
@@ -200,15 +208,16 @@ sequenceDiagram
 
     EP->>NS: get_recipe_nutrition([{flour, 250g}, {sugar, 100g}])
 
-    loop For each ingredient
-        NS->>RC: GET nutrition:{name}
-        alt Cache Hit
-            RC-->>NS: Cached data
-        else Cache Miss
-            NS->>NR: get_by_ingredient_name(name)
-            NR-->>NS: NutritionData
-            NS->>RC: SET nutrition:{name}
-        end
+    NS->>NR: Batch exact match query
+    NR-->>NS: Found ingredients
+
+    alt Some ingredients not found
+        NS->>NR: Batch fuzzy search for missing
+        NR-->>NS: Fuzzy matched ingredients
+    end
+
+    loop For each matched ingredient
+        NS->>RC: Cache nutrition data
         NS->>NS: Scale by quantity
     end
 
@@ -224,7 +233,90 @@ sequenceDiagram
 
 ---
 
-## 4. Unit Conversion
+## 4. Ingredient Name Matching
+
+Recipe ingredients use simple names ("butter", "flour", "eggs") while the USDA database contains detailed names
+("Butter, salted", "Wheat flour, white, all-purpose, enriched"). The system uses fuzzy matching to bridge this gap.
+
+### Matching Strategy
+
+```mermaid
+flowchart TD
+    START[Ingredient Query] --> CACHE{Cache<br/>Lookup}
+
+    CACHE -->|Hit| RETURN[Return Cached Data]
+    CACHE -->|Miss| EXACT{Exact Match?}
+
+    EXACT -->|Yes| CACHE_STORE[Cache & Return]
+    EXACT -->|No| FUZZY[Fuzzy Search]
+
+    FUZZY --> PREFIX{Prefix Match?<br/>e.g., butter → Butter, salted}
+    PREFIX -->|Yes| RANK1[Rank 1: Prefix]
+
+    PREFIX -->|No| CONTAINS{Contains Match?<br/>e.g., flour → Wheat flour...}
+    CONTAINS -->|Yes| RANK2[Rank 2: Contains]
+
+    CONTAINS -->|No| TRIGRAM{Trigram Similarity > 0.3?<br/>e.g., olive oil → Oil, olive}
+    TRIGRAM -->|Yes| RANK3[Rank 3: Trigram]
+    TRIGRAM -->|No| NOT_FOUND[Return 404]
+
+    RANK1 --> SELECT[Select Best Match]
+    RANK2 --> SELECT
+    RANK3 --> SELECT
+    SELECT --> CACHE_STORE
+
+    style EXACT fill:#90EE90
+    style RANK1 fill:#98FB98
+    style RANK2 fill:#F0E68C
+    style RANK3 fill:#FFE4B5
+    style NOT_FOUND fill:#FFB6C1
+```
+
+### Match Ranking
+
+When multiple ingredients match a query, results are ranked by:
+
+| Priority | Criteria    | Description                                         |
+| -------- | ----------- | --------------------------------------------------- |
+| 1st      | Match Type  | Exact (0) > Prefix (1) > Contains (2) > Trigram (3) |
+| 2nd      | Similarity  | Higher trigram similarity score wins                |
+| 3rd      | Name Length | Shorter names preferred (simpler matches)           |
+
+### Example Matches
+
+| Recipe Query | USDA Match                                  | Match Type |
+| ------------ | ------------------------------------------- | ---------- |
+| "butter"     | "Butter, salted"                            | Prefix     |
+| "flour"      | "Wheat flour, white, all-purpose, enriched" | Contains   |
+| "olive oil"  | "Oil, olive, salad or cooking"              | Trigram    |
+| "sugar"      | "Sugars, granulated"                        | Trigram    |
+| "salt"       | "Salt, table"                               | Prefix     |
+| "garlic"     | "Garlic, raw"                               | Prefix     |
+| "milk"       | "Milk, whole"                               | Prefix     |
+| "eggs"       | "Egg, whole, raw, fresh"                    | Trigram    |
+
+### Database Requirements
+
+Fuzzy matching requires the PostgreSQL `pg_trgm` extension:
+
+```sql
+-- Enable trigram extension
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Create GIN index for fast similarity searches
+CREATE INDEX idx_ingredients_name_trgm
+    ON recipe_manager.ingredients USING GIN (name gin_trgm_ops);
+```
+
+### Caching Behavior
+
+- Fuzzy matches are cached under the **original query name**, not the matched USDA name
+- This prevents repeated fuzzy searches for the same query
+- Example: Query "butter" → matches "Butter, salted" → cached as `nutrition:butter`
+
+---
+
+## 5. Unit Conversion
 
 The UnitConverter uses a three-tier strategy to convert measurements to grams:
 
@@ -273,7 +365,7 @@ The `ingredient_portions` table stores weight equivalents:
 
 ---
 
-## 5. Caching Strategy
+## 6. Caching Strategy
 
 ```mermaid
 flowchart TB
@@ -317,7 +409,7 @@ flowchart TB
 
 ---
 
-## 6. Database Schema
+## 7. Database Schema
 
 ```mermaid
 erDiagram
@@ -401,7 +493,7 @@ WHERE LOWER(i.name) = LOWER($1)
 
 ---
 
-## 7. Error Handling
+## 8. Error Handling
 
 ### Error Codes Reference
 
@@ -441,7 +533,7 @@ X-Partial-Content: 103,105
 
 ---
 
-## 8. Data Attribution
+## 9. Data Attribution
 
 All nutritional information in this service is sourced from the USDA FoodData Central database:
 
