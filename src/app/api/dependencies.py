@@ -19,6 +19,7 @@ from app.parsing.ingredient import IngredientParser
 if TYPE_CHECKING:
     from redis.asyncio import Redis
 
+    from app.services.allergen.service import AllergenService
     from app.services.nutrition.service import NutritionService
     from app.services.popular.service import PopularRecipesService
     from app.services.recipe_management.client import RecipeManagementClient
@@ -132,6 +133,29 @@ async def get_nutrition_service(request: Request) -> NutritionService:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Nutrition service not available",
+        )
+    return service
+
+
+async def get_allergen_service(request: Request) -> AllergenService:
+    """Get the allergen service from app state.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        Initialized AllergenService.
+
+    Raises:
+        HTTPException: 503 if service is not initialized.
+    """
+    service: AllergenService | None = getattr(
+        request.app.state, "allergen_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Allergen service not available",
         )
     return service
 

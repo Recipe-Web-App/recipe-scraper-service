@@ -19,6 +19,7 @@ from app.llm.client.groq import GroqClient
 from app.llm.client.ollama import OllamaClient
 from app.observability.logging import get_logger, setup_logging
 from app.observability.tracing import shutdown_tracing
+from app.services.allergen.service import AllergenService
 from app.services.nutrition.service import NutritionService
 from app.services.popular.service import PopularRecipesService
 from app.services.recipe_management.client import RecipeManagementClient
@@ -86,6 +87,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
 
     # Initialize Nutrition Service (optional - non-critical)
     await _init_nutrition_service(app, cache_client)
+
+    # Initialize Allergen Service (optional - non-critical)
+    await _init_allergen_service(app, cache_client)
 
     # Initialize Recipe Scraper Service (optional - non-critical)
     await _init_scraper_service(app, cache_client)
@@ -155,6 +159,22 @@ async def _init_nutrition_service(
             "Failed to initialize NutritionService - nutrition queries unavailable"
         )
         app.state.nutrition_service = None
+
+
+async def _init_allergen_service(
+    app: FastAPI, cache_client: Redis[bytes] | None
+) -> None:
+    """Initialize allergen service."""
+    try:
+        allergen_service = AllergenService(cache_client=cache_client)
+        await allergen_service.initialize()
+        app.state.allergen_service = allergen_service
+        logger.info("AllergenService initialized")
+    except Exception:
+        logger.exception(
+            "Failed to initialize AllergenService - allergen queries unavailable"
+        )
+        app.state.allergen_service = None
 
 
 async def _init_scraper_service(
@@ -262,6 +282,11 @@ async def _shutdown(app: FastAPI) -> None:
     if hasattr(app.state, "nutrition_service") and app.state.nutrition_service:
         await app.state.nutrition_service.shutdown()
         logger.debug("NutritionService shutdown")
+
+    # Shutdown Allergen Service
+    if hasattr(app.state, "allergen_service") and app.state.allergen_service:
+        await app.state.allergen_service.shutdown()
+        logger.debug("AllergenService shutdown")
 
     # Shutdown LLM client
     await _shutdown_llm_client()
