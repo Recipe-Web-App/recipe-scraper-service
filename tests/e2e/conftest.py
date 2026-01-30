@@ -236,6 +236,9 @@ NUTRITION_SCHEMA_SQL = """
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS recipe_manager;
 
+-- Enable pg_trgm extension for fuzzy text search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- Ingredients table
 CREATE TABLE IF NOT EXISTS recipe_manager.ingredients (
     ingredient_id BIGSERIAL PRIMARY KEY,
@@ -245,6 +248,10 @@ CREATE TABLE IF NOT EXISTS recipe_manager.ingredients (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- GIN index for trigram fuzzy search on ingredient names
+CREATE INDEX IF NOT EXISTS idx_ingredients_name_trgm
+    ON recipe_manager.ingredients USING GIN (name gin_trgm_ops);
 
 -- Nutrition profiles table
 CREATE TABLE IF NOT EXISTS recipe_manager.nutrition_profiles (
@@ -331,7 +338,7 @@ CREATE INDEX IF NOT EXISTS idx_ingredient_portions_unit
 
 # Seed data with common ingredients (USDA FoodData Central values per 100g)
 COMMON_INGREDIENTS_SQL = """
--- Insert common ingredients (flour, butter, eggs, chicken, rice)
+-- Insert common ingredients with simple names (for exact match testing)
 INSERT INTO recipe_manager.ingredients (ingredient_id, name, fdc_id, usda_food_description) VALUES
     (1, 'flour', 169761, 'Wheat flour, white, all-purpose, enriched'),
     (2, 'butter', 173410, 'Butter, salted'),
@@ -340,13 +347,36 @@ INSERT INTO recipe_manager.ingredients (ingredient_id, name, fdc_id, usda_food_d
     (5, 'rice', 169756, 'Rice, white, long-grain, regular, cooked')
 ON CONFLICT (name) DO NOTHING;
 
+-- Insert USDA-style ingredients for fuzzy match testing
+INSERT INTO recipe_manager.ingredients (ingredient_id, name, fdc_id, usda_food_description) VALUES
+    (6, 'Butter, salted', 173411, 'Butter, salted'),
+    (7, 'Butter, unsalted', 173412, 'Butter, unsalted'),
+    (8, 'Milk, whole', 173430, 'Milk, whole, 3.25% milkfat'),
+    (9, 'Milk, 2% milkfat', 173431, 'Milk, reduced fat, 2% milkfat'),
+    (10, 'Oil, olive', 171413, 'Oil, olive, salad or cooking'),
+    (11, 'Sugars, granulated', 169655, 'Sugars, granulated'),
+    (12, 'Salt, table', 173468, 'Salt, table'),
+    (13, 'Garlic, raw', 169230, 'Garlic, raw'),
+    (14, 'Onions, raw', 170000, 'Onions, raw')
+ON CONFLICT (name) DO NOTHING;
+
 -- Insert nutrition profiles
 INSERT INTO recipe_manager.nutrition_profiles (nutrition_profile_id, ingredient_id, serving_size_g, data_source) VALUES
     (1, 1, 100.00, 'USDA'),
     (2, 2, 100.00, 'USDA'),
     (3, 3, 100.00, 'USDA'),
     (4, 4, 100.00, 'USDA'),
-    (5, 5, 100.00, 'USDA')
+    (5, 5, 100.00, 'USDA'),
+    -- USDA-style ingredients
+    (6, 6, 100.00, 'USDA'),
+    (7, 7, 100.00, 'USDA'),
+    (8, 8, 100.00, 'USDA'),
+    (9, 9, 100.00, 'USDA'),
+    (10, 10, 100.00, 'USDA'),
+    (11, 11, 100.00, 'USDA'),
+    (12, 12, 100.00, 'USDA'),
+    (13, 13, 100.00, 'USDA'),
+    (14, 14, 100.00, 'USDA')
 ON CONFLICT (ingredient_id) DO NOTHING;
 
 -- Insert macronutrients (USDA values per 100g)
@@ -363,7 +393,26 @@ INSERT INTO recipe_manager.macronutrients (
     -- Chicken breast: 165 kcal, 31.0g protein, 0g carbs, 3.6g fat
     (4, 165, 31.0, 0, 3.6, 1.0, 0, 0, 85, 74),
     -- Rice (cooked): 130 kcal, 2.7g protein, 28.2g carbs, 0.3g fat
-    (5, 130, 2.7, 28.2, 0.3, 0.1, 0.4, 0, 0, 1)
+    (5, 130, 2.7, 28.2, 0.3, 0.1, 0.4, 0, 0, 1),
+    -- USDA-style ingredients
+    -- Butter, salted: same as butter
+    (6, 717, 0.9, 0.1, 81.1, 51.4, 0, 0.1, 215, 714),
+    -- Butter, unsalted: slightly different sodium
+    (7, 717, 0.9, 0.1, 81.1, 51.4, 0, 0.1, 215, 11),
+    -- Milk, whole: 61 kcal per 100g
+    (8, 61, 3.2, 4.8, 3.3, 1.9, 0, 5.0, 10, 43),
+    -- Milk, 2% milkfat: 50 kcal per 100g
+    (9, 50, 3.3, 4.8, 2.0, 1.3, 0, 5.1, 8, 47),
+    -- Oil, olive: 884 kcal per 100g
+    (10, 884, 0, 0, 100.0, 13.8, 0, 0, 0, 2),
+    -- Sugars, granulated: 387 kcal per 100g
+    (11, 387, 0, 100.0, 0, 0, 0, 100.0, 0, 1),
+    -- Salt, table: 0 kcal
+    (12, 0, 0, 0, 0, 0, 0, 0, 0, 38758),
+    -- Garlic, raw: 149 kcal per 100g
+    (13, 149, 6.4, 33.1, 0.5, 0.1, 2.1, 1.0, 0, 17),
+    -- Onions, raw: 40 kcal per 100g
+    (14, 40, 1.1, 9.3, 0.1, 0, 1.7, 4.2, 0, 4)
 ON CONFLICT (nutrition_profile_id) DO NOTHING;
 
 -- Insert vitamins

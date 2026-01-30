@@ -5,6 +5,7 @@ Provides methods for querying nutrition data from the PostgreSQL database.
 
 from __future__ import annotations
 
+import asyncio
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -217,6 +218,112 @@ class NutritionRepository:
 
         return {
             row["ingredient_name"]: self._row_to_nutrition_data(row) for row in rows
+        }
+
+    async def get_by_ingredient_name_fuzzy(
+        self,
+        name: str,
+        min_similarity: float = 0.3,
+    ) -> NutritionData | None:
+        """Get nutrition data using fuzzy matching.
+
+        Uses multi-tier matching strategy:
+        1. Exact match (case-insensitive)
+        2. Prefix match: name starts with query (e.g., "butter" matches "Butter, salted")
+        3. Contains match: query appears within the name
+        4. Trigram similarity: similarity score above threshold
+
+        Results are ranked by match type (exact > prefix > contains > trigram),
+        then by similarity score (descending), then by name length (shorter preferred).
+
+        Args:
+            name: Ingredient name to search for.
+            min_similarity: Minimum trigram similarity threshold (default 0.3).
+
+        Returns:
+            Best matching NutritionData, or None if no match found.
+
+        Note:
+            Requires pg_trgm extension to be enabled in the database.
+        """
+        # Query uses CASE to assign match_rank, then orders by rank, similarity, length
+        fuzzy_query = f"""
+            {_NUTRITION_QUERY}
+            WHERE LOWER(i.name) = LOWER($1)
+               OR LOWER(i.name) LIKE LOWER($1) || ',%'
+               OR LOWER(i.name) LIKE '%' || LOWER($1) || '%'
+               OR similarity(LOWER(i.name), LOWER($1)) > $2
+            ORDER BY
+                CASE
+                    WHEN LOWER(i.name) = LOWER($1) THEN 0
+                    WHEN LOWER(i.name) LIKE LOWER($1) || ',%' THEN 1
+                    WHEN LOWER(i.name) LIKE '%' || LOWER($1) || '%' THEN 2
+                    ELSE 3
+                END,
+                similarity(LOWER(i.name), LOWER($1)) DESC,
+                LENGTH(i.name) ASC
+            LIMIT 1
+        """
+
+        try:
+            async with self.pool.acquire() as conn:
+                row = await conn.fetchrow(fuzzy_query, name, min_similarity)
+
+            if row is None:
+                return None
+
+            result = self._row_to_nutrition_data(row)
+
+            # Log fuzzy match at DEBUG level if it's not an exact match
+            if result.ingredient_name.lower() != name.lower():
+                logger.debug(
+                    "Fuzzy match found",
+                    query=name,
+                    matched_name=result.ingredient_name,
+                )
+        except Exception as e:
+            # Handle missing pg_trgm extension gracefully
+            error_msg = str(e).lower()
+            if "similarity" in error_msg and "does not exist" in error_msg:
+                logger.warning(
+                    "pg_trgm extension not available, fuzzy search disabled",
+                    error=str(e),
+                )
+                return None
+            raise
+        else:
+            return result
+
+    async def get_by_ingredient_names_fuzzy(
+        self,
+        names: list[str],
+        min_similarity: float = 0.3,
+    ) -> dict[str, NutritionData]:
+        """Get nutrition data for multiple ingredients using fuzzy matching.
+
+        Runs fuzzy search for each ingredient name in parallel.
+
+        Args:
+            names: List of ingredient names to search for.
+            min_similarity: Minimum trigram similarity threshold (default 0.3).
+
+        Returns:
+            Dictionary mapping query names to NutritionData.
+            Names that don't match are not included in the result.
+        """
+        if not names:
+            return {}
+
+        # Run fuzzy searches in parallel
+        tasks = [
+            self.get_by_ingredient_name_fuzzy(name, min_similarity) for name in names
+        ]
+        fuzzy_results = await asyncio.gather(*tasks)
+
+        return {
+            name: data
+            for name, data in zip(names, fuzzy_results, strict=True)
+            if data is not None
         }
 
     async def get_by_fdc_id(self, fdc_id: int) -> NutritionData | None:

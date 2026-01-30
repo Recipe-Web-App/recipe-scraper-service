@@ -38,6 +38,8 @@ def mock_repository() -> MagicMock:
     repo = MagicMock()
     repo.get_by_ingredient_name = AsyncMock(return_value=None)
     repo.get_by_ingredient_names = AsyncMock(return_value={})
+    repo.get_by_ingredient_name_fuzzy = AsyncMock(return_value=None)
+    repo.get_by_ingredient_names_fuzzy = AsyncMock(return_value={})
     repo.get_portion_weight = AsyncMock(return_value=None)
     return repo
 

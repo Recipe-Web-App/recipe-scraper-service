@@ -256,6 +256,11 @@ class NutritionService:
     async def _get_nutrition_data(self, name: str) -> NutritionData | None:
         """Get nutrition data from cache or database.
 
+        Uses a multi-tier lookup strategy:
+        1. Check cache for exact query name
+        2. Try exact match in database
+        3. Fall back to fuzzy search if exact match fails
+
         Args:
             name: Ingredient name.
 
@@ -273,8 +278,20 @@ class NutritionService:
         if self._repository is None:
             return None
 
+        # Try exact match first
         data = await self._repository.get_by_ingredient_name(name)
 
+        # Fall back to fuzzy search if exact match fails
+        if data is None:
+            data = await self._repository.get_by_ingredient_name_fuzzy(name)
+            if data is not None:
+                logger.debug(
+                    "Fuzzy match found",
+                    query=name,
+                    matched_name=data.ingredient_name,
+                )
+
+        # Cache under original query name (not matched name)
         if data is not None:
             await self._save_to_cache(name, data)
 
@@ -286,13 +303,17 @@ class NutritionService:
     ) -> dict[str, NutritionData]:
         """Get nutrition data for multiple ingredients.
 
-        Checks cache first, then queries database for misses.
+        Uses a multi-tier lookup strategy:
+        1. Check cache for each name
+        2. Batch exact match in database
+        3. Fuzzy search for any remaining misses
 
         Args:
             names: List of ingredient names.
 
         Returns:
-            Dictionary mapping names to NutritionData.
+            Dictionary mapping query names to NutritionData.
+            Names that don't match are not included.
         """
         if not names:
             return {}
@@ -309,13 +330,37 @@ class NutritionService:
                 cache_misses.append(name)
 
         if cache_misses and self._repository is not None:
-            # Batch query database for misses
+            # Batch query database for exact matches
             db_results = await self._repository.get_by_ingredient_names(cache_misses)
 
-            # Cache and collect results
-            for name, data in db_results.items():
-                await self._save_to_cache(name, data)
-                result[name] = data
+            # Track which names still need fuzzy search
+            # Note: db_results keys are the actual DB names, we need to match back
+            still_missing: list[str] = []
+
+            for name in cache_misses:
+                # Check if this query name got an exact match
+                data = db_results.get(name)
+                if data is not None:
+                    await self._save_to_cache(name, data)
+                    result[name] = data
+                else:
+                    still_missing.append(name)
+
+            # Fall back to fuzzy search for remaining misses
+            if still_missing:
+                fuzzy_results = await self._repository.get_by_ingredient_names_fuzzy(
+                    still_missing
+                )
+
+                for query_name, data in fuzzy_results.items():
+                    logger.debug(
+                        "Fuzzy match found (batch)",
+                        query=query_name,
+                        matched_name=data.ingredient_name,
+                    )
+                    # Cache under original query name
+                    await self._save_to_cache(query_name, data)
+                    result[query_name] = data
 
         return result
 

@@ -381,3 +381,272 @@ class TestRepositoryPoolAccess:
 
         with pytest.raises(RuntimeError, match="not initialized"):
             _ = repo.pool
+
+
+class TestGetByIngredientNameFuzzy:
+    """Tests for get_by_ingredient_name_fuzzy method."""
+
+    @pytest.fixture
+    def butter_salted_row(self) -> dict:
+        """Create a sample database row for 'Butter, salted'."""
+        return {
+            "ingredient_id": 6,
+            "ingredient_name": "Butter, salted",
+            "fdc_id": 173411,
+            "usda_food_description": "Butter, salted",
+            "serving_size_g": Decimal("100.00"),
+            "data_source": "USDA",
+            "calories_kcal": Decimal("717.000"),
+            "protein_g": Decimal("0.900"),
+            "carbs_g": Decimal("0.100"),
+            "fat_g": Decimal("81.100"),
+            "saturated_fat_g": Decimal("51.400"),
+            "trans_fat_g": None,
+            "monounsaturated_fat_g": None,
+            "polyunsaturated_fat_g": None,
+            "cholesterol_mg": Decimal("215.000"),
+            "sodium_mg": Decimal("714.000"),
+            "fiber_g": None,
+            "sugar_g": None,
+            "added_sugar_g": None,
+            "vitamin_a_mcg": Decimal("684.000"),
+            "vitamin_b6_mcg": None,
+            "vitamin_b12_mcg": None,
+            "vitamin_c_mcg": None,
+            "vitamin_d_mcg": None,
+            "vitamin_e_mcg": None,
+            "vitamin_k_mcg": None,
+            "calcium_mg": Decimal("24.000"),
+            "iron_mg": None,
+            "magnesium_mg": None,
+            "potassium_mg": Decimal("24.000"),
+            "zinc_mg": None,
+        }
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_match(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return None when no fuzzy match found."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=None)
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_by_ingredient_name_fuzzy("unicorn-meat")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_match_for_prefix_query(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+        butter_salted_row: dict,
+    ) -> None:
+        """Should return match when query is a prefix of DB name."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=butter_salted_row)
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_by_ingredient_name_fuzzy("butter")
+
+        assert result is not None
+        assert result.ingredient_name == "Butter, salted"
+        assert result.macronutrients is not None
+        assert result.macronutrients.calories_kcal == Decimal("717.000")
+
+    @pytest.mark.asyncio
+    async def test_returns_exact_match_when_available(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+        butter_salted_row: dict,
+    ) -> None:
+        """Should return exact match when query matches exactly."""
+        # Modify row to be exact match
+        exact_row = butter_salted_row.copy()
+        exact_row["ingredient_name"] = "butter"
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=exact_row)
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_by_ingredient_name_fuzzy("butter")
+
+        assert result is not None
+        assert result.ingredient_name == "butter"
+
+    @pytest.mark.asyncio
+    async def test_handles_missing_pg_trgm_extension(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return None when pg_trgm extension is not available."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(
+            side_effect=Exception("function similarity(text, text) does not exist")
+        )
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_by_ingredient_name_fuzzy("butter")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_custom_similarity_threshold(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+        butter_salted_row: dict,
+    ) -> None:
+        """Should use custom similarity threshold when provided."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=butter_salted_row)
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_by_ingredient_name_fuzzy(
+            "butter", min_similarity=0.5
+        )
+
+        assert result is not None
+        # Verify the query was called (we can't easily verify the threshold without
+        # inspecting the query, but at least it should return a result)
+
+
+class TestGetByIngredientNamesFuzzy:
+    """Tests for get_by_ingredient_names_fuzzy method."""
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_dict_for_empty_list(
+        self,
+        repository: NutritionRepository,
+    ) -> None:
+        """Should return empty dict for empty input."""
+        result = await repository.get_by_ingredient_names_fuzzy([])
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_returns_dict_with_found_matches(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return dict mapping query names to fuzzy matches."""
+        # Create rows for "Butter, salted" and "Milk, whole"
+        butter_row = {
+            "ingredient_id": 6,
+            "ingredient_name": "Butter, salted",
+            "fdc_id": 173411,
+            "usda_food_description": "Butter, salted",
+            "serving_size_g": Decimal("100.00"),
+            "data_source": "USDA",
+            "calories_kcal": Decimal("717.000"),
+            "protein_g": Decimal("0.900"),
+            "carbs_g": None,
+            "fat_g": None,
+            "saturated_fat_g": None,
+            "trans_fat_g": None,
+            "monounsaturated_fat_g": None,
+            "polyunsaturated_fat_g": None,
+            "cholesterol_mg": None,
+            "sodium_mg": None,
+            "fiber_g": None,
+            "sugar_g": None,
+            "added_sugar_g": None,
+            "vitamin_a_mcg": None,
+            "vitamin_b6_mcg": None,
+            "vitamin_b12_mcg": None,
+            "vitamin_c_mcg": None,
+            "vitamin_d_mcg": None,
+            "vitamin_e_mcg": None,
+            "vitamin_k_mcg": None,
+            "calcium_mg": None,
+            "iron_mg": None,
+            "magnesium_mg": None,
+            "potassium_mg": None,
+            "zinc_mg": None,
+        }
+
+        milk_row = {
+            "ingredient_id": 8,
+            "ingredient_name": "Milk, whole",
+            "fdc_id": 173430,
+            "usda_food_description": "Milk, whole, 3.25% milkfat",
+            "serving_size_g": Decimal("100.00"),
+            "data_source": "USDA",
+            "calories_kcal": Decimal("61.000"),
+            "protein_g": Decimal("3.200"),
+            "carbs_g": None,
+            "fat_g": None,
+            "saturated_fat_g": None,
+            "trans_fat_g": None,
+            "monounsaturated_fat_g": None,
+            "polyunsaturated_fat_g": None,
+            "cholesterol_mg": None,
+            "sodium_mg": None,
+            "fiber_g": None,
+            "sugar_g": None,
+            "added_sugar_g": None,
+            "vitamin_a_mcg": None,
+            "vitamin_b6_mcg": None,
+            "vitamin_b12_mcg": None,
+            "vitamin_c_mcg": None,
+            "vitamin_d_mcg": None,
+            "vitamin_e_mcg": None,
+            "vitamin_k_mcg": None,
+            "calcium_mg": None,
+            "iron_mg": None,
+            "magnesium_mg": None,
+            "potassium_mg": None,
+            "zinc_mg": None,
+        }
+
+        # Mock to return butter_row for "butter", milk_row for "milk", None for "unicorn"
+        mock_conn = AsyncMock()
+
+        call_count = 0
+
+        async def mock_fetchrow(query: str, *args: object) -> dict | None:
+            nonlocal call_count
+            call_count += 1
+            name = args[0] if args else None
+            if name == "butter":
+                return butter_row
+            if name == "milk":
+                return milk_row
+            return None
+
+        mock_conn.fetchrow = mock_fetchrow
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_by_ingredient_names_fuzzy(
+            ["butter", "milk", "unicorn-meat"]
+        )
+
+        assert "butter" in result
+        assert "milk" in result
+        assert "unicorn-meat" not in result
+        assert result["butter"].ingredient_name == "Butter, salted"
+        assert result["milk"].ingredient_name == "Milk, whole"
+
+    @pytest.mark.asyncio
+    async def test_runs_searches_in_parallel(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should run fuzzy searches in parallel for efficiency."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=None)
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        # This test just verifies the method doesn't raise an error
+        # In a real integration test, we could verify parallel execution timing
+        result = await repository.get_by_ingredient_names_fuzzy(
+            ["butter", "milk", "flour"]
+        )
+
+        assert result == {}
