@@ -169,3 +169,92 @@ class RecipeResponse(BaseModel):
     slug: str | None = Field(default=None, description="URL-friendly slug")
 
     model_config = {"populate_by_name": True}
+
+
+class RecipeIngredientResponse(BaseModel):
+    """Response schema for a recipe ingredient from Recipe Management Service."""
+
+    id: int = Field(..., description="Recipe ingredient ID")
+    ingredient_id: int | None = Field(
+        default=None,
+        alias="ingredientId",
+        description="Reference to master ingredient ID",
+    )
+    ingredient_name: str = Field(
+        ...,
+        alias="ingredientName",
+        description="The ingredient name",
+    )
+    quantity: float = Field(
+        ...,
+        description="The quantity of the ingredient",
+    )
+    unit: IngredientUnit = Field(
+        ...,
+        description="The measurement unit",
+    )
+    is_optional: bool = Field(
+        default=False,
+        alias="isOptional",
+        description="Whether the ingredient is optional",
+    )
+    notes: str | None = Field(
+        default=None,
+        description="Notes about the ingredient",
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class RecipeStepResponse(BaseModel):
+    """Response schema for a recipe step from Recipe Management Service."""
+
+    id: int = Field(..., description="Step ID")
+    step_number: int = Field(
+        ...,
+        alias="stepNumber",
+        description="Step sequence number",
+    )
+    instruction: str = Field(..., description="Step instructions")
+    optional: bool = Field(default=False, description="Whether step is optional")
+    timer_seconds: int | None = Field(
+        default=None,
+        alias="timerSeconds",
+        description="Timer in seconds",
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class RecipeDetailResponse(BaseModel):
+    """Full recipe response from Recipe Management Service."""
+
+    id: int = Field(..., description="Recipe ID")
+    title: str = Field(..., description="Recipe title")
+    slug: str | None = Field(default=None, description="URL-friendly slug")
+    description: str | None = Field(default=None, description="Recipe description")
+    servings: float | None = Field(default=None, description="Number of servings")
+    preparation_time: int | None = Field(
+        default=None,
+        alias="preparationTime",
+        description="Prep time in minutes",
+    )
+    cooking_time: int | None = Field(
+        default=None,
+        alias="cookingTime",
+        description="Cook time in minutes",
+    )
+    difficulty: DifficultyLevel | None = Field(
+        default=None,
+        description="Recipe difficulty",
+    )
+    ingredients: list[RecipeIngredientResponse] = Field(
+        default_factory=list,
+        description="Recipe ingredients",
+    )
+    steps: list[RecipeStepResponse] = Field(
+        default_factory=list,
+        description="Cooking steps",
+    )
+
+    model_config = {"populate_by_name": True}

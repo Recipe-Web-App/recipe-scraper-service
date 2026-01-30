@@ -409,8 +409,8 @@ paths:
             X-Partial-Content:
               schema:
                 type: string
-                example: "true"
-              description: Indicates partial content response
+                example: "101,102,103"
+              description: Comma-separated list of ingredient IDs for which nutritional data is unavailable
           content:
             application/json:
               schema:
@@ -985,8 +985,10 @@ components:
       properties:
         quantity:
           $ref: "#/components/schemas/Quantity"
-        classification:
-          $ref: "#/components/schemas/IngredientClassification"
+        usdaFoodDescription:
+          type: string
+          nullable: true
+          description: USDA food description for matched ingredient
         macroNutrients:
           $ref: "#/components/schemas/MacroNutrients"
         vitamins:
@@ -994,280 +996,94 @@ components:
         minerals:
           $ref: "#/components/schemas/Minerals"
       description: Contains overall nutritional information for an ingredient.
-    IngredientClassification:
+    NutrientUnit:
+      type: string
+      enum:
+        - GRAM
+        - MILLIGRAM
+        - MICROGRAM
+        - KILOCALORIE
+      description: Unit of measurement for nutritional values.
+    NutrientValue:
       type: object
+      required:
+        - measurement
       properties:
-        allergies:
-          type: array
-          items:
-            $ref: "#/components/schemas/AllergenEnum"
+        amount:
+          type: number
+          minimum: 0
           nullable: true
-          description: List of allergens associated with the ingredient
-        foodGroups:
-          type: array
-          items:
-            $ref: "#/components/schemas/FoodGroupEnum"
-          nullable: true
-          description: Food groups this ingredient belongs to
-        nutriscoreScore:
-          type: integer
-          minimum: -15
-          maximum: 40
-          nullable: true
-          description: Nutri-Score value (-15 very healthy to +40 unhealthy)
-        nutriscoreGrade:
-          type: string
-          nullable: true
-          enum:
-            - A
-            - B
-            - C
-            - D
-            - E
-          description: Nutri-Score letter grade (A-E)
-        productName:
-          type: string
-          nullable: true
-          description: Product name from nutritional database
-        brands:
-          type: string
-          nullable: true
-          description: Brand information from nutritional database
-        categories:
-          type: string
-          nullable: true
-          description: Product categories from nutritional database
-      description: Contains meta and classification information for an ingredient.
-    AllergenEnum:
-      type: string
-      enum:
-        - MILK
-        - EGGS
-        - FISH
-        - SHELLFISH
-        - TREE_NUTS
-        - PEANUTS
-        - WHEAT
-        - SOYBEANS
-        - SESAME
-        - CELERY
-        - MUSTARD
-        - LUPIN
-        - SULPHITES
-        - ALMONDS
-        - CASHEWS
-        - HAZELNUTS
-        - WALNUTS
-        - GLUTEN
-        - COCONUT
-        - CORN
-        - YEAST
-        - GELATIN
-        - KIWI
-        - PORK
-        - BEEF
-        - ALCOHOL
-        - SULFUR_DIOXIDE
-        - PHENYLALANINE
-        - NONE
-        - UNKNOWN
-      description: Enumeration of common allergens.
-    FoodGroupEnum:
-      type: string
-      enum:
-        - VEGETABLES
-        - FRUITS
-        - GRAINS
-        - LEGUMES
-        - NUTS_SEEDS
-        - MEAT
-        - POULTRY
-        - SEAFOOD
-        - DAIRY
-        - BEVERAGES
-        - PROCESSED_FOODS
-        - UNKNOWN
-      description: Food group classifications for nutritional analysis.
+          description: Numeric value of the nutrient
+        measurement:
+          $ref: "#/components/schemas/NutrientUnit"
+      description: A nutrient measurement with amount and unit.
     MacroNutrients:
       type: object
       properties:
         calories:
-          type: integer
-          minimum: 0
-          nullable: true
-          description: Total calories per serving
-          example: 250
-        carbsG:
-          type: string
-          nullable: true
-          description: Carbohydrate content in grams
-          example: "30.5"
-        cholesterolMg:
-          type: string
-          nullable: true
-          description: Cholesterol content in milligrams
-          example: "5.2"
-        proteinG:
-          type: string
-          nullable: true
-          description: Protein content in grams
-          example: "4.1"
-        sugars:
-          $ref: "#/components/schemas/Sugars"
+          $ref: "#/components/schemas/NutrientValue"
+        carbs:
+          $ref: "#/components/schemas/NutrientValue"
+        protein:
+          $ref: "#/components/schemas/NutrientValue"
+        cholesterol:
+          $ref: "#/components/schemas/NutrientValue"
+        sodium:
+          $ref: "#/components/schemas/NutrientValue"
+        fiber:
+          $ref: "#/components/schemas/NutrientValue"
+        sugar:
+          $ref: "#/components/schemas/NutrientValue"
+        addedSugar:
+          $ref: "#/components/schemas/NutrientValue"
         fats:
           $ref: "#/components/schemas/Fats"
-        fibers:
-          $ref: "#/components/schemas/Fibers"
       description: Contains macro-nutrient information for an ingredient.
-    Sugars:
-      type: object
-      properties:
-        sugarG:
-          type: string
-          nullable: true
-          description: Sugar content in grams
-          example: "12.3"
-        addedSugarsG:
-          type: string
-          nullable: true
-          description: Added sugars in grams
-          example: "5.1"
-      description: Contains sugar information for an ingredient.
     Fats:
       type: object
       properties:
-        fatG:
-          type: string
-          nullable: true
-          description: Fat content in grams
-          example: "8.2"
-        saturatedFatG:
-          type: string
-          nullable: true
-          description: Saturated fat content in grams
-          example: "3.1"
-        monounsaturatedFatG:
-          type: string
-          nullable: true
-          description: Monounsaturated fat content in grams
-          example: "2.8"
-        polyunsaturatedFatG:
-          type: string
-          nullable: true
-          description: Polyunsaturated fat content in grams
-          example: "1.9"
-        omega3FatG:
-          type: string
-          nullable: true
-          description: Omega-3 fat content in grams
-          example: "0.5"
-        omega6FatG:
-          type: string
-          nullable: true
-          description: Omega-6 fat content in grams
-          example: "1.2"
-        omega9FatG:
-          type: string
-          nullable: true
-          description: Omega-9 fat content in grams
-          example: "2.1"
-        transFatG:
-          type: string
-          nullable: true
-          description: Trans fat content in grams
-          example: "0.0"
-      description: Contains fat information for an ingredient.
-    Fibers:
-      type: object
-      properties:
-        fiberG:
-          type: string
-          nullable: true
-          description: Total fiber content in grams
-          example: "2.8"
-        solubleFiberG:
-          type: string
-          nullable: true
-          description: Soluble fiber in grams
-          example: "1.2"
-        insolubleFiberG:
-          type: string
-          nullable: true
-          description: Insoluble fiber in grams
-          example: "1.6"
-      description: Contains fiber information for an ingredient.
+        total:
+          $ref: "#/components/schemas/NutrientValue"
+        saturated:
+          $ref: "#/components/schemas/NutrientValue"
+        monounsaturated:
+          $ref: "#/components/schemas/NutrientValue"
+        polyunsaturated:
+          $ref: "#/components/schemas/NutrientValue"
+        trans:
+          $ref: "#/components/schemas/NutrientValue"
+      description: Contains fat breakdown information for an ingredient.
     Vitamins:
       type: object
       properties:
-        vitaminAMg:
-          type: string
-          nullable: true
-          description: Vitamin A in milligrams
-          example: "0.5"
-        vitaminB6Mg:
-          type: string
-          nullable: true
-          description: Vitamin B6 in milligrams
-          example: "0.1"
-        vitaminB12Mg:
-          type: string
-          nullable: true
-          description: Vitamin B12 in milligrams
-          example: "0.0"
-        vitaminCMg:
-          type: string
-          nullable: true
-          description: Vitamin C in milligrams
-          example: "0.2"
-        vitaminDMg:
-          type: string
-          nullable: true
-          description: Vitamin D in milligrams
-          example: "0.0"
-        vitaminEMg:
-          type: string
-          nullable: true
-          description: Vitamin E in milligrams
-          example: "0.3"
-        vitaminKMg:
-          type: string
-          nullable: true
-          description: Vitamin K in milligrams
-          example: "0.1"
+        vitaminA:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminB6:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminB12:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminC:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminD:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminE:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminK:
+          $ref: "#/components/schemas/NutrientValue"
       description: Contains vitamin information for an ingredient.
     Minerals:
       type: object
       properties:
-        calciumMg:
-          type: string
-          nullable: true
-          description: Calcium in milligrams
-          example: "120.5"
-        ironMg:
-          type: string
-          nullable: true
-          description: Iron in milligrams
-          example: "2.1"
-        magnesiumMg:
-          type: string
-          nullable: true
-          description: Magnesium in milligrams
-          example: "45.2"
-        potassiumMg:
-          type: string
-          nullable: true
-          description: Potassium in milligrams
-          example: "180.7"
-        sodiumMg:
-          type: string
-          nullable: true
-          description: Sodium in milligrams
-          example: "320.1"
-        zincMg:
-          type: string
-          nullable: true
-          description: Zinc in milligrams
-          example: "1.8"
+        calcium:
+          $ref: "#/components/schemas/NutrientValue"
+        iron:
+          $ref: "#/components/schemas/NutrientValue"
+        magnesium:
+          $ref: "#/components/schemas/NutrientValue"
+        potassium:
+          $ref: "#/components/schemas/NutrientValue"
+        zinc:
+          $ref: "#/components/schemas/NutrientValue"
       description: Contains mineral information for an ingredient.
     RecommendedSubstitutionsResponse:
       type: object
@@ -1659,7 +1475,10 @@ tags:
   - name: Ingredients
     description: Ingredient-related operations and information retrieval
   - name: Nutritional Info
-    description: Nutritional information and analysis for recipes and ingredients
+    description: |
+      Nutritional information and analysis for recipes and ingredients.
+
+      **Data Source:** U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, 2019. fdc.nal.usda.gov.
   - name: Recommendations
     description: AI-powered recommendations for ingredient substitutions and recipe
       pairings

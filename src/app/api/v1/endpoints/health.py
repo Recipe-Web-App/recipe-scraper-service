@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.cache.redis import check_redis_health
 from app.core.config import Settings, get_settings
+from app.database import check_database_health
 
 
 router = APIRouter(tags=["health"])
@@ -76,6 +77,10 @@ async def readiness_check(
     """
     # Check Redis health
     dependencies = await check_redis_health()
+
+    # Check database health
+    db_health = await check_database_health()
+    dependencies.update(db_health)
 
     # Determine overall status
     all_healthy = all(

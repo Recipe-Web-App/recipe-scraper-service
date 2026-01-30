@@ -1,0 +1,5 @@
+database:
+  host: recipe-database.local
+  port: 5432
+  user: recipe_management_user
+  ssl: false

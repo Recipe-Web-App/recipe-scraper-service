@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, recipes
+from app.api.v1.endpoints import health, ingredients, recipes
 
 
 # Create the main v1 router
@@ -20,11 +20,13 @@ router.include_router(health.router)
 # Include recipe endpoints
 router.include_router(recipes.router)
 
+# Include ingredient endpoints
+router.include_router(ingredients.router)
+
 # NOTE: Auth endpoints have been removed from this service.
 # Authentication is handled by the external auth-service via OAuth2.
 # Token URL: /oauth/token (see OpenAPI spec)
 # See docs/architecture.md for the auth provider pattern.
 
 # TODO: Add endpoint routers when implemented:
-# - ingredients.router (nutritional info, substitutions, shopping info)
 # - admin.router (cache management)

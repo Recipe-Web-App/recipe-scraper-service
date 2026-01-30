@@ -33,6 +33,15 @@ class IngredientUnit(StrEnum):
     UNIT = "UNIT"
 
 
+class NutrientUnit(StrEnum):
+    """Units of measurement for nutritional values."""
+
+    GRAM = "GRAM"
+    MILLIGRAM = "MILLIGRAM"
+    MICROGRAM = "MICROGRAM"
+    KILOCALORIE = "KILOCALORIE"
+
+
 class Allergen(StrEnum):
     """Common allergens for ingredient classification."""
 
