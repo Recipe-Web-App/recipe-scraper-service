@@ -1475,7 +1475,10 @@ tags:
   - name: Ingredients
     description: Ingredient-related operations and information retrieval
   - name: Nutritional Info
-    description: Nutritional information and analysis for recipes and ingredients
+    description: |
+      Nutritional information and analysis for recipes and ingredients.
+
+      **Data Source:** U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, 2019. fdc.nal.usda.gov.
   - name: Recommendations
     description: AI-powered recommendations for ingredient substitutions and recipe
       pairings

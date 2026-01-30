@@ -218,6 +218,14 @@ sequenceDiagram
 - **Production Ready** - Multi-stage Docker builds, Kubernetes manifests, HPA, PDB, NetworkPolicies
 - **Comprehensive Tests** - 530+ tests with 90%+ coverage (unit, integration, e2e, performance)
 
+## Data Attribution
+
+Nutritional information provided by this service is sourced from the USDA FoodData Central database:
+
+> **U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, 2019. fdc.nal.usda.gov.**
+
+For more information about the data source, visit [FoodData Central](https://fdc.nal.usda.gov/).
+
 ## Quick Start
 
 ### Prerequisites
