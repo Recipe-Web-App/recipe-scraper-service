@@ -240,8 +240,8 @@ sequenceDiagram
     participant RC as Redis Cache
     participant AR as AllergenRepository
     participant DB as PostgreSQL
-    participant OFF as OpenFoodFactsClient
-    participant API as Open Food Facts API
+    participant OFFC as OpenFoodFactsClient
+    participant ExtAPI as Open Food Facts API
 
     C->>EP: GET /ingredients/101/allergens
     EP->>AS: get_ingredient_allergens("wheat flour")
@@ -269,14 +269,14 @@ sequenceDiagram
                 DB-->>AR: null
                 AR-->>AS: empty
 
-                AS->>OFF: search_by_name("wheat flour")
-                OFF->>API: GET /cgi/search.pl?search_terms=wheat flour
+                AS->>OFFC: search_by_name("wheat flour")
+                OFFC->>ExtAPI: GET /cgi/search.pl?search_terms=wheat flour
                 alt Tier 2: API Match
-                    API-->>OFF: Product with allergen tags
-                    OFF-->>AS: OpenFoodFactsProduct
+                    ExtAPI-->>OFFC: Product with allergen tags
+                    OFFC-->>AS: OpenFoodFactsProduct
                 else Tier 3: LLM (placeholder)
-                    API-->>OFF: No match
-                    OFF-->>AS: null
+                    ExtAPI-->>OFFC: No match
+                    OFFC-->>AS: null
                     AS->>AS: LLM inference (not yet implemented)
                 end
             end
