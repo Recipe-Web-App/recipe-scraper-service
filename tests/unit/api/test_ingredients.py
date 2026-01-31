@@ -2,6 +2,7 @@
 
 Tests cover:
 - Get nutritional info endpoint
+- Get allergen info endpoint
 - Query parameter validation
 - Error handling for various failure scenarios
 """
@@ -13,9 +14,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.api.dependencies import get_nutrition_service
-from app.api.v1.endpoints.ingredients import get_ingredient_nutritional_info
-from app.schemas.enums import IngredientUnit, NutrientUnit
+from app.api.dependencies import get_allergen_service, get_nutrition_service
+from app.api.v1.endpoints.ingredients import (
+    get_ingredient_allergens,
+    get_ingredient_nutritional_info,
+)
+from app.schemas.allergen import (
+    AllergenDataSource,
+    AllergenInfo,
+    IngredientAllergenResponse,
+)
+from app.schemas.enums import Allergen, IngredientUnit, NutrientUnit
 from app.schemas.ingredient import Quantity
 from app.schemas.nutrition import (
     Fats,
@@ -289,3 +298,151 @@ class TestGetNutritionServiceDependency:
 
         assert exc_info.value.status_code == 503
         assert "Nutrition service not available" in exc_info.value.detail
+
+
+class TestGetIngredientAllergens:
+    """Tests for get_ingredient_allergens endpoint."""
+
+    @pytest.fixture
+    def mock_user(self) -> MagicMock:
+        """Create a mock authenticated user."""
+        user = MagicMock()
+        user.id = "user-123"
+        return user
+
+    @pytest.fixture
+    def mock_allergen_service(self) -> MagicMock:
+        """Create a mock allergen service."""
+        return MagicMock()
+
+    @pytest.fixture
+    def sample_allergen_response(self) -> IngredientAllergenResponse:
+        """Create sample allergen response."""
+        return IngredientAllergenResponse(
+            ingredient_name="flour",
+            allergens=[
+                AllergenInfo(allergen=Allergen.GLUTEN, confidence_score=0.99),
+                AllergenInfo(allergen=Allergen.WHEAT, confidence_score=0.95),
+            ],
+            data_source=AllergenDataSource.USDA,
+            overall_confidence=0.99,
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_allergen_data(
+        self,
+        mock_user: MagicMock,
+        mock_allergen_service: MagicMock,
+        sample_allergen_response: IngredientAllergenResponse,
+    ) -> None:
+        """Should return allergen data for ingredient."""
+        mock_allergen_service.get_ingredient_allergens = AsyncMock(
+            return_value=sample_allergen_response
+        )
+
+        result = await get_ingredient_allergens(
+            ingredient_id="flour",
+            user=mock_user,
+            allergen_service=mock_allergen_service,
+        )
+
+        assert result == sample_allergen_response
+        mock_allergen_service.get_ingredient_allergens.assert_called_once_with(
+            name="flour"
+        )
+
+    @pytest.mark.asyncio
+    async def test_raises_404_when_ingredient_not_found(
+        self,
+        mock_user: MagicMock,
+        mock_allergen_service: MagicMock,
+    ) -> None:
+        """Should raise 404 when ingredient not found."""
+        mock_allergen_service.get_ingredient_allergens = AsyncMock(return_value=None)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_allergens(
+                ingredient_id="unknown_ingredient",
+                user=mock_user,
+                allergen_service=mock_allergen_service,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail["error"] == "INGREDIENT_NOT_FOUND"
+        assert "unknown_ingredient" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_handles_ingredient_id_with_spaces(
+        self,
+        mock_user: MagicMock,
+        mock_allergen_service: MagicMock,
+        sample_allergen_response: IngredientAllergenResponse,
+    ) -> None:
+        """Should handle ingredient IDs with spaces."""
+        mock_allergen_service.get_ingredient_allergens = AsyncMock(
+            return_value=sample_allergen_response
+        )
+
+        result = await get_ingredient_allergens(
+            ingredient_id="all purpose flour",
+            user=mock_user,
+            allergen_service=mock_allergen_service,
+        )
+
+        assert result == sample_allergen_response
+        mock_allergen_service.get_ingredient_allergens.assert_called_once_with(
+            name="all purpose flour"
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_response_with_empty_allergens(
+        self,
+        mock_user: MagicMock,
+        mock_allergen_service: MagicMock,
+    ) -> None:
+        """Should return response when ingredient has no known allergens."""
+        response = IngredientAllergenResponse(
+            ingredient_name="salt",
+            allergens=[],
+            data_source=AllergenDataSource.USDA,
+            overall_confidence=1.0,
+        )
+        mock_allergen_service.get_ingredient_allergens = AsyncMock(
+            return_value=response
+        )
+
+        result = await get_ingredient_allergens(
+            ingredient_id="salt",
+            user=mock_user,
+            allergen_service=mock_allergen_service,
+        )
+
+        assert result.ingredient_name == "salt"
+        assert len(result.allergens) == 0
+
+
+class TestGetAllergenServiceDependency:
+    """Tests for allergen service dependency."""
+
+    @pytest.mark.asyncio
+    async def test_returns_service_from_app_state(self) -> None:
+        """Should return service from app state."""
+        mock_request = MagicMock()
+        mock_service = MagicMock()
+        mock_request.app.state.allergen_service = mock_service
+
+        result = await get_allergen_service(mock_request)
+
+        assert result is mock_service
+
+    @pytest.mark.asyncio
+    async def test_raises_503_when_service_not_available(self) -> None:
+        """Should raise 503 when allergen service not in app state."""
+        mock_request = MagicMock()
+        mock_request.app.state.allergen_service = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_allergen_service(mock_request)
+
+        assert exc_info.value.status_code == 503
+        assert "Allergen service not available" in exc_info.value.detail

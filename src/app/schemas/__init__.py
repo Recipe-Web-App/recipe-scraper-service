@@ -4,6 +4,14 @@ This module exports all schema classes for the Recipe Scraper API.
 """
 
 # Auth schemas (existing)
+# Allergen schemas
+from app.schemas.allergen import (
+    AllergenDataSource,
+    AllergenInfo,
+    AllergenPresenceType,
+    IngredientAllergenResponse,
+    RecipeAllergenResponse,
+)
 from app.schemas.auth import (
     PasswordChange,
     PasswordReset,
@@ -94,6 +102,9 @@ __all__ = [
     "APIRequest",
     "APIResponse",
     "Allergen",
+    "AllergenDataSource",
+    "AllergenInfo",
+    "AllergenPresenceType",
     "ConversionRatio",
     "CreateRecipeRequest",
     "CreateRecipeResponse",
@@ -109,6 +120,7 @@ __all__ = [
     "HealthChecks",
     "HealthStatus",
     "Ingredient",
+    "IngredientAllergenResponse",
     "IngredientNutritionalInfoResponse",
     "IngredientShoppingInfoResponse",
     "IngredientSubstitution",
@@ -126,6 +138,7 @@ __all__ = [
     "Quantity",
     "ReadinessStatus",
     "Recipe",
+    "RecipeAllergenResponse",
     "RecipeNutritionalInfoResponse",
     "RecipeShoppingInfoResponse",
     "RecipeStep",

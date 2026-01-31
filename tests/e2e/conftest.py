@@ -334,6 +334,38 @@ CREATE INDEX IF NOT EXISTS idx_ingredient_portions_ingredient_id
     ON recipe_manager.ingredient_portions(ingredient_id);
 CREATE INDEX IF NOT EXISTS idx_ingredient_portions_unit
     ON recipe_manager.ingredient_portions(unit);
+
+-- Allergen profiles table (one per ingredient)
+CREATE TABLE IF NOT EXISTS recipe_manager.allergen_profiles (
+    allergen_profile_id BIGSERIAL PRIMARY KEY,
+    ingredient_id BIGINT NOT NULL
+        REFERENCES recipe_manager.ingredients(ingredient_id) ON DELETE CASCADE,
+    data_source VARCHAR(50) NOT NULL DEFAULT 'USDA',
+    confidence_score DECIMAL(3,2) DEFAULT 1.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(ingredient_id)
+);
+
+-- Individual allergens per profile
+CREATE TABLE IF NOT EXISTS recipe_manager.ingredient_allergens (
+    ingredient_allergen_id BIGSERIAL PRIMARY KEY,
+    allergen_profile_id BIGINT NOT NULL
+        REFERENCES recipe_manager.allergen_profiles(allergen_profile_id) ON DELETE CASCADE,
+    allergen_type VARCHAR(50) NOT NULL,
+    presence_type VARCHAR(20) NOT NULL DEFAULT 'CONTAINS',
+    confidence_score DECIMAL(3,2) DEFAULT 1.00,
+    source_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_allergen_profiles_ingredient_id
+    ON recipe_manager.allergen_profiles(ingredient_id);
+CREATE INDEX IF NOT EXISTS idx_ingredient_allergens_profile_id
+    ON recipe_manager.ingredient_allergens(allergen_profile_id);
+CREATE INDEX IF NOT EXISTS idx_ingredient_allergens_type
+    ON recipe_manager.ingredient_allergens(allergen_type);
 """
 
 # Seed data with common ingredients (USDA FoodData Central values per 100g)
@@ -456,6 +488,28 @@ INSERT INTO recipe_manager.ingredient_portions (ingredient_id, portion_descripti
     -- Rice portions
     (5, '1 cup', 'CUP', 'cooked', 158.0)
 ON CONFLICT (ingredient_id, portion_description) DO NOTHING;
+
+-- Insert allergen profiles for test ingredients
+INSERT INTO recipe_manager.allergen_profiles
+    (allergen_profile_id, ingredient_id, data_source, confidence_score) VALUES
+    (1, 1, 'USDA', 1.00),  -- flour
+    (2, 2, 'USDA', 1.00),  -- butter
+    (3, 3, 'USDA', 1.00),  -- eggs
+    (4, 4, 'USDA', 1.00)   -- chicken (profile exists, no allergens)
+ON CONFLICT (ingredient_id) DO NOTHING;
+
+-- Insert ingredient allergens
+INSERT INTO recipe_manager.ingredient_allergens
+    (allergen_profile_id, allergen_type, presence_type, confidence_score, source_notes) VALUES
+    -- Flour allergens
+    (1, 'GLUTEN', 'CONTAINS', 1.00, 'Contains wheat gluten'),
+    (1, 'WHEAT', 'CONTAINS', 1.00, 'Made from wheat'),
+    -- Butter allergens
+    (2, 'MILK', 'CONTAINS', 1.00, 'Dairy product'),
+    -- Egg allergens
+    (3, 'EGGS', 'CONTAINS', 1.00, 'Contains eggs')
+    -- Chicken has profile but no allergens (intentionally no entry)
+ON CONFLICT DO NOTHING;
 """
 
 

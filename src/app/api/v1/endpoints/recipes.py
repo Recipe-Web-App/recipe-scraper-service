@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, sta
 from starlette.responses import JSONResponse, Response
 
 from app.api.dependencies import (
+    get_allergen_service,
     get_ingredient_parser,
     get_nutrition_service,
     get_recipe_management_client,
@@ -33,6 +34,7 @@ from app.schemas import (
     CreateRecipeResponse,
     PopularRecipesResponse,
 )
+from app.schemas.allergen import RecipeAllergenResponse
 from app.schemas.enums import IngredientUnit
 from app.schemas.ingredient import Ingredient, Quantity, WebRecipe
 from app.schemas.nutrition import (
@@ -40,6 +42,7 @@ from app.schemas.nutrition import (
     RecipeNutritionalInfoResponse,
 )
 from app.schemas.recipe import PopularRecipesData
+from app.services.allergen.service import AllergenService  # noqa: TC001
 from app.services.nutrition.service import NutritionService  # noqa: TC001
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
 from app.services.recipe_management.exceptions import (
@@ -620,3 +623,182 @@ def _map_ingredient_unit(unit: RecipeIngredientUnit) -> IngredientUnit:
     """
     # Both enums use the same values, so direct mapping works
     return IngredientUnit(unit.value)
+
+
+@router.get(
+    "/recipes/{recipeId}/allergens",
+    response_model=RecipeAllergenResponse,
+    summary="Get allergen information for a recipe",
+    description=(
+        "Returns allergen information for all ingredients in a recipe. "
+        "Aggregates contains and may-contain allergens across all ingredients. "
+        "Optionally includes per-ingredient allergen breakdown."
+    ),
+    responses={
+        200: {
+            "description": "Allergen information retrieved successfully",
+        },
+        206: {
+            "description": "Partial content - some ingredient allergen data unavailable",
+            "headers": {
+                "X-Partial-Content": {
+                    "description": "Comma-separated list of missing ingredient IDs",
+                    "schema": {"type": "string"},
+                }
+            },
+        },
+        404: {
+            "description": "Recipe not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "NOT_FOUND",
+                        "message": "Recipe with identifier '123' not found",
+                    }
+                }
+            },
+        },
+        503: {
+            "description": "Service unavailable",
+        },
+    },
+)
+async def get_recipe_allergens(
+    recipe_id: Annotated[int, Path(alias="recipeId", ge=1)],
+    user: Annotated[CurrentUser, Depends(RequirePermissions(Permission.RECIPE_READ))],
+    recipe_client: Annotated[
+        RecipeManagementClient, Depends(get_recipe_management_client)
+    ],
+    allergen_service: Annotated[AllergenService, Depends(get_allergen_service)],
+    request: Request,
+    include_ingredient_details: Annotated[
+        bool,
+        Query(
+            alias="includeIngredientDetails",
+            description="Include per-ingredient allergen breakdown",
+        ),
+    ] = False,
+) -> Response:
+    """Get allergen information for a recipe.
+
+    This endpoint fetches recipe details from the Recipe Management Service,
+    then retrieves allergen information for all ingredients using the
+    AllergenService. Returns aggregated contains/may-contain lists.
+
+    Args:
+        recipe_id: ID of the recipe.
+        user: Authenticated user with RECIPE_READ permission.
+        recipe_client: Client for Recipe Management Service.
+        allergen_service: Service for allergen lookups.
+        request: The incoming HTTP request.
+        include_ingredient_details: Whether to include per-ingredient breakdown.
+
+    Returns:
+        RecipeAllergenResponse with aggregated allergen data.
+        Returns 206 with X-Partial-Content header if some ingredients missing.
+
+    Raises:
+        HTTPException: 404 if recipe not found.
+        HTTPException: 503 if downstream service unavailable.
+    """
+    # Extract auth token for downstream call
+    auth_header = request.headers.get("Authorization", "")
+    auth_token = auth_header.replace("Bearer ", "") if auth_header else ""
+
+    logger.info(
+        "Fetching allergen info for recipe",
+        recipe_id=recipe_id,
+        include_ingredient_details=include_ingredient_details,
+        user_id=user.id,
+    )
+
+    # Step 1: Fetch recipe from Recipe Management Service
+    try:
+        recipe = await recipe_client.get_recipe(recipe_id, auth_token)
+    except RecipeManagementNotFoundError:
+        logger.info("Recipe not found", recipe_id=recipe_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "NOT_FOUND",
+                "message": f"Recipe with identifier '{recipe_id}' not found",
+            },
+        ) from None
+    except RecipeManagementUnavailableError:
+        logger.warning("Recipe Management Service unavailable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "SERVICE_UNAVAILABLE",
+                "message": "Recipe Management Service is not available",
+            },
+        ) from None
+    except RecipeManagementError as e:
+        logger.exception("Recipe Management Service error")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "error": "DOWNSTREAM_ERROR",
+                "message": f"Recipe Management Service error: {e}",
+            },
+        ) from None
+
+    # Step 2: Handle empty recipe (no ingredients)
+    if not recipe.ingredients:
+        logger.info("Recipe has no ingredients", recipe_id=recipe_id)
+        response_data = RecipeAllergenResponse()
+        return JSONResponse(
+            content=orjson.loads(
+                orjson.dumps(response_data.model_dump(by_alias=True, exclude_none=True))
+            ),
+            status_code=status.HTTP_200_OK,
+        )
+
+    # Step 3: Transform recipe ingredients to Ingredient schema
+    ingredients: list[Ingredient] = [
+        Ingredient(
+            ingredient_id=ing.ingredient_id or ing.id,
+            name=ing.ingredient_name,
+        )
+        for ing in recipe.ingredients
+    ]
+
+    # Step 4: Get allergen data from AllergenService
+    allergen_result = await allergen_service.get_recipe_allergens(
+        ingredients,
+        include_details=include_ingredient_details,
+    )
+
+    # Step 5: Build response and determine status code
+    response_content = orjson.loads(
+        orjson.dumps(allergen_result.model_dump(by_alias=True, exclude_none=True))
+    )
+
+    if allergen_result.missing_ingredients:
+        # Some ingredients missing - return 206 Partial Content
+        missing_ids = ",".join(
+            str(ing_id) for ing_id in allergen_result.missing_ingredients
+        )
+        logger.info(
+            "Returning partial allergen info",
+            recipe_id=recipe_id,
+            missing_count=len(allergen_result.missing_ingredients),
+            missing_ids=missing_ids,
+        )
+        return JSONResponse(
+            content=response_content,
+            status_code=status.HTTP_206_PARTIAL_CONTENT,
+            headers={"X-Partial-Content": missing_ids},
+        )
+
+    logger.info(
+        "Returning complete allergen info",
+        recipe_id=recipe_id,
+        ingredient_count=len(recipe.ingredients),
+        contains_count=len(allergen_result.contains),
+        may_contain_count=len(allergen_result.may_contain),
+    )
+    return JSONResponse(
+        content=response_content,
+        status_code=status.HTTP_200_OK,
+    )
