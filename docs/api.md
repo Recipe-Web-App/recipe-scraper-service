@@ -203,6 +203,75 @@ http_request_duration_seconds_bucket{le="0.1"} 1632
 
 ---
 
+### Allergen Information
+
+For comprehensive allergen endpoint documentation, see [Allergen Information Feature](./allergen-info.md).
+
+#### `GET /api/v1/recipe-scraper/ingredients/{ingredientId}/allergens`
+
+Get allergen information for a specific ingredient.
+
+**Authentication**: Required (RECIPE_READ permission)
+
+**Parameters**:
+
+| Parameter    | Type | Location | Description   |
+| ------------ | ---- | -------- | ------------- |
+| ingredientId | int  | Path     | Ingredient ID |
+
+**Response** `200 OK`:
+
+```json
+{
+  "ingredientId": 101,
+  "ingredientName": "wheat flour",
+  "usdaFoodDescription": "Flour, wheat, all-purpose, enriched",
+  "allergens": [
+    {
+      "allergen": "GLUTEN",
+      "presenceType": "CONTAINS",
+      "confidenceScore": 1.0
+    }
+  ],
+  "dataSource": "USDA",
+  "overallConfidence": 1.0
+}
+```
+
+---
+
+#### `GET /api/v1/recipe-scraper/recipes/{recipeId}/allergens`
+
+Get aggregated allergen information for all ingredients in a recipe.
+
+**Authentication**: Required (RECIPE_READ permission)
+
+**Parameters**:
+
+| Parameter                | Type | Location | Default | Description                      |
+| ------------------------ | ---- | -------- | ------- | -------------------------------- |
+| recipeId                 | int  | Path     | -       | Recipe ID                        |
+| includeIngredientDetails | bool | Query    | false   | Include per-ingredient breakdown |
+
+**Response** `200 OK`:
+
+```json
+{
+  "contains": ["GLUTEN", "MILK", "EGGS"],
+  "mayContain": ["TREE_NUTS"],
+  "allergens": [...],
+  "ingredientDetails": null,
+  "missingIngredients": []
+}
+```
+
+**Response** `206 Partial Content`:
+
+Returned when some ingredients don't have allergen data. The `X-Partial-Content` header contains
+comma-separated IDs of missing ingredients.
+
+---
+
 ## Error Handling
 
 ### Error Response Format

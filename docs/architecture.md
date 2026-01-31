@@ -375,6 +375,52 @@ sequenceDiagram
 
 See [LLM Integration Guide](./llm.md) for client usage and configuration.
 
+### External Data APIs
+
+The service integrates with external data sources for enriched functionality:
+
+```mermaid
+flowchart TB
+    subgraph Service["Recipe Scraper Service"]
+        AS[AllergenService]
+        NS[NutritionService]
+        OFFC[OpenFoodFactsClient]
+    end
+
+    subgraph External["External APIs"]
+        OFF[Open Food Facts API]
+        USDA[(USDA FoodData Central)]
+    end
+
+    subgraph Data["Data Layer"]
+        Cache[(Redis Cache)]
+        DB[(PostgreSQL)]
+    end
+
+    AS --> Cache
+    AS --> DB
+    AS --> OFFC
+    OFFC --> OFF
+    NS --> Cache
+    NS --> DB
+```
+
+| Service          | External API    | Purpose                             | Fallback                |
+| ---------------- | --------------- | ----------------------------------- | ----------------------- |
+| AllergenService  | Open Food Facts | Allergen data for ingredients       | LLM inference (planned) |
+| NutritionService | USDA FoodData   | Nutritional data (pre-loaded to DB) | Fuzzy matching          |
+
+#### Tiered Data Lookup
+
+The AllergenService uses a tiered lookup strategy for data retrieval:
+
+1. **Tier 0**: Redis cache (30-day TTL)
+2. **Tier 1**: PostgreSQL database (exact → fuzzy match)
+3. **Tier 2**: Open Food Facts API
+4. **Tier 3**: LLM inference (placeholder for future implementation)
+
+See [Allergen Information Feature](./allergen-info.md) for detailed documentation.
+
 ### Observability Stack
 
 Three pillars of observability: Metrics, Traces, and Logs:

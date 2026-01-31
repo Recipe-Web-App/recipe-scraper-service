@@ -723,6 +723,176 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/ingredients/{ingredientId}/allergens:
+    get:
+      tags:
+        - Ingredients
+        - Allergens
+      summary: Get allergen info for an ingredient
+      description: Returns allergen information for a specific ingredient, including
+        allergen types, presence classification (contains, may contain, traces),
+        and confidence scores from the data source.
+      operationId: getIngredientAllergens
+      security:
+        - BearerAuth: []
+        - OAuth2:
+            - read
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the ingredient (must be > 0)
+      responses:
+        "200":
+          description: Allergen information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientAllergenResponse"
+              examples:
+                wheat_flour:
+                  summary: Wheat flour with gluten allergens
+                  value:
+                    ingredientId: 101
+                    ingredientName: wheat flour
+                    usdaFoodDescription: "Flour, wheat, all-purpose, enriched"
+                    allergens:
+                      - allergen: GLUTEN
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: WHEAT
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                    dataSource: USDA
+                    overallConfidence: 1.0
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/recipes/{recipeId}/allergens:
+    get:
+      tags:
+        - Recipes
+        - Allergens
+      summary: Get allergen info for a recipe
+      description: Returns aggregated allergen information for all ingredients in
+        a recipe. Allergens are categorized as "contains" (definitely present) or
+        "may contain" (cross-contamination possible). Use includeIngredientDetails
+        for per-ingredient breakdown.
+      operationId: getRecipeAllergens
+      security:
+        - BearerAuth: []
+        - OAuth2:
+            - read
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the recipe (must be > 0)
+        - name: includeIngredientDetails
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include per-ingredient allergen breakdown
+      responses:
+        "200":
+          description: Allergen information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAllergenResponse"
+              examples:
+                complete_recipe:
+                  summary: Recipe with multiple allergens
+                  value:
+                    contains:
+                      - GLUTEN
+                      - MILK
+                      - EGGS
+                    mayContain:
+                      - TREE_NUTS
+                    allergens:
+                      - allergen: GLUTEN
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: MILK
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: EGGS
+                        presenceType: CONTAINS
+                        confidenceScore: 0.95
+                        sourceNotes: "From Open Food Facts: Eggs, whole"
+                      - allergen: TREE_NUTS
+                        presenceType: MAY_CONTAIN
+                        confidenceScore: 0.95
+                        sourceNotes: "From Open Food Facts: Chocolate chips"
+                    ingredientDetails: null
+                    missingIngredients: []
+        "206":
+          description: Partial content - some ingredient allergen data unavailable
+          headers:
+            X-Partial-Content:
+              schema:
+                type: string
+                example: "105,108"
+              description: Comma-separated list of ingredient IDs for which allergen data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAllergenResponse"
+              examples:
+                partial_recipe:
+                  summary: Recipe with missing ingredient data
+                  value:
+                    contains:
+                      - GLUTEN
+                      - MILK
+                    mayContain: []
+                    allergens:
+                      - allergen: GLUTEN
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: MILK
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                    ingredientDetails: null
+                    missingIngredients:
+                      - 105
+                      - 108
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          description: Recipe Management Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                service_unavailable:
+                  summary: Recipe service unavailable
+                  value:
+                    error: SERVICE_UNAVAILABLE
+                    message: Recipe Management Service is currently unavailable
   /api/v1/recipe-scraper/admin/cache:
     delete:
       tags:
@@ -1366,6 +1536,146 @@ components:
           items:
             $ref: "#/components/schemas/ValidationError"
       description: HTTP validation error response.
+    AllergenEnum:
+      type: string
+      enum:
+        - MILK
+        - EGGS
+        - FISH
+        - SHELLFISH
+        - TREE_NUTS
+        - PEANUTS
+        - WHEAT
+        - SOYBEANS
+        - SESAME
+        - CELERY
+        - MUSTARD
+        - LUPIN
+        - SULPHITES
+        - ALMONDS
+        - CASHEWS
+        - HAZELNUTS
+        - WALNUTS
+        - GLUTEN
+        - COCONUT
+        - CORN
+        - YEAST
+        - GELATIN
+        - KIWI
+        - PORK
+        - BEEF
+        - ALCOHOL
+        - SULFUR_DIOXIDE
+        - PHENYLALANINE
+        - NONE
+        - UNKNOWN
+      description: Common allergens for ingredient classification. Includes FDA Big 9,
+        EU allergens, and additional common allergens.
+    AllergenPresenceTypeEnum:
+      type: string
+      enum:
+        - CONTAINS
+        - MAY_CONTAIN
+        - TRACES
+      description: Classification of how an allergen is present in an ingredient.
+        CONTAINS means definitely present, MAY_CONTAIN indicates cross-contamination
+        possible, TRACES means may contain trace amounts.
+    AllergenDataSourceEnum:
+      type: string
+      enum:
+        - USDA
+        - OPEN_FOOD_FACTS
+        - LLM_INFERRED
+        - MANUAL
+      description: Source of allergen data. USDA has highest confidence (1.0),
+        Open Food Facts has 0.95, LLM inference has 0.75.
+    AllergenInfo:
+      type: object
+      required:
+        - allergen
+        - presenceType
+      properties:
+        allergen:
+          $ref: "#/components/schemas/AllergenEnum"
+        presenceType:
+          $ref: "#/components/schemas/AllergenPresenceTypeEnum"
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Confidence score (0-1) for this allergen classification
+          example: 0.95
+        sourceNotes:
+          type: string
+          nullable: true
+          description: Additional notes about the allergen source or reason
+          example: "From Open Food Facts: Chocolate chips"
+      description: Single allergen with presence type and confidence metadata.
+    IngredientAllergenResponse:
+      type: object
+      properties:
+        ingredientId:
+          type: integer
+          nullable: true
+          description: Database ingredient identifier
+          example: 101
+        ingredientName:
+          type: string
+          nullable: true
+          description: Ingredient name as queried
+          example: wheat flour
+        usdaFoodDescription:
+          type: string
+          nullable: true
+          description: USDA food description if available
+          example: "Flour, wheat, all-purpose, enriched"
+        allergens:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenInfo"
+          description: List of allergens present in this ingredient
+        dataSource:
+          $ref: "#/components/schemas/AllergenDataSourceEnum"
+          nullable: true
+        overallConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Overall confidence score for the allergen profile
+          example: 1.0
+      description: Allergen information response for a single ingredient.
+    RecipeAllergenResponse:
+      type: object
+      properties:
+        contains:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenEnum"
+          description: Allergens definitely present in the recipe
+        mayContain:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenEnum"
+          description: Allergens that may be present (cross-contamination, traces)
+        allergens:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenInfo"
+          description: Detailed allergen information with confidence scores
+        ingredientDetails:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/IngredientAllergenResponse"
+          nullable: true
+          description: Per-ingredient allergen breakdown (if requested)
+        missingIngredients:
+          type: array
+          items:
+            type: integer
+          description: Ingredient IDs without allergen data
+      description: Aggregated allergen information for a recipe.
   responses:
     UnauthorizedError:
       description: Authentication required
@@ -1479,6 +1789,17 @@ tags:
       Nutritional information and analysis for recipes and ingredients.
 
       **Data Source:** U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, 2019. fdc.nal.usda.gov.
+  - name: Allergens
+    description: |
+      Allergen information and analysis for recipes and ingredients.
+
+      Uses tiered data lookup: Database (USDA) → Open Food Facts API → LLM inference.
+      Supports FDA Big 9 allergens, EU allergens, and additional common allergens.
+
+      **Data Sources:**
+      - USDA FoodData Central (confidence: 1.0)
+      - Open Food Facts (confidence: 0.95)
+      - LLM Inference (confidence: 0.75)
   - name: Recommendations
     description: AI-powered recommendations for ingredient substitutions and recipe
       pairings
