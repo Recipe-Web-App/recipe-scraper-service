@@ -21,6 +21,7 @@ from app.schemas.allergen import (
 )
 from app.schemas.enums import Allergen
 from app.schemas.ingredient import Ingredient
+from app.services.allergen.exceptions import AllergenNotFoundError
 from app.services.allergen.service import AllergenService
 
 
@@ -486,3 +487,126 @@ class TestCaching:
         await service._cache_result("flour", response)
 
         await service.shutdown()
+
+
+class TestAllergenExceptions:
+    """Tests for allergen exception classes."""
+
+    def test_allergen_not_found_error_stores_ingredient(self) -> None:
+        """AllergenNotFoundError should store ingredient name."""
+        error = AllergenNotFoundError("flour")
+
+        assert error.ingredient == "flour"
+        assert "flour" in str(error)
+
+    def test_allergen_not_found_error_message(self) -> None:
+        """AllergenNotFoundError should have descriptive message."""
+        error = AllergenNotFoundError("butter")
+
+        assert "No allergen data found for ingredient: butter" in str(error)
+
+
+class TestEdgeCases:
+    """Tests for edge cases and early return paths."""
+
+    async def test_shutdown_calls_off_client_shutdown(
+        self,
+        mock_cache_client: MagicMock,
+        mock_repository: MagicMock,
+        mock_off_client: MagicMock,
+    ) -> None:
+        """Should call OFF client shutdown when provided."""
+        service = AllergenService(
+            cache_client=mock_cache_client,
+            repository=mock_repository,
+            off_client=mock_off_client,
+        )
+        await service.initialize()
+
+        await service.shutdown()
+
+        mock_off_client.shutdown.assert_called_once()
+
+    async def test_ingredient_without_name_added_to_missing(
+        self,
+        service: AllergenService,
+    ) -> None:
+        """Should add to missing list when ingredient has no name but has ID."""
+        await service.initialize()
+
+        ingredients = [
+            Ingredient(ingredient_id=99, name=None),  # No name, has ID
+            Ingredient(ingredient_id=None, name=None),  # No name, no ID - skipped
+        ]
+
+        result = await service.get_recipe_allergens(ingredients)
+
+        assert 99 in result.missing_ingredients
+        assert len(result.missing_ingredients) == 1
+
+        await service.shutdown()
+
+    async def test_ingredient_result_none_adds_to_missing(
+        self,
+        service: AllergenService,
+    ) -> None:
+        """Should add ID to missing when allergen lookup returns None."""
+        await service.initialize()
+
+        # unknown-ingredient will return None from all tiers
+        ingredients = [
+            Ingredient(ingredient_id=42, name="unknown-ingredient"),
+        ]
+
+        result = await service.get_recipe_allergens(ingredients)
+
+        assert 42 in result.missing_ingredients
+
+        await service.shutdown()
+
+    async def test_get_from_cache_returns_none_when_cache_none(self) -> None:
+        """Should return None when no cache configured."""
+        service = AllergenService(cache_client=None)
+        service._initialized = True
+        service._cache = None
+
+        result = await service._get_from_cache("flour")
+
+        assert result is None
+
+    async def test_get_from_database_returns_none_when_repository_none(self) -> None:
+        """Should return None when no repository configured."""
+        service = AllergenService(repository=None)
+        service._repository = None
+
+        result = await service._get_from_database("flour")
+
+        assert result is None
+
+    async def test_get_from_off_returns_none_when_client_none(self) -> None:
+        """Should return None when OFF client not configured."""
+        service = AllergenService(off_client=None)
+        service._off_client = None
+
+        result = await service._get_from_open_food_facts("flour")
+
+        assert result is None
+
+    async def test_cache_result_skips_when_cache_none(self) -> None:
+        """Should silently skip caching when no cache configured."""
+        service = AllergenService(cache_client=None)
+        service._cache = None
+
+        response = IngredientAllergenResponse(ingredient_name="flour")
+
+        # Should not raise
+        await service._cache_result("flour", response)
+
+    def test_transform_db_to_response_empty_list(self) -> None:
+        """Should return empty response when data list is empty."""
+        service = AllergenService()
+
+        result = service._transform_db_to_response([])
+
+        assert result.allergens == []
+        assert result.ingredient_name is None
