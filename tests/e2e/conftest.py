@@ -260,6 +260,8 @@ CREATE TABLE IF NOT EXISTS recipe_manager.nutrition_profiles (
         REFERENCES recipe_manager.ingredients(ingredient_id) ON DELETE CASCADE,
     serving_size_g DECIMAL(10,2) DEFAULT 100.00,
     data_source VARCHAR(50) DEFAULT 'USDA',
+    fdc_data_type VARCHAR(50),
+    food_group VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(ingredient_id)
@@ -393,22 +395,22 @@ INSERT INTO recipe_manager.ingredients (ingredient_id, name, fdc_id, usda_food_d
 ON CONFLICT (name) DO NOTHING;
 
 -- Insert nutrition profiles
-INSERT INTO recipe_manager.nutrition_profiles (nutrition_profile_id, ingredient_id, serving_size_g, data_source) VALUES
-    (1, 1, 100.00, 'USDA'),
-    (2, 2, 100.00, 'USDA'),
-    (3, 3, 100.00, 'USDA'),
-    (4, 4, 100.00, 'USDA'),
-    (5, 5, 100.00, 'USDA'),
+INSERT INTO recipe_manager.nutrition_profiles (nutrition_profile_id, ingredient_id, serving_size_g, data_source, fdc_data_type, food_group) VALUES
+    (1, 1, 100.00, 'USDA', 'foundation_food', 'GRAINS'),
+    (2, 2, 100.00, 'USDA', 'foundation_food', 'DAIRY'),
+    (3, 3, 100.00, 'USDA', 'foundation_food', 'POULTRY'),
+    (4, 4, 100.00, 'USDA', 'foundation_food', 'POULTRY'),
+    (5, 5, 100.00, 'USDA', 'foundation_food', 'GRAINS'),
     -- USDA-style ingredients
-    (6, 6, 100.00, 'USDA'),
-    (7, 7, 100.00, 'USDA'),
-    (8, 8, 100.00, 'USDA'),
-    (9, 9, 100.00, 'USDA'),
-    (10, 10, 100.00, 'USDA'),
-    (11, 11, 100.00, 'USDA'),
-    (12, 12, 100.00, 'USDA'),
-    (13, 13, 100.00, 'USDA'),
-    (14, 14, 100.00, 'USDA')
+    (6, 6, 100.00, 'USDA', 'foundation_food', 'DAIRY'),
+    (7, 7, 100.00, 'USDA', 'foundation_food', 'DAIRY'),
+    (8, 8, 100.00, 'USDA', 'foundation_food', 'DAIRY'),
+    (9, 9, 100.00, 'USDA', 'foundation_food', 'DAIRY'),
+    (10, 10, 100.00, 'USDA', 'foundation_food', 'PROCESSED_FOODS'),
+    (11, 11, 100.00, 'USDA', 'foundation_food', 'PROCESSED_FOODS'),
+    (12, 12, 100.00, 'USDA', 'foundation_food', 'SPICES_HERBS'),
+    (13, 13, 100.00, 'USDA', 'foundation_food', 'VEGETABLES'),
+    (14, 14, 100.00, 'USDA', 'foundation_food', 'VEGETABLES')
 ON CONFLICT (ingredient_id) DO NOTHING;
 
 -- Insert macronutrients (USDA values per 100g)

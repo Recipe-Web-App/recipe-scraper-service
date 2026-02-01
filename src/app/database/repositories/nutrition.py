@@ -89,6 +89,8 @@ class NutritionData(BaseModel):
     usda_food_description: str | None = None
     serving_size_g: Decimal = Field(default=Decimal("100.00"))
     data_source: str = "USDA"
+    fdc_data_type: str | None = None
+    food_group: str | None = None
     macronutrients: MacronutrientsData | None = None
     vitamins: VitaminsData | None = None
     minerals: MineralsData | None = None
@@ -108,6 +110,8 @@ _NUTRITION_QUERY = """
         i.usda_food_description,
         np.serving_size_g,
         np.data_source,
+        np.fdc_data_type,
+        np.food_group,
         -- Macronutrients
         m.calories_kcal,
         m.protein_g,
@@ -447,6 +451,8 @@ class NutritionRepository:
             usda_food_description=row["usda_food_description"],
             serving_size_g=row["serving_size_g"] or Decimal("100.00"),
             data_source=row["data_source"] or "USDA",
+            fdc_data_type=row["fdc_data_type"],
+            food_group=row["food_group"],
             macronutrients=MacronutrientsData(
                 calories_kcal=row["calories_kcal"],
                 protein_g=row["protein_g"],

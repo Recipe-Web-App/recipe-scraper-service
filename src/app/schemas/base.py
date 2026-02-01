@@ -29,7 +29,6 @@ class _BaseSchema(BaseModel):
         # Serialization settings
         ser_json_bytes="base64",
         ser_json_timedelta="float",
-        use_enum_values=True,
         # Validation settings
         validate_default=True,
         validate_assignment=True,

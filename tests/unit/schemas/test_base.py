@@ -155,8 +155,8 @@ class TestValidationBehavior:
         with pytest.raises(ValidationError):
             response.count = -1
 
-    def test_use_enum_values(self):
-        """Enums should serialize as their values, not enum objects."""
+    def test_enum_json_serialization(self):
+        """Enums should serialize as their string values in JSON output."""
 
         class Status(StrEnum):
             ACTIVE = "active"
@@ -166,10 +166,13 @@ class TestValidationBehavior:
             status: Status
 
         response = TestResponse(status=Status.ACTIVE)
-        data = response.model_dump()
 
-        assert data["status"] == "active"
-        assert not isinstance(data["status"], Status)
+        # JSON serialization should produce string values
+        assert response.model_dump_json() == '{"status":"active"}'
+
+        # Field access should return proper enum for programmatic use
+        assert response.status == Status.ACTIVE
+        assert isinstance(response.status, Status)
 
 
 class TestInheritanceChain:
