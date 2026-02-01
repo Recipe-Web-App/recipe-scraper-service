@@ -85,17 +85,22 @@ class Allergen(StrEnum):
 class FoodGroup(StrEnum):
     """Food group classifications for nutritional analysis."""
 
+    # Plant-based whole foods
     VEGETABLES = "VEGETABLES"
     FRUITS = "FRUITS"
     GRAINS = "GRAINS"
     LEGUMES = "LEGUMES"
     NUTS_SEEDS = "NUTS_SEEDS"
+    SPICES_HERBS = "SPICES_HERBS"
+    # Animal products
     MEAT = "MEAT"
     POULTRY = "POULTRY"
     SEAFOOD = "SEAFOOD"
     DAIRY = "DAIRY"
+    # Processed and manufactured foods
     BEVERAGES = "BEVERAGES"
     PROCESSED_FOODS = "PROCESSED_FOODS"
+    # Fallback
     UNKNOWN = "UNKNOWN"
 
 

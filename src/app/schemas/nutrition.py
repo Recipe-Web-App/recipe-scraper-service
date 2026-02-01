@@ -9,7 +9,7 @@ from __future__ import annotations
 from pydantic import Field
 
 from app.schemas.base import APIResponse
-from app.schemas.enums import NutrientUnit
+from app.schemas.enums import FoodGroup, NutrientUnit
 from app.schemas.ingredient import Quantity
 
 
@@ -89,6 +89,10 @@ class IngredientNutritionalInfoResponse(APIResponse):
         default=None,
         description="USDA food description for matched ingredient",
     )
+    food_group: FoodGroup | None = Field(
+        default=None,
+        description="Food group classification",
+    )
     macro_nutrients: MacroNutrients | None = Field(
         default=None,
         description="Macronutrient information",
@@ -111,4 +115,8 @@ class RecipeNutritionalInfoResponse(APIResponse):
     total: IngredientNutritionalInfoResponse | None = Field(
         default=None,
         description="Aggregated nutritional totals",
+    )
+    food_groups: list[FoodGroup] | None = Field(
+        default=None,
+        description="All unique food groups present in this recipe",
     )

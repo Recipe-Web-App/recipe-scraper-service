@@ -17,7 +17,7 @@ import orjson
 from app.cache.redis import get_cache_client
 from app.database.repositories.nutrition import NutritionData, NutritionRepository
 from app.observability.logging import get_logger
-from app.schemas.enums import IngredientUnit, NutrientUnit
+from app.schemas.enums import FoodGroup, IngredientUnit, NutrientUnit
 from app.schemas.ingredient import Quantity
 from app.schemas.nutrition import (
     Fats,
@@ -189,6 +189,7 @@ class NutritionService:
         # Process each ingredient
         per_ingredient: dict[str, IngredientNutritionalInfoResponse] = {}
         missing_ingredients: list[int] = []
+        food_groups_set: set[FoodGroup] = set()
         totals = self._create_zero_totals()
         total_grams = Decimal(0)
 
@@ -228,6 +229,8 @@ class NutritionService:
             )
 
             per_ingredient[ingredient.name] = response
+            if response.food_group:
+                food_groups_set.add(response.food_group)
             self._accumulate_totals(totals, response)
             total_grams += grams
 
@@ -247,6 +250,9 @@ class NutritionService:
             ingredients=per_ingredient if per_ingredient else None,
             missing_ingredients=missing_ingredients if missing_ingredients else None,
             total=total_response,
+            food_groups=sorted(food_groups_set, key=lambda x: x.value)
+            if food_groups_set
+            else None,
         )
 
     # =========================================================================
@@ -541,6 +547,9 @@ class NutritionService:
         return IngredientNutritionalInfoResponse(
             quantity=quantity,
             usda_food_description=nutrition_data.usda_food_description,
+            food_group=FoodGroup(nutrition_data.food_group)
+            if nutrition_data.food_group
+            else None,
             macro_nutrients=macros,
             vitamins=vitamins,
             minerals=minerals,

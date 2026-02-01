@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS recipe_manager.nutrition_profiles (
         REFERENCES recipe_manager.ingredients(ingredient_id) ON DELETE CASCADE,
     serving_size_g DECIMAL(10,2) DEFAULT 100.00,
     data_source VARCHAR(50) DEFAULT 'USDA',
+    fdc_data_type VARCHAR(50),
+    food_group VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(ingredient_id)
@@ -145,11 +147,11 @@ INSERT INTO recipe_manager.ingredients (ingredient_id, name, fdc_id, usda_food_d
 ON CONFLICT (name) DO NOTHING;
 
 -- Insert nutrition profiles
-INSERT INTO recipe_manager.nutrition_profiles (nutrition_profile_id, ingredient_id, serving_size_g, data_source) VALUES
-    (1, 1, 100.00, 'USDA'),
-    (2, 2, 100.00, 'USDA'),
-    (3, 3, 100.00, 'USDA'),
-    (4, 4, 100.00, 'USDA')
+INSERT INTO recipe_manager.nutrition_profiles (nutrition_profile_id, ingredient_id, serving_size_g, data_source, fdc_data_type, food_group) VALUES
+    (1, 1, 100.00, 'USDA', 'foundation_food', 'GRAINS'),
+    (2, 2, 100.00, 'USDA', 'foundation_food', 'PROCESSED_FOODS'),
+    (3, 3, 100.00, 'USDA', 'foundation_food', 'FRUITS'),
+    (4, 4, 100.00, 'USDA', 'foundation_food', 'VEGETABLES')
 ON CONFLICT (ingredient_id) DO NOTHING;
 
 -- Insert macronutrients (per 100g)

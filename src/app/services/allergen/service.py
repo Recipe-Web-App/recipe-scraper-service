@@ -310,25 +310,18 @@ class AllergenService:
 
         for resp in ingredient_allergens:
             for allergen_info in resp.allergens:
-                # Handle both Allergen enum and string values
-                # (schema may serialize to strings via use_enum_values=True)
-                raw_allergen = allergen_info.allergen
-                a = (
-                    Allergen(raw_allergen)
-                    if isinstance(raw_allergen, str)
-                    else raw_allergen
-                )
+                allergen = allergen_info.allergen
 
                 if allergen_info.presence_type == AllergenPresenceType.CONTAINS:
-                    contains.add(a)
+                    contains.add(allergen)
                 else:
-                    may_contain.add(a)
+                    may_contain.add(allergen)
 
                 # Keep highest confidence for each allergen
-                if a not in all_allergens or (allergen_info.confidence_score or 0) > (
-                    all_allergens[a].confidence_score or 0
-                ):
-                    all_allergens[a] = allergen_info
+                if allergen not in all_allergens or (
+                    allergen_info.confidence_score or 0
+                ) > (all_allergens[allergen].confidence_score or 0):
+                    all_allergens[allergen] = allergen_info
 
         # Remove from may_contain if in contains
         may_contain -= contains
