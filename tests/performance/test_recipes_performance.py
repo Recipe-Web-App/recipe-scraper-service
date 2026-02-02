@@ -25,12 +25,26 @@ from app.api.dependencies import (
     get_ingredient_parser,
     get_recipe_management_client,
     get_scraper_service,
+    get_shopping_service,
 )
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.llm.prompts import ParsedIngredient
 from app.llm.prompts.ingredient_parsing import IngredientUnit
 from app.parsing.ingredient import IngredientParser
-from app.services.recipe_management.schemas import RecipeResponse
+from app.schemas.enums import IngredientUnit as SchemaIngredientUnit
+from app.schemas.ingredient import Quantity
+from app.schemas.shopping import (
+    IngredientShoppingInfoResponse,
+    RecipeShoppingInfoResponse,
+)
+from app.services.recipe_management.schemas import (
+    IngredientUnit as RecipeIngredientUnit,
+)
+from app.services.recipe_management.schemas import (
+    RecipeDetailResponse,
+    RecipeIngredientResponse,
+    RecipeResponse,
+)
 from app.services.scraping.models import ScrapedRecipe
 
 
@@ -426,3 +440,275 @@ class TestRecipesLayerBenchmarks:
 
         result = benchmark(create_response)
         assert result.id == 42
+
+
+# --- Shopping Info Fixtures ---
+
+
+MOCK_USER_SHOPPING = CurrentUser(
+    id="perf-test-shopping-user",
+    roles=["user"],
+    permissions=["recipe:read"],
+)
+
+
+@pytest.fixture
+def sample_recipe_detail() -> RecipeDetailResponse:
+    """Create sample recipe detail response for shopping benchmarks."""
+    return RecipeDetailResponse(
+        id=42,
+        title="Benchmark Chocolate Chip Cookies",
+        slug="benchmark-chocolate-chip-cookies",
+        servings=24.0,
+        ingredients=[
+            RecipeIngredientResponse(
+                id=1,
+                ingredient_id=101,
+                ingredient_name="all-purpose flour",
+                quantity=2.0,
+                unit=RecipeIngredientUnit.CUP,
+            ),
+            RecipeIngredientResponse(
+                id=2,
+                ingredient_id=102,
+                ingredient_name="butter",
+                quantity=1.0,
+                unit=RecipeIngredientUnit.CUP,
+            ),
+            RecipeIngredientResponse(
+                id=3,
+                ingredient_id=103,
+                ingredient_name="sugar",
+                quantity=1.0,
+                unit=RecipeIngredientUnit.CUP,
+            ),
+            RecipeIngredientResponse(
+                id=4,
+                ingredient_id=104,
+                ingredient_name="eggs",
+                quantity=2.0,
+                unit=RecipeIngredientUnit.PIECE,
+            ),
+            RecipeIngredientResponse(
+                id=5,
+                ingredient_id=105,
+                ingredient_name="chocolate chips",
+                quantity=2.0,
+                unit=RecipeIngredientUnit.CUP,
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def sample_shopping_result() -> RecipeShoppingInfoResponse:
+    """Create sample shopping result for benchmarks."""
+    return RecipeShoppingInfoResponse(
+        recipe_id=42,
+        ingredients={
+            "all-purpose flour": IngredientShoppingInfoResponse(
+                ingredient_name="all-purpose flour",
+                quantity=Quantity(amount=250.0, measurement=SchemaIngredientUnit.G),
+                estimated_price="0.50",
+                price_confidence=0.85,
+                data_source="USDA_FVP",
+                currency="USD",
+            ),
+            "butter": IngredientShoppingInfoResponse(
+                ingredient_name="butter",
+                quantity=Quantity(amount=227.0, measurement=SchemaIngredientUnit.G),
+                estimated_price="3.50",
+                price_confidence=0.90,
+                data_source="USDA_FVP",
+                currency="USD",
+            ),
+            "sugar": IngredientShoppingInfoResponse(
+                ingredient_name="sugar",
+                quantity=Quantity(amount=200.0, measurement=SchemaIngredientUnit.G),
+                estimated_price="0.40",
+                price_confidence=0.85,
+                data_source="USDA_FVP",
+                currency="USD",
+            ),
+            "eggs": IngredientShoppingInfoResponse(
+                ingredient_name="eggs",
+                quantity=Quantity(amount=100.0, measurement=SchemaIngredientUnit.G),
+                estimated_price="0.60",
+                price_confidence=0.75,
+                data_source="USDA_FMAP",
+                currency="USD",
+            ),
+            "chocolate chips": IngredientShoppingInfoResponse(
+                ingredient_name="chocolate chips",
+                quantity=Quantity(amount=340.0, measurement=SchemaIngredientUnit.G),
+                estimated_price="3.50",
+                price_confidence=0.80,
+                data_source="USDA_FVP",
+                currency="USD",
+            ),
+        },
+        total_estimated_cost="8.50",
+        missing_ingredients=None,
+    )
+
+
+@pytest.fixture
+def mock_recipe_client_shopping(
+    sample_recipe_detail: RecipeDetailResponse,
+) -> MagicMock:
+    """Create mock recipe client for shopping benchmarks."""
+    mock = MagicMock()
+    mock.get_recipe = AsyncMock(return_value=sample_recipe_detail)
+    mock.initialize = AsyncMock(return_value=None)
+    mock.shutdown = AsyncMock(return_value=None)
+    return mock
+
+
+@pytest.fixture
+def mock_shopping_service(
+    sample_shopping_result: RecipeShoppingInfoResponse,
+) -> MagicMock:
+    """Create mock shopping service for benchmarks."""
+    mock = MagicMock()
+    mock.get_recipe_shopping_info = AsyncMock(return_value=sample_shopping_result)
+    mock.initialize = AsyncMock(return_value=None)
+    mock.shutdown = AsyncMock(return_value=None)
+    return mock
+
+
+@pytest.fixture
+def shopping_perf_client(
+    app: FastAPI,
+    sync_client: TestClient,
+    mock_recipe_client_shopping: MagicMock,
+    mock_shopping_service: MagicMock,
+) -> Generator[TestClient]:
+    """Create sync client with shopping services mocked for performance tests."""
+    app.dependency_overrides[get_current_user] = lambda: MOCK_USER_SHOPPING
+    app.dependency_overrides[get_recipe_management_client] = (
+        lambda: mock_recipe_client_shopping
+    )
+    app.dependency_overrides[get_shopping_service] = lambda: mock_shopping_service
+
+    yield sync_client
+
+    # Clean up dependency overrides
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_recipe_management_client, None)
+    app.dependency_overrides.pop(get_shopping_service, None)
+
+
+# --- Shopping Info Benchmark Tests ---
+
+
+class TestRecipeShoppingInfoBenchmarks:
+    """Benchmarks for GET /recipes/{id}/shopping-info endpoint performance."""
+
+    def test_shopping_info_response_time(
+        self,
+        benchmark: BenchmarkFixture,
+        shopping_perf_client: TestClient,
+    ) -> None:
+        """Benchmark shopping info endpoint response time."""
+
+        def get_shopping_info() -> dict[str, Any]:
+            response = shopping_perf_client.get(
+                "/api/v1/recipe-scraper/recipes/42/shopping-info",
+            )
+            result: dict[str, Any] = response.json()
+            return result
+
+        result = benchmark(get_shopping_info)
+        assert "recipeId" in result
+        assert result["recipeId"] == 42
+
+    def test_shopping_info_throughput(
+        self,
+        benchmark: BenchmarkFixture,
+        shopping_perf_client: TestClient,
+    ) -> None:
+        """Benchmark shopping info endpoint for high throughput scenarios."""
+
+        def get_multiple() -> int:
+            success_count = 0
+            for _ in range(10):
+                response = shopping_perf_client.get(
+                    "/api/v1/recipe-scraper/recipes/42/shopping-info",
+                )
+                if response.status_code == 200:
+                    success_count += 1
+            return success_count
+
+        result = benchmark(get_multiple)
+        assert result == 10
+
+    def test_shopping_info_large_recipe(
+        self,
+        benchmark: BenchmarkFixture,
+        app: FastAPI,
+        sync_client: TestClient,
+    ) -> None:
+        """Benchmark shopping info for a recipe with many ingredients."""
+        # Create a recipe with 20 ingredients
+        large_recipe = RecipeDetailResponse(
+            id=100,
+            title="Large Benchmark Recipe",
+            slug="large-benchmark-recipe",
+            servings=12.0,
+            ingredients=[
+                RecipeIngredientResponse(
+                    id=i,
+                    ingredient_id=200 + i,
+                    ingredient_name=f"ingredient-{i}",
+                    quantity=float(i),
+                    unit=RecipeIngredientUnit.G,
+                )
+                for i in range(1, 21)
+            ],
+        )
+
+        # Create shopping result with 20 ingredients
+        large_shopping = RecipeShoppingInfoResponse(
+            recipe_id=100,
+            ingredients={
+                f"ingredient-{i}": IngredientShoppingInfoResponse(
+                    ingredient_name=f"ingredient-{i}",
+                    quantity=Quantity(
+                        amount=float(i * 10), measurement=SchemaIngredientUnit.G
+                    ),
+                    estimated_price=f"{i * 0.25:.2f}",
+                    price_confidence=0.80,
+                    data_source="USDA_FVP",
+                    currency="USD",
+                )
+                for i in range(1, 21)
+            },
+            total_estimated_cost="52.50",
+            missing_ingredients=None,
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_recipe = AsyncMock(return_value=large_recipe)
+        mock_service = MagicMock()
+        mock_service.get_recipe_shopping_info = AsyncMock(return_value=large_shopping)
+
+        app.dependency_overrides[get_current_user] = lambda: MOCK_USER_SHOPPING
+        app.dependency_overrides[get_recipe_management_client] = lambda: mock_client
+        app.dependency_overrides[get_shopping_service] = lambda: mock_service
+
+        try:
+
+            def get_large_shopping_info() -> dict[str, Any]:
+                response = sync_client.get(
+                    "/api/v1/recipe-scraper/recipes/100/shopping-info",
+                )
+                return response.json()
+
+            result = benchmark(get_large_shopping_info)
+            assert len(result["ingredients"]) == 20
+            assert result["totalEstimatedCost"] == "52.50"
+
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+            app.dependency_overrides.pop(get_recipe_management_client, None)
+            app.dependency_overrides.pop(get_shopping_service, None)
