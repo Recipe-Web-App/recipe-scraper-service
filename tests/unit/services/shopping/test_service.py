@@ -18,7 +18,7 @@ import pytest
 
 from app.database.repositories.shopping import IngredientDetails, PricingData
 from app.schemas.enums import IngredientUnit
-from app.schemas.ingredient import Quantity
+from app.schemas.ingredient import Ingredient, Quantity
 from app.services.shopping.constants import TIER_1_CONFIDENCE, TIER_2_CONFIDENCE
 from app.services.shopping.exceptions import IngredientNotFoundError
 from app.services.shopping.service import ShoppingService
@@ -341,3 +341,194 @@ class TestServiceLifecycle:
 
         with pytest.raises(RuntimeError, match="ShoppingService not initialized"):
             await service.get_ingredient_shopping_info(ingredient_id=123)
+
+
+class TestGetRecipeShoppingInfo:
+    """Tests for get_recipe_shopping_info method."""
+
+    async def test_aggregates_all_ingredients(
+        self,
+        service: ShoppingService,
+        mock_repository: AsyncMock,
+        sample_ingredient_details: IngredientDetails,
+        sample_tier1_pricing: PricingData,
+    ) -> None:
+        """Test aggregates shopping info for all ingredients."""
+        mock_repository.get_ingredient_details.return_value = sample_ingredient_details
+        mock_repository.get_price_by_ingredient_id.return_value = sample_tier1_pricing
+
+        ingredients = [
+            Ingredient(
+                ingredient_id=1,
+                name="chicken",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+            Ingredient(
+                ingredient_id=2,
+                name="rice",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+        ]
+
+        result = await service.get_recipe_shopping_info(
+            recipe_id=123, ingredients=ingredients
+        )
+
+        assert result.recipe_id == 123
+        assert len(result.ingredients) == 2
+        assert "chicken" in result.ingredients
+        assert "rice" in result.ingredients
+
+    async def test_calculates_total_cost(
+        self,
+        service: ShoppingService,
+        mock_repository: AsyncMock,
+        sample_ingredient_details: IngredientDetails,
+        sample_tier1_pricing: PricingData,
+    ) -> None:
+        """Test calculates total cost from all ingredients."""
+        mock_repository.get_ingredient_details.return_value = sample_ingredient_details
+        mock_repository.get_price_by_ingredient_id.return_value = sample_tier1_pricing
+
+        ingredients = [
+            Ingredient(
+                ingredient_id=1,
+                name="chicken",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+            Ingredient(
+                ingredient_id=2,
+                name="rice",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+        ]
+
+        result = await service.get_recipe_shopping_info(
+            recipe_id=123, ingredients=ingredients
+        )
+
+        # 2 ingredients at 0.52 each = 1.04
+        assert result.total_estimated_cost == "1.04"
+
+    async def test_handles_missing_prices(
+        self,
+        service: ShoppingService,
+        mock_repository: AsyncMock,
+        sample_ingredient_details: IngredientDetails,
+    ) -> None:
+        """Test handles ingredients with no pricing data."""
+        # First ingredient has no pricing
+        no_price_details = IngredientDetails(
+            ingredient_id=1,
+            name="exotic spice",
+            food_group=None,
+        )
+        mock_repository.get_ingredient_details.side_effect = [
+            no_price_details,
+            sample_ingredient_details,
+        ]
+        mock_repository.get_price_by_ingredient_id.side_effect = [
+            None,
+            PricingData(
+                price_per_100g=Decimal("0.50"),
+                currency="USD",
+                data_source="USDA_MEAT",
+                tier=1,
+            ),
+        ]
+
+        ingredients = [
+            Ingredient(
+                ingredient_id=1,
+                name="exotic spice",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+            Ingredient(
+                ingredient_id=2,
+                name="chicken",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+        ]
+
+        result = await service.get_recipe_shopping_info(
+            recipe_id=123, ingredients=ingredients
+        )
+
+        assert result.missing_ingredients == [1]
+        assert result.total_estimated_cost == "0.50"  # Only chicken price
+
+    async def test_handles_ingredient_not_found(
+        self,
+        service: ShoppingService,
+        mock_repository: AsyncMock,
+        sample_ingredient_details: IngredientDetails,
+        sample_tier1_pricing: PricingData,
+    ) -> None:
+        """Test handles ingredients that don't exist in database."""
+        mock_repository.get_ingredient_details.side_effect = [
+            None,  # First ingredient not found
+            sample_ingredient_details,
+        ]
+        mock_repository.get_price_by_ingredient_id.return_value = sample_tier1_pricing
+
+        ingredients = [
+            Ingredient(
+                ingredient_id=999,
+                name="unknown",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+            Ingredient(
+                ingredient_id=2,
+                name="chicken",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+        ]
+
+        result = await service.get_recipe_shopping_info(
+            recipe_id=123, ingredients=ingredients
+        )
+
+        assert result.missing_ingredients is not None
+        assert 999 in result.missing_ingredients
+        assert "chicken" in result.ingredients
+        assert "unknown" not in result.ingredients
+
+    async def test_empty_ingredients_returns_zero(
+        self,
+        service: ShoppingService,
+    ) -> None:
+        """Test empty ingredient list returns zero total."""
+        result = await service.get_recipe_shopping_info(recipe_id=123, ingredients=[])
+
+        assert result.recipe_id == 123
+        assert result.ingredients == {}
+        assert result.total_estimated_cost == "0.00"
+        assert result.missing_ingredients is None
+
+    async def test_skips_ingredients_without_id(
+        self,
+        service: ShoppingService,
+        mock_repository: AsyncMock,
+        sample_ingredient_details: IngredientDetails,
+        sample_tier1_pricing: PricingData,
+    ) -> None:
+        """Test skips ingredients without ID or name."""
+        mock_repository.get_ingredient_details.return_value = sample_ingredient_details
+        mock_repository.get_price_by_ingredient_id.return_value = sample_tier1_pricing
+
+        ingredients = [
+            Ingredient(ingredient_id=None, name="no-id"),  # Missing ID
+            Ingredient(ingredient_id=1, name=None),  # Missing name
+            Ingredient(
+                ingredient_id=2,
+                name="chicken",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+        ]
+
+        result = await service.get_recipe_shopping_info(
+            recipe_id=123, ingredients=ingredients
+        )
+
+        assert len(result.ingredients) == 1
+        assert "chicken" in result.ingredients

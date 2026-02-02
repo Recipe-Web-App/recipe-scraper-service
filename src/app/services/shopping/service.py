@@ -19,8 +19,11 @@ from app.database.repositories.nutrition import NutritionRepository
 from app.database.repositories.shopping import PricingRepository
 from app.observability.logging import get_logger
 from app.schemas.enums import IngredientUnit
-from app.schemas.ingredient import Quantity
-from app.schemas.shopping import IngredientShoppingInfoResponse
+from app.schemas.ingredient import Ingredient, Quantity
+from app.schemas.shopping import (
+    IngredientShoppingInfoResponse,
+    RecipeShoppingInfoResponse,
+)
 from app.services.nutrition.converter import UnitConverter
 from app.services.nutrition.exceptions import ConversionError
 from app.services.shopping.constants import (
@@ -220,6 +223,79 @@ class ShoppingService:
         await self._cache_result(cache_key, response)
 
         return response
+
+    async def get_recipe_shopping_info(
+        self,
+        recipe_id: int,
+        ingredients: list[Ingredient],
+    ) -> RecipeShoppingInfoResponse:
+        """Get shopping/pricing information for all ingredients in a recipe.
+
+        Args:
+            recipe_id: Database ID of the recipe.
+            ingredients: List of ingredients with IDs and quantities.
+
+        Returns:
+            Recipe shopping info with per-ingredient breakdown and total cost.
+        """
+        if not self._initialized or self._repository is None:
+            msg = "ShoppingService not initialized"
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        ingredient_shopping: dict[str, IngredientShoppingInfoResponse] = {}
+        total_cost = Decimal("0.00")
+        missing_ingredients: list[int] = []
+
+        for ingredient in ingredients:
+            # Skip ingredients without ID or name
+            if ingredient.ingredient_id is None or ingredient.name is None:
+                logger.warning(
+                    "Skipping ingredient without ID or name",
+                    recipe_id=recipe_id,
+                    ingredient_id=ingredient.ingredient_id,
+                    ingredient_name=ingredient.name,
+                )
+                continue
+
+            try:
+                shopping_info = await self.get_ingredient_shopping_info(
+                    ingredient_id=ingredient.ingredient_id,
+                    quantity=ingredient.quantity,
+                )
+                ingredient_shopping[ingredient.name] = shopping_info
+
+                # Add to total if price available
+                if shopping_info.estimated_price is not None:
+                    total_cost += Decimal(shopping_info.estimated_price)
+                else:
+                    missing_ingredients.append(ingredient.ingredient_id)
+
+            except IngredientNotFoundError:
+                logger.warning(
+                    "Ingredient not found for recipe shopping",
+                    recipe_id=recipe_id,
+                    ingredient_id=ingredient.ingredient_id,
+                    ingredient_name=ingredient.name,
+                )
+                missing_ingredients.append(ingredient.ingredient_id)
+                continue
+
+        logger.info(
+            "Calculated recipe shopping info",
+            recipe_id=recipe_id,
+            ingredient_count=len(ingredients),
+            priced_count=len(ingredient_shopping),
+            missing_count=len(missing_ingredients),
+            total_cost=str(total_cost),
+        )
+
+        return RecipeShoppingInfoResponse(
+            recipe_id=recipe_id,
+            ingredients=ingredient_shopping,
+            total_estimated_cost=f"{total_cost:.2f}",
+            missing_ingredients=missing_ingredients if missing_ingredients else None,
+        )
 
     async def _convert_to_grams(
         self,

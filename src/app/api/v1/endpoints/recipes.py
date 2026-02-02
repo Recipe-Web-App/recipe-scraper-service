@@ -21,6 +21,7 @@ from app.api.dependencies import (
     get_recipe_management_client,
     get_redis_cache_client,
     get_scraper_service,
+    get_shopping_service,
 )
 from app.auth.dependencies import CurrentUser, RequirePermissions
 from app.auth.permissions import Permission
@@ -42,6 +43,7 @@ from app.schemas.nutrition import (
     RecipeNutritionalInfoResponse,
 )
 from app.schemas.recipe import PopularRecipesData
+from app.schemas.shopping import RecipeShoppingInfoResponse
 from app.services.allergen.service import AllergenService  # noqa: TC001
 from app.services.nutrition.service import NutritionService  # noqa: TC001
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
@@ -61,6 +63,7 @@ from app.services.scraping.exceptions import (
     ScrapingTimeoutError,
 )
 from app.services.scraping.service import RecipeScraperService  # noqa: TC001
+from app.services.shopping.service import ShoppingService  # noqa: TC001
 from app.workers.jobs import enqueue_popular_recipes_refresh
 
 
@@ -797,6 +800,180 @@ async def get_recipe_allergens(
         ingredient_count=len(recipe.ingredients),
         contains_count=len(allergen_result.contains),
         may_contain_count=len(allergen_result.may_contain),
+    )
+    return JSONResponse(
+        content=response_content,
+        status_code=status.HTTP_200_OK,
+    )
+
+
+@router.get(
+    "/recipes/{recipeId}/shopping-info",
+    response_model=RecipeShoppingInfoResponse,
+    summary="Get shopping information for a recipe",
+    description=(
+        "Retrieves comprehensive shopping information for all ingredients "
+        "in a recipe, including individual ingredient prices and total estimated "
+        "cost for grocery shopping."
+    ),
+    responses={
+        200: {
+            "description": "Shopping information retrieved successfully",
+        },
+        206: {
+            "description": "Partial content - some ingredient prices unavailable",
+            "headers": {
+                "X-Partial-Content": {
+                    "description": "Comma-separated list of ingredient IDs with missing prices",
+                    "schema": {"type": "string"},
+                }
+            },
+        },
+        404: {
+            "description": "Resource not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "NOT_FOUND",
+                        "message": "Recipe with identifier '123' not found",
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_recipe_shopping_info(
+    recipe_id: Annotated[int, Path(alias="recipeId", ge=1)],
+    user: Annotated[CurrentUser, Depends(RequirePermissions(Permission.RECIPE_READ))],
+    recipe_client: Annotated[
+        RecipeManagementClient, Depends(get_recipe_management_client)
+    ],
+    shopping_service: Annotated[ShoppingService, Depends(get_shopping_service)],
+    request: Request,
+) -> Response:
+    """Get shopping information for a recipe.
+
+    This endpoint fetches recipe details from the Recipe Management Service,
+    then calculates pricing information for all ingredients using the
+    ShoppingService. Returns per-ingredient breakdown and total estimated cost.
+
+    Args:
+        recipe_id: ID of the recipe.
+        user: Authenticated user with RECIPE_READ permission.
+        recipe_client: Client for Recipe Management Service.
+        shopping_service: Service for shopping/pricing calculations.
+        request: The incoming HTTP request.
+
+    Returns:
+        RecipeShoppingInfoResponse with pricing data.
+        Returns 206 with X-Partial-Content header if some ingredients missing prices.
+
+    Raises:
+        HTTPException: 404 if recipe not found.
+        HTTPException: 503 if downstream service unavailable.
+    """
+    # Extract auth token for downstream call
+    auth_header = request.headers.get("Authorization", "")
+    auth_token = auth_header.replace("Bearer ", "") if auth_header else ""
+
+    logger.info(
+        "Fetching shopping info for recipe",
+        recipe_id=recipe_id,
+        user_id=user.id,
+    )
+
+    # Step 1: Fetch recipe from Recipe Management Service
+    try:
+        recipe = await recipe_client.get_recipe(recipe_id, auth_token)
+    except RecipeManagementNotFoundError:
+        logger.info("Recipe not found", recipe_id=recipe_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "NOT_FOUND",
+                "message": f"Recipe with identifier '{recipe_id}' not found",
+            },
+        ) from None
+    except RecipeManagementUnavailableError:
+        logger.warning("Recipe Management Service unavailable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "SERVICE_UNAVAILABLE",
+                "message": "Recipe Management Service is not available",
+            },
+        ) from None
+    except RecipeManagementError as e:
+        logger.exception("Recipe Management Service error")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "error": "DOWNSTREAM_ERROR",
+                "message": f"Recipe Management Service error: {e}",
+            },
+        ) from None
+
+    # Step 2: Handle empty recipe (no ingredients)
+    if not recipe.ingredients:
+        logger.info("Recipe has no ingredients", recipe_id=recipe_id)
+        response_data = RecipeShoppingInfoResponse(
+            recipe_id=recipe_id,
+            ingredients={},
+            total_estimated_cost="0.00",
+        )
+        return JSONResponse(
+            content=orjson.loads(
+                orjson.dumps(response_data.model_dump(by_alias=True, exclude_none=True))
+            ),
+            status_code=status.HTTP_200_OK,
+        )
+
+    # Step 3: Transform recipe ingredients to Ingredient schema
+    ingredients: list[Ingredient] = [
+        Ingredient(
+            ingredient_id=ing.ingredient_id or ing.id,
+            name=ing.ingredient_name,
+            quantity=Quantity(
+                amount=ing.quantity,
+                measurement=_map_ingredient_unit(ing.unit),
+            ),
+        )
+        for ing in recipe.ingredients
+    ]
+
+    # Step 4: Get shopping data from ShoppingService
+    shopping_result = await shopping_service.get_recipe_shopping_info(
+        recipe_id=recipe_id,
+        ingredients=ingredients,
+    )
+
+    # Step 5: Build response and determine status code
+    response_content = orjson.loads(
+        orjson.dumps(shopping_result.model_dump(by_alias=True, exclude_none=True))
+    )
+
+    if shopping_result.missing_ingredients:
+        # Some ingredients missing prices - return 206 Partial Content
+        missing_ids = ",".join(
+            str(ing_id) for ing_id in shopping_result.missing_ingredients
+        )
+        logger.info(
+            "Returning partial shopping info",
+            recipe_id=recipe_id,
+            missing_count=len(shopping_result.missing_ingredients),
+            missing_ids=missing_ids,
+        )
+        return JSONResponse(
+            content=response_content,
+            status_code=status.HTTP_206_PARTIAL_CONTENT,
+            headers={"X-Partial-Content": missing_ids},
+        )
+
+    logger.info(
+        "Returning complete shopping info",
+        recipe_id=recipe_id,
+        ingredient_count=len(recipe.ingredients),
+        total_cost=shopping_result.total_estimated_cost,
     )
     return JSONResponse(
         content=response_content,

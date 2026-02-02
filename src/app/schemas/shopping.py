@@ -45,3 +45,7 @@ class RecipeShoppingInfoResponse(APIResponse):
         description="Shopping info by ingredient name",
     )
     total_estimated_cost: str = Field(..., description="Total estimated cost")
+    missing_ingredients: list[int] | None = Field(
+        default=None,
+        description="List of ingredient IDs with unavailable pricing data",
+    )
