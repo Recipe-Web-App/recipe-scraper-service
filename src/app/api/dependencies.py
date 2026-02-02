@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.services.popular.service import PopularRecipesService
     from app.services.recipe_management.client import RecipeManagementClient
     from app.services.scraping.service import RecipeScraperService
+    from app.services.shopping.service import ShoppingService
 
 
 async def get_scraper_service(request: Request) -> RecipeScraperService:
@@ -170,3 +171,26 @@ async def get_redis_cache_client() -> Redis[bytes] | None:
         return await get_cache_client()
     except Exception:
         return None
+
+
+async def get_shopping_service(request: Request) -> ShoppingService:
+    """Get the shopping service from app state.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        Initialized ShoppingService.
+
+    Raises:
+        HTTPException: 503 if service is not initialized.
+    """
+    service: ShoppingService | None = getattr(
+        request.app.state, "shopping_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Shopping service not available",
+        )
+    return service

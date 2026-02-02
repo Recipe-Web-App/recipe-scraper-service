@@ -24,6 +24,7 @@ from app.services.nutrition.service import NutritionService
 from app.services.popular.service import PopularRecipesService
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.scraping.service import RecipeScraperService
+from app.services.shopping.service import ShoppingService
 from app.workers.jobs import close_arq_pool, get_arq_pool
 
 
@@ -90,6 +91,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
 
     # Initialize Allergen Service (optional - non-critical)
     await _init_allergen_service(app, cache_client)
+
+    # Initialize Shopping Service (optional - non-critical)
+    await _init_shopping_service(app, cache_client)
 
     # Initialize Recipe Scraper Service (optional - non-critical)
     await _init_scraper_service(app, cache_client)
@@ -175,6 +179,22 @@ async def _init_allergen_service(
             "Failed to initialize AllergenService - allergen queries unavailable"
         )
         app.state.allergen_service = None
+
+
+async def _init_shopping_service(
+    app: FastAPI, cache_client: Redis[bytes] | None
+) -> None:
+    """Initialize shopping service."""
+    try:
+        shopping_service = ShoppingService(cache_client=cache_client)
+        await shopping_service.initialize()
+        app.state.shopping_service = shopping_service
+        logger.info("ShoppingService initialized")
+    except Exception:
+        logger.exception(
+            "Failed to initialize ShoppingService - shopping queries unavailable"
+        )
+        app.state.shopping_service = None
 
 
 async def _init_scraper_service(
@@ -287,6 +307,11 @@ async def _shutdown(app: FastAPI) -> None:
     if hasattr(app.state, "allergen_service") and app.state.allergen_service:
         await app.state.allergen_service.shutdown()
         logger.debug("AllergenService shutdown")
+
+    # Shutdown Shopping Service
+    if hasattr(app.state, "shopping_service") and app.state.shopping_service:
+        await app.state.shopping_service.shutdown()
+        logger.debug("ShoppingService shutdown")
 
     # Shutdown LLM client
     await _shutdown_llm_client()
