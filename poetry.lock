@@ -182,14 +182,14 @@ files = [
 
 [[package]]
 name = "babel"
-version = "2.17.0"
+version = "2.18.0"
 description = "Internationalization utilities"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2"},
-    {file = "babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d"},
+    {file = "babel-2.18.0-py3-none-any.whl", hash = "sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35"},
+    {file = "babel-2.18.0.tar.gz", hash = "sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d"},
 ]
 
 [package.extras]
@@ -1865,14 +1865,14 @@ type = ["mypy (<1.19) ; platform_python_implementation == \"PyPy\"", "pytest-myp
 
 [[package]]
 name = "ingredient-parser-nlp"
-version = "2.4.0"
+version = "2.5.0"
 description = "A Python package to parse structured information from recipe ingredient sentences"
 optional = false
-python-versions = "<3.15,>=3.11"
+python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "ingredient_parser_nlp-2.4.0-py3-none-any.whl", hash = "sha256:022b7ae24fd4b5f3a51ca2b8b4de73f39bc2d9f9332b02128345fc72790764af"},
-    {file = "ingredient_parser_nlp-2.4.0.tar.gz", hash = "sha256:73c48f229ec86afc07c8e52df5c60cea93dbbfd8fde4f9659ac1f89d1711306c"},
+    {file = "ingredient_parser_nlp-2.5.0-py3-none-any.whl", hash = "sha256:8d9c7589f6d98570ffcd7f01484db573d15b3ccaab5579566419317a85cbf340"},
+    {file = "ingredient_parser_nlp-2.5.0.tar.gz", hash = "sha256:c4c40a51f617a5ffa2012071d5946e0b447f00efe572a10d9adc20442e51fca5"},
 ]
 
 [package.dependencies]
@@ -3674,14 +3674,14 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "pyjwt"
-version = "2.10.1"
+version = "2.11.0"
 description = "JSON Web Token implementation in Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb"},
-    {file = "pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953"},
+    {file = "pyjwt-2.11.0-py3-none-any.whl", hash = "sha256:94a6bde30eb5c8e04fee991062b534071fd1439ef58d2adc9ccb823e7bcd0469"},
+    {file = "pyjwt-2.11.0.tar.gz", hash = "sha256:35f95c1f0fbe5d5ba6e43f00271c275f7a1a4db1dab27bf708073b75318ea623"},
 ]
 
 [package.dependencies]
@@ -3689,9 +3689,9 @@ cryptography = {version = ">=3.4.0", optional = true, markers = "extra == \"cryp
 
 [package.extras]
 crypto = ["cryptography (>=3.4.0)"]
-dev = ["coverage[toml] (==5.0.4)", "cryptography (>=3.4.0)", "pre-commit", "pytest (>=6.0.0,<7.0.0)", "sphinx", "sphinx-rtd-theme", "zope.interface"]
+dev = ["coverage[toml] (==7.10.7)", "cryptography (>=3.4.0)", "pre-commit", "pytest (>=8.4.2,<9.0.0)", "sphinx", "sphinx-rtd-theme", "zope.interface"]
 docs = ["sphinx", "sphinx-rtd-theme", "zope.interface"]
-tests = ["coverage[toml] (==5.0.4)", "pytest (>=6.0.0,<7.0.0)"]
+tests = ["coverage[toml] (==7.10.7)", "pytest (>=8.4.2,<9.0.0)"]
 
 [[package]]
 name = "pylint"
@@ -4882,19 +4882,35 @@ files = [
 ]
 
 [[package]]
+name = "semantic-version"
+version = "2.10.0"
+description = "A library implementing the 'SemVer' scheme."
+optional = false
+python-versions = ">=2.7"
+groups = ["dev"]
+files = [
+    {file = "semantic_version-2.10.0-py2.py3-none-any.whl", hash = "sha256:de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177"},
+    {file = "semantic_version-2.10.0.tar.gz", hash = "sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c"},
+]
+
+[package.extras]
+dev = ["Django (>=1.11)", "check-manifest", "colorama (<=0.4.1) ; python_version == \"3.4\"", "coverage", "flake8", "nose2", "readme-renderer (<25.0) ; python_version == \"3.4\"", "tox", "wheel", "zest.releaser[recommended]"]
+doc = ["Sphinx", "sphinx-rtd-theme"]
+
+[[package]]
 name = "semgrep"
-version = "1.149.0"
+version = "1.150.0"
 description = "Lightweight static analysis for many languages. Find bug variants with patterns that look like source code."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "semgrep-1.149.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_10_14_x86_64.whl", hash = "sha256:66fc310e030d703ab789dc5a1bfc5f0742523b3b23c0c49cb8b35c2dd561c1e0"},
-    {file = "semgrep-1.149.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl", hash = "sha256:5b759f45392dadd3ae9f5eed6527945b58503f9b99d9811083b810f549a09841"},
-    {file = "semgrep-1.149.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2c3cd54ff43bf9db3bc6034e3d460a50ab549fb78a33f140b47e320d691c4b7e"},
-    {file = "semgrep-1.149.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:30cf9dc838085331fed9fa87af2bfd7fe4976ebbf9701b1513783babebbd59bb"},
-    {file = "semgrep-1.149.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl", hash = "sha256:585c036248bf774888c8e4725ff721f46f300971b5c0a3042a503d95825378a9"},
-    {file = "semgrep-1.149.0.tar.gz", hash = "sha256:dcfbe41f6d57dd80a55db2b072e14a039a363fd115e3e18c9f194f5b2861adc3"},
+    {file = "semgrep-1.150.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_10_14_x86_64.whl", hash = "sha256:5fa64cea5de2600977740a2642ec127a9714079f61821ab0fe823eff8cc6d07b"},
+    {file = "semgrep-1.150.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl", hash = "sha256:26fd070fd135c3aad69b41db9ba47f99b777cee7d431da48b911fca54d633069"},
+    {file = "semgrep-1.150.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d92a07fd7e340edc858596ed72dc91c409c7c0ad870d4d3d3119cab2d4bef8ec"},
+    {file = "semgrep-1.150.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7a2e3dfccd5cbdf1d5e664af6c0a8fbb2b6db4af6044d566f518855d21444c43"},
+    {file = "semgrep-1.150.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl", hash = "sha256:fe9d4e64c7ca42450ab65b6ac701aca2362e9dbbc6833def4ec67f27570f065b"},
+    {file = "semgrep-1.150.0.tar.gz", hash = "sha256:9be7089a66a83f15ad5c407060c63a9a799f5f1f09aa17976ad2d7c4abbef140"},
 ]
 
 [package.dependencies]
@@ -4914,11 +4930,13 @@ opentelemetry-instrumentation-threading = ">=0.58b0,<1.0"
 opentelemetry-sdk = ">=1.37.0,<1.38.0"
 packaging = ">=21.0"
 peewee = ">=3.14,<4.0"
+pyjwt = {version = ">=2.4,<3.0", extras = ["crypto"]}
 pywin32 = {version = "311", markers = "sys_platform == \"win32\""}
 requests = ">=2.22,<3.0"
 rich = ">=13.5.2,<13.6.0"
 "ruamel.yaml" = ">=0.18.15"
 "ruamel.yaml.clib" = "0.2.14"
+semantic-version = ">=2.10.0,<2.11.0"
 tomli = ">=2.0.1,<2.1.0"
 typing-extensions = ">=4.2,<5.0"
 urllib3 = ">=2.0,<3.0"
@@ -5999,14 +6017,14 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 
 [[package]]
 name = "w3lib"
-version = "2.3.1"
+version = "2.4.0"
 description = "Library of web-related functions"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "w3lib-2.3.1-py3-none-any.whl", hash = "sha256:9ccd2ae10c8c41c7279cd8ad4fe65f834be894fe7bfdd7304b991fd69325847b"},
-    {file = "w3lib-2.3.1.tar.gz", hash = "sha256:5c8ac02a3027576174c2b61eb9a2170ba1b197cae767080771b6f1febda249a4"},
+    {file = "w3lib-2.4.0-py3-none-any.whl", hash = "sha256:260b5a22aeb86ae73213857f69ed20829a45150f8d5b12050b1f02ada414db79"},
+    {file = "w3lib-2.4.0.tar.gz", hash = "sha256:e233ad21649b69d0e047a10f30181ae9677524a29f6f71f6f3c758dc0c8d2648"},
 ]
 
 [[package]]
@@ -6471,4 +6489,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.13.0"
-content-hash = "73aa28a2331a5cddae094491b9be1b01bbff9015466fcd4db668be46afa7ebd2"
+content-hash = "ad099b684729c80ba27f21413bc9f99ab70c07fe83635c4dc6686313f1b7e236"
