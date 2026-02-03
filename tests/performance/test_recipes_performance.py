@@ -712,3 +712,115 @@ class TestRecipeShoppingInfoBenchmarks:
             app.dependency_overrides.pop(get_current_user, None)
             app.dependency_overrides.pop(get_recipe_management_client, None)
             app.dependency_overrides.pop(get_shopping_service, None)
+
+
+# --- Ingredient Shopping Info Fixtures ---
+
+
+@pytest.fixture
+def sample_ingredient_shopping_result() -> IngredientShoppingInfoResponse:
+    """Create sample ingredient shopping result for benchmarks."""
+    return IngredientShoppingInfoResponse(
+        ingredient_name="flour",
+        quantity=Quantity(amount=100.0, measurement=SchemaIngredientUnit.G),
+        estimated_price="0.18",
+        price_confidence=0.85,
+        data_source="USDA_FVP",
+        currency="USD",
+    )
+
+
+@pytest.fixture
+def mock_ingredient_shopping_service(
+    sample_ingredient_shopping_result: IngredientShoppingInfoResponse,
+) -> MagicMock:
+    """Create mock shopping service for ingredient benchmarks."""
+    mock = MagicMock()
+    mock.get_ingredient_shopping_info = AsyncMock(
+        return_value=sample_ingredient_shopping_result
+    )
+    mock.initialize = AsyncMock(return_value=None)
+    mock.shutdown = AsyncMock(return_value=None)
+    return mock
+
+
+@pytest.fixture
+def ingredient_shopping_perf_client(
+    app: FastAPI,
+    sync_client: TestClient,
+    mock_ingredient_shopping_service: MagicMock,
+) -> Generator[TestClient]:
+    """Create sync client for ingredient shopping performance tests."""
+    app.dependency_overrides[get_current_user] = lambda: MOCK_USER_SHOPPING
+    app.dependency_overrides[get_shopping_service] = (
+        lambda: mock_ingredient_shopping_service
+    )
+
+    yield sync_client
+
+    # Clean up dependency overrides
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_shopping_service, None)
+
+
+# --- Ingredient Shopping Info Benchmark Tests ---
+
+
+class TestIngredientShoppingInfoBenchmarks:
+    """Benchmarks for GET /ingredients/{id}/shopping-info endpoint performance."""
+
+    def test_ingredient_shopping_info_response_time(
+        self,
+        benchmark: BenchmarkFixture,
+        ingredient_shopping_perf_client: TestClient,
+    ) -> None:
+        """Benchmark ingredient shopping info endpoint response time."""
+
+        def get_shopping_info() -> dict[str, Any]:
+            response = ingredient_shopping_perf_client.get(
+                "/api/v1/recipe-scraper/ingredients/101/shopping-info",
+            )
+            result: dict[str, Any] = response.json()
+            return result
+
+        result = benchmark(get_shopping_info)
+        assert "ingredientName" in result
+        assert result["ingredientName"] == "flour"
+
+    def test_ingredient_shopping_info_throughput(
+        self,
+        benchmark: BenchmarkFixture,
+        ingredient_shopping_perf_client: TestClient,
+    ) -> None:
+        """Benchmark ingredient shopping info endpoint for high throughput."""
+
+        def get_multiple() -> int:
+            success_count = 0
+            for _ in range(10):
+                response = ingredient_shopping_perf_client.get(
+                    "/api/v1/recipe-scraper/ingredients/101/shopping-info",
+                )
+                if response.status_code == 200:
+                    success_count += 1
+            return success_count
+
+        result = benchmark(get_multiple)
+        assert result == 10
+
+    def test_ingredient_shopping_info_with_quantity(
+        self,
+        benchmark: BenchmarkFixture,
+        ingredient_shopping_perf_client: TestClient,
+    ) -> None:
+        """Benchmark ingredient shopping info with quantity parameters."""
+
+        def get_with_quantity() -> dict[str, Any]:
+            response = ingredient_shopping_perf_client.get(
+                "/api/v1/recipe-scraper/ingredients/101/shopping-info",
+                params={"amount": 250.0, "measurement": "G"},
+            )
+            return response.json()
+
+        result = benchmark(get_with_quantity)
+        assert "ingredientName" in result
+        assert result["ingredientName"] == "flour"
