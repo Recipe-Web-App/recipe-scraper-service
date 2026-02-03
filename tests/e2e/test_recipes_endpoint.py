@@ -12,13 +12,14 @@ Tests use testcontainers for Redis and respx for HTTP mocking.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 import respx
 from httpx import ASGITransport, AsyncClient
 
+from app.api.dependencies import get_shopping_service
 from app.auth.providers import set_auth_provider, shutdown_auth_provider
 from app.auth.providers.header import HeaderAuthProvider
 from app.core.config import Settings
@@ -41,6 +42,12 @@ from app.core.config.settings import (
 )
 from app.factory import create_app
 from app.llm.client.ollama import OllamaClient
+from app.schemas.enums import IngredientUnit
+from app.schemas.ingredient import Quantity
+from app.schemas.shopping import (
+    IngredientShoppingInfoResponse,
+    RecipeShoppingInfoResponse,
+)
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.scraping.service import RecipeScraperService
 from tests.fixtures.llm_responses import get_recorded_response
@@ -514,3 +521,162 @@ class TestRecipeCreationE2ETimeout:
         assert response.status_code == 504
         data = response.json()
         assert "SCRAPING_TIMEOUT" in data["message"]
+
+
+class TestRecipeShoppingInfoE2E:
+    """E2E tests for the GET /recipes/{id}/shopping-info endpoint."""
+
+    @respx.mock
+    async def test_get_shopping_info_full_flow(
+        self,
+        recipe_client: AsyncClient,
+    ) -> None:
+        """Test the complete shopping info retrieval flow."""
+        recipe_id = 42
+
+        # Mock the Recipe Management Service to return recipe with ingredients
+        respx.get(
+            f"http://recipe-management-service:8080/api/v1/recipe-management/recipes/{recipe_id}"
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "id": recipe_id,
+                    "title": "Classic Chocolate Chip Cookies",
+                    "slug": "classic-chocolate-chip-cookies",
+                    "servings": 48.0,
+                    "ingredients": [
+                        {
+                            "id": 1,
+                            "ingredientId": 101,
+                            "ingredientName": "all-purpose flour",
+                            "quantity": 2.25,
+                            "unit": "CUP",
+                        },
+                        {
+                            "id": 2,
+                            "ingredientId": 102,
+                            "ingredientName": "butter",
+                            "quantity": 1.0,
+                            "unit": "CUP",
+                        },
+                    ],
+                },
+            )
+        )
+
+        # Mock the shopping service response via dependency override
+        mock_shopping_result = RecipeShoppingInfoResponse(
+            recipe_id=recipe_id,
+            ingredients={
+                "all-purpose flour": IngredientShoppingInfoResponse(
+                    ingredient_name="all-purpose flour",
+                    quantity=Quantity(amount=281.25, measurement=IngredientUnit.G),
+                    estimated_price="0.50",
+                    price_confidence=0.85,
+                    data_source="USDA_FVP",
+                    currency="USD",
+                ),
+                "butter": IngredientShoppingInfoResponse(
+                    ingredient_name="butter",
+                    quantity=Quantity(amount=227.0, measurement=IngredientUnit.G),
+                    estimated_price="3.50",
+                    price_confidence=0.90,
+                    data_source="USDA_FVP",
+                    currency="USD",
+                ),
+            },
+            total_estimated_cost="4.00",
+            missing_ingredients=None,
+        )
+
+        mock_shopping_service = MagicMock()
+        mock_shopping_service.get_recipe_shopping_info = AsyncMock(
+            return_value=mock_shopping_result
+        )
+
+        # Override shopping service
+        recipe_client._transport.app.dependency_overrides[get_shopping_service] = (
+            lambda: mock_shopping_service
+        )
+
+        try:
+            response = await recipe_client.get(
+                f"/api/v1/recipe-scraper/recipes/{recipe_id}/shopping-info",
+                headers=auth_headers(),
+            )
+        finally:
+            recipe_client._transport.app.dependency_overrides.pop(
+                get_shopping_service, None
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["recipeId"] == recipe_id
+        assert "ingredients" in data
+        assert len(data["ingredients"]) == 2
+        assert data["totalEstimatedCost"] == "4.00"
+        assert "all-purpose flour" in data["ingredients"]
+        assert data["ingredients"]["all-purpose flour"]["estimatedPrice"] == "0.50"
+
+    async def test_shopping_info_unauthorized(
+        self,
+        recipe_client: AsyncClient,
+    ) -> None:
+        """Test that unauthenticated requests are rejected."""
+        response = await recipe_client.get(
+            "/api/v1/recipe-scraper/recipes/42/shopping-info",
+        )
+
+        assert response.status_code == 401
+
+    async def test_shopping_info_forbidden_without_permission(
+        self,
+        recipe_client: AsyncClient,
+    ) -> None:
+        """Test that requests without recipe:read permission are rejected."""
+        response = await recipe_client.get(
+            "/api/v1/recipe-scraper/recipes/42/shopping-info",
+            headers=auth_headers(roles="", permissions="recipe:create"),
+        )
+
+        assert response.status_code == 403
+
+    @respx.mock
+    async def test_shopping_info_recipe_not_found(
+        self,
+        recipe_client: AsyncClient,
+    ) -> None:
+        """Test handling when recipe is not found in Recipe Management Service."""
+        recipe_id = 999
+
+        # Mock Recipe Management Service returning 404
+        respx.get(
+            f"http://recipe-management-service:8080/api/v1/recipe-management/recipes/{recipe_id}"
+        ).mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": "NOT_FOUND", "message": "Recipe not found"},
+            )
+        )
+
+        # Must mock the shopping service (dependency is resolved before endpoint code)
+        mock_shopping_service = MagicMock()
+        recipe_client._transport.app.dependency_overrides[get_shopping_service] = (
+            lambda: mock_shopping_service
+        )
+
+        try:
+            response = await recipe_client.get(
+                f"/api/v1/recipe-scraper/recipes/{recipe_id}/shopping-info",
+                headers=auth_headers(),
+            )
+        finally:
+            recipe_client._transport.app.dependency_overrides.pop(
+                get_shopping_service, None
+            )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "NOT_FOUND" in data["message"]

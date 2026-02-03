@@ -9,3 +9,4 @@ ignores:
   - AGENTS.md
   - CLAUDE.md
   - .beads/**
+  - .claude/**
