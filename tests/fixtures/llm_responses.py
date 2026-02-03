@@ -172,3 +172,86 @@ GROQ_STRUCTURED_RESPONSE: dict[str, Any] = create_groq_response(
     prompt_tokens=25,
     completion_tokens=15,
 )
+
+
+# =============================================================================
+# Substitution Responses
+# =============================================================================
+
+
+# Ingredient substitution response (matches SubstitutionListResult schema)
+SUBSTITUTION_RESPONSE: dict[str, Any] = create_ollama_response(
+    content="""{
+    "substitutions": [
+        {
+            "ingredient": "coconut oil",
+            "ratio": 1.0,
+            "measurement": "CUP",
+            "notes": "Best for baking, adds slight coconut flavor",
+            "confidence": 0.9
+        },
+        {
+            "ingredient": "olive oil",
+            "ratio": 0.75,
+            "measurement": "CUP",
+            "notes": "Best for savory dishes",
+            "confidence": 0.85
+        },
+        {
+            "ingredient": "applesauce",
+            "ratio": 0.5,
+            "measurement": "CUP",
+            "notes": "Good for baking, reduces fat content",
+            "confidence": 0.8
+        },
+        {
+            "ingredient": "Greek yogurt",
+            "ratio": 0.5,
+            "measurement": "CUP",
+            "notes": "Adds protein, keeps baked goods moist",
+            "confidence": 0.75
+        },
+        {
+            "ingredient": "mashed banana",
+            "ratio": 0.5,
+            "measurement": "CUP",
+            "notes": "Adds sweetness, best for sweet baked goods",
+            "confidence": 0.7
+        }
+    ]
+}""",
+    prompt_tokens=150,
+    completion_tokens=280,
+)
+
+
+# Groq substitution response
+GROQ_SUBSTITUTION_RESPONSE: dict[str, Any] = create_groq_response(
+    content="""{
+    "substitutions": [
+        {
+            "ingredient": "oat milk",
+            "ratio": 1.0,
+            "measurement": "CUP",
+            "notes": "Creamy texture, good for most recipes",
+            "confidence": 0.9
+        },
+        {
+            "ingredient": "almond milk",
+            "ratio": 1.0,
+            "measurement": "CUP",
+            "notes": "Lighter flavor, good for baking",
+            "confidence": 0.85
+        },
+        {
+            "ingredient": "coconut milk",
+            "ratio": 1.0,
+            "measurement": "CUP",
+            "notes": "Rich and creamy, adds coconut flavor",
+            "confidence": 0.8
+        }
+    ]
+}""",
+    prompt_tokens=120,
+    completion_tokens=180,
+)

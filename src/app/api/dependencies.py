@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from app.services.recipe_management.client import RecipeManagementClient
     from app.services.scraping.service import RecipeScraperService
     from app.services.shopping.service import ShoppingService
+    from app.services.substitution.service import SubstitutionService
 
 
 async def get_scraper_service(request: Request) -> RecipeScraperService:
@@ -192,5 +193,28 @@ async def get_shopping_service(request: Request) -> ShoppingService:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Shopping service not available",
+        )
+    return service
+
+
+async def get_substitution_service(request: Request) -> SubstitutionService:
+    """Get the substitution service from app state.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        Initialized SubstitutionService.
+
+    Raises:
+        HTTPException: 503 if service is not initialized.
+    """
+    service: SubstitutionService | None = getattr(
+        request.app.state, "substitution_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Substitution service not available",
         )
     return service

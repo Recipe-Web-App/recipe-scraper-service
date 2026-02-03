@@ -25,6 +25,7 @@ from app.services.popular.service import PopularRecipesService
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.scraping.service import RecipeScraperService
 from app.services.shopping.service import ShoppingService
+from app.services.substitution.service import SubstitutionService
 from app.workers.jobs import close_arq_pool, get_arq_pool
 
 
@@ -94,6 +95,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
 
     # Initialize Shopping Service (optional - non-critical)
     await _init_shopping_service(app, cache_client)
+
+    # Initialize Substitution Service (optional - non-critical, requires LLM)
+    await _init_substitution_service(app, cache_client)
 
     # Initialize Recipe Scraper Service (optional - non-critical)
     await _init_scraper_service(app, cache_client)
@@ -195,6 +199,36 @@ async def _init_shopping_service(
             "Failed to initialize ShoppingService - shopping queries unavailable"
         )
         app.state.shopping_service = None
+
+
+async def _init_substitution_service(
+    app: FastAPI, cache_client: Redis[bytes] | None
+) -> None:
+    """Initialize substitution service (requires LLM)."""
+    # Get LLM client - required for substitution service
+    llm_client: LLMClientProtocol | None = None
+    try:
+        llm_client = get_llm_client()
+    except RuntimeError:
+        logger.warning(
+            "LLM client not available - substitution service will be unavailable"
+        )
+        app.state.substitution_service = None
+        return
+
+    try:
+        substitution_service = SubstitutionService(
+            cache_client=cache_client,
+            llm_client=llm_client,
+        )
+        await substitution_service.initialize()
+        app.state.substitution_service = substitution_service
+        logger.info("SubstitutionService initialized")
+    except Exception:
+        logger.exception(
+            "Failed to initialize SubstitutionService - substitutions unavailable"
+        )
+        app.state.substitution_service = None
 
 
 async def _init_scraper_service(
@@ -312,6 +346,11 @@ async def _shutdown(app: FastAPI) -> None:
     if hasattr(app.state, "shopping_service") and app.state.shopping_service:
         await app.state.shopping_service.shutdown()
         logger.debug("ShoppingService shutdown")
+
+    # Shutdown Substitution Service
+    if hasattr(app.state, "substitution_service") and app.state.substitution_service:
+        await app.state.substitution_service.shutdown()
+        logger.debug("SubstitutionService shutdown")
 
     # Shutdown LLM client
     await _shutdown_llm_client()

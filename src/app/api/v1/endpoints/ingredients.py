@@ -3,6 +3,7 @@
 Provides:
 - GET /ingredients/{ingredientId}/nutritional-info for fetching nutrition data
 - GET /ingredients/{ingredientId}/allergens for fetching allergen data
+- GET /ingredients/{ingredientId}/substitutions for substitution recommendations
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from app.api.dependencies import (
     get_allergen_service,
     get_nutrition_service,
     get_shopping_service,
+    get_substitution_service,
 )
 from app.auth.dependencies import CurrentUser, RequirePermissions
 from app.auth.permissions import Permission
@@ -23,12 +25,15 @@ from app.schemas.allergen import IngredientAllergenResponse
 from app.schemas.enums import IngredientUnit
 from app.schemas.ingredient import Quantity
 from app.schemas.nutrition import IngredientNutritionalInfoResponse
+from app.schemas.recommendations import RecommendedSubstitutionsResponse
 from app.schemas.shopping import IngredientShoppingInfoResponse
 from app.services.allergen.service import AllergenService  # noqa: TC001
 from app.services.nutrition.exceptions import ConversionError
 from app.services.nutrition.service import NutritionService  # noqa: TC001
 from app.services.shopping.exceptions import IngredientNotFoundError
 from app.services.shopping.service import ShoppingService  # noqa: TC001
+from app.services.substitution.exceptions import LLMGenerationError
+from app.services.substitution.service import SubstitutionService  # noqa: TC001
 
 
 logger = get_logger(__name__)
@@ -459,6 +464,195 @@ async def get_ingredient_shopping_info(
         ingredient_name=result.ingredient_name,
         has_price=result.estimated_price is not None,
         data_source=result.data_source,
+    )
+
+    return result
+
+
+@router.get(
+    "/ingredients/{ingredient_id}/substitutions",
+    response_model=RecommendedSubstitutionsResponse,
+    summary="Get substitution recommendations for an ingredient",
+    description=(
+        "Retrieves AI-generated substitution recommendations for an ingredient. "
+        "Each substitution includes a conversion ratio for accurate replacement. "
+        "Optionally provide amount and measurement for context-aware suggestions."
+    ),
+    responses={
+        400: {
+            "description": "Invalid parameters (amount/measurement must be provided together)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "INVALID_QUANTITY_PARAMS",
+                        "message": (
+                            "Both 'amount' and 'measurement' must be provided "
+                            "together, or neither"
+                        ),
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Ingredient not found or no substitutions available",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "INGREDIENT_NOT_FOUND",
+                        "message": "No substitution data found for ingredient: xyz",
+                    }
+                }
+            },
+        },
+        503: {
+            "description": "Substitution service unavailable (LLM unavailable)",
+        },
+    },
+)
+async def get_ingredient_substitutions(
+    ingredient_id: str,
+    user: Annotated[CurrentUser, Depends(RequirePermissions(Permission.RECIPE_READ))],
+    substitution_service: Annotated[
+        SubstitutionService, Depends(get_substitution_service)
+    ],
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description="Maximum number of substitutions to return (1-100)",
+        ),
+    ] = 50,
+    offset: Annotated[
+        int,
+        Query(
+            ge=0,
+            description="Number of substitutions to skip for pagination",
+        ),
+    ] = 0,
+    count_only: Annotated[
+        bool,
+        Query(
+            alias="countOnly",
+            description="Return only the total count instead of substitution data",
+        ),
+    ] = False,
+    amount: Annotated[
+        float | None,
+        Query(
+            gt=0,
+            description="Quantity amount for context-aware suggestions",
+        ),
+    ] = None,
+    measurement: Annotated[
+        IngredientUnit | None,
+        Query(
+            description="Unit of measurement for context-aware suggestions",
+        ),
+    ] = None,
+) -> RecommendedSubstitutionsResponse:
+    """Get substitution recommendations for an ingredient.
+
+    This endpoint uses an LLM to generate intelligent ingredient substitution
+    recommendations. Results are cached for 7 days to minimize LLM calls.
+
+    Args:
+        ingredient_id: The ingredient name/identifier.
+        user: Authenticated user with RECIPE_READ permission.
+        substitution_service: Service for generating substitutions.
+        limit: Maximum number of results to return.
+        offset: Number of results to skip for pagination.
+        count_only: If True, returns only the count without data.
+        amount: Optional quantity amount for contextual suggestions.
+        measurement: Optional unit of measurement for contextual suggestions.
+
+    Returns:
+        Substitution recommendations for the ingredient.
+
+    Raises:
+        HTTPException: 400 if only one of amount/measurement provided.
+        HTTPException: 404 if ingredient not found.
+        HTTPException: 503 if LLM is unavailable.
+    """
+    # Validate that amount and measurement are provided together
+    if (amount is None) != (measurement is None):
+        logger.warning(
+            "Invalid quantity parameters for substitutions",
+            ingredient_id=ingredient_id,
+            amount=amount,
+            measurement=measurement,
+            user_id=user.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "INVALID_QUANTITY_PARAMS",
+                "message": (
+                    "Both 'amount' and 'measurement' must be provided together, "
+                    "or neither"
+                ),
+            },
+        )
+
+    # Build quantity if provided
+    quantity: Quantity | None = None
+    if amount is not None and measurement is not None:
+        quantity = Quantity(amount=amount, measurement=measurement)
+
+    logger.info(
+        "Fetching substitutions",
+        ingredient_id=ingredient_id,
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+        has_quantity=quantity is not None,
+        user_id=user.id,
+    )
+
+    # Get substitutions from service
+    try:
+        result = await substitution_service.get_substitutions(
+            ingredient_id=ingredient_id,
+            quantity=quantity,
+            limit=limit,
+            offset=offset,
+        )
+    except LLMGenerationError as e:
+        logger.warning(
+            "LLM generation failed for substitutions",
+            ingredient_id=ingredient_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "LLM_UNAVAILABLE",
+                "message": "Substitution service temporarily unavailable",
+            },
+        ) from None
+
+    if result is None:
+        logger.info(
+            "Substitution data not found",
+            ingredient_id=ingredient_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "INGREDIENT_NOT_FOUND",
+                "message": f"No substitution data found for ingredient: {ingredient_id}",
+            },
+        )
+
+    # If count_only requested, clear the substitutions list
+    if count_only:
+        result.recommended_substitutions = []
+
+    logger.debug(
+        "Returning substitutions",
+        ingredient_id=ingredient_id,
+        substitution_count=len(result.recommended_substitutions),
+        total_count=result.count,
     )
 
     return result
