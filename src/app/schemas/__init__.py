@@ -3,6 +3,9 @@
 This module exports all schema classes for the Recipe Scraper API.
 """
 
+# Admin schemas
+from app.schemas.admin import CacheClearResponse
+
 # Auth schemas (existing)
 # Allergen schemas
 from app.schemas.allergen import (
@@ -105,6 +108,7 @@ __all__ = [
     "AllergenDataSource",
     "AllergenInfo",
     "AllergenPresenceType",
+    "CacheClearResponse",
     "ConversionRatio",
     "CreateRecipeRequest",
     "CreateRecipeResponse",
