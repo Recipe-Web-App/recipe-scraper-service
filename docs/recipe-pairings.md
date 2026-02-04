@@ -260,7 +260,7 @@ flowchart TB
     end
 
     subgraph "User Prompt"
-        UP[Recipe: {title}<br/>Description: {description}<br/>Ingredients: {ingredients}]
+        UP["Recipe: title<br/>Description: desc<br/>Ingredients: list"]
     end
 
     subgraph "LLM Output Schema"
