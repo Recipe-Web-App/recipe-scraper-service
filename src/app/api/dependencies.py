@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
     from app.services.allergen.service import AllergenService
     from app.services.nutrition.service import NutritionService
+    from app.services.pairings.service import PairingsService
     from app.services.popular.service import PopularRecipesService
     from app.services.recipe_management.client import RecipeManagementClient
     from app.services.scraping.service import RecipeScraperService
@@ -216,5 +217,28 @@ async def get_substitution_service(request: Request) -> SubstitutionService:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Substitution service not available",
+        )
+    return service
+
+
+async def get_pairings_service(request: Request) -> PairingsService:
+    """Get the pairings service from app state.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        Initialized PairingsService.
+
+    Raises:
+        HTTPException: 503 if service is not initialized.
+    """
+    service: PairingsService | None = getattr(
+        request.app.state, "pairings_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pairings service not available",
         )
     return service

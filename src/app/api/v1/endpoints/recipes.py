@@ -18,6 +18,7 @@ from app.api.dependencies import (
     get_allergen_service,
     get_ingredient_parser,
     get_nutrition_service,
+    get_pairings_service,
     get_recipe_management_client,
     get_redis_cache_client,
     get_scraper_service,
@@ -43,9 +44,12 @@ from app.schemas.nutrition import (
     RecipeNutritionalInfoResponse,
 )
 from app.schemas.recipe import PopularRecipesData
+from app.schemas.recommendations import PairingSuggestionsResponse
 from app.schemas.shopping import RecipeShoppingInfoResponse
 from app.services.allergen.service import AllergenService  # noqa: TC001
 from app.services.nutrition.service import NutritionService  # noqa: TC001
+from app.services.pairings.exceptions import LLMGenerationError as PairingsLLMError
+from app.services.pairings.service import PairingsService, RecipeContext
 from app.services.recipe_management.client import RecipeManagementClient  # noqa: TC001
 from app.services.recipe_management.exceptions import (
     RecipeManagementError,
@@ -979,3 +983,169 @@ async def get_recipe_shopping_info(
         content=response_content,
         status_code=status.HTTP_200_OK,
     )
+
+
+@router.get(
+    "/recipes/{recipeId}/pairings",
+    response_model=PairingSuggestionsResponse,
+    summary="Get recipe pairing suggestions",
+    description=(
+        "Returns AI-powered recipe pairing suggestions based on flavor profiles, "
+        "cuisine types, and ingredient compatibility. Suggests complementary dishes "
+        "including sides, appetizers, desserts, and beverages."
+    ),
+    responses={
+        200: {
+            "description": "Pairing suggestions retrieved successfully",
+        },
+        404: {
+            "description": "Recipe not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "NOT_FOUND",
+                        "message": "Recipe with identifier '123' not found",
+                    }
+                }
+            },
+        },
+        503: {
+            "description": "Service unavailable (LLM unavailable)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "LLM_UNAVAILABLE",
+                        "message": "Pairings service temporarily unavailable",
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_recipe_pairings(
+    recipe_id: Annotated[int, Path(alias="recipeId", ge=1)],
+    user: Annotated[CurrentUser, Depends(RequirePermissions(Permission.RECIPE_READ))],
+    recipe_client: Annotated[
+        RecipeManagementClient, Depends(get_recipe_management_client)
+    ],
+    pairings_service: Annotated[PairingsService, Depends(get_pairings_service)],
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    count_only: Annotated[bool, Query(alias="countOnly")] = False,
+) -> PairingSuggestionsResponse:
+    """Get pairing suggestions for a recipe.
+
+    This endpoint fetches recipe details from the Recipe Management Service,
+    then generates AI-powered pairing suggestions based on flavor profiles,
+    cuisine types, and ingredient compatibility.
+
+    Args:
+        recipe_id: ID of the recipe.
+        user: Authenticated user with RECIPE_READ permission.
+        recipe_client: Client for Recipe Management Service.
+        pairings_service: Service for generating pairing suggestions.
+        request: The incoming HTTP request.
+        limit: Maximum number of pairings to return (1-100).
+        offset: Starting index for pagination.
+        count_only: If True, return only count without pairing data.
+
+    Returns:
+        PairingSuggestionsResponse with pairing recommendations.
+
+    Raises:
+        HTTPException: 404 if recipe not found.
+        HTTPException: 503 if pairings service unavailable.
+    """
+    # Extract auth token for downstream call
+    auth_header = request.headers.get("Authorization", "")
+    auth_token = auth_header.replace("Bearer ", "") if auth_header else ""
+
+    logger.info(
+        "Fetching pairing suggestions for recipe",
+        recipe_id=recipe_id,
+        limit=limit,
+        offset=offset,
+        count_only=count_only,
+        user_id=user.id,
+    )
+
+    # Step 1: Fetch recipe from Recipe Management Service
+    try:
+        recipe = await recipe_client.get_recipe(recipe_id, auth_token)
+    except RecipeManagementNotFoundError:
+        logger.info("Recipe not found", recipe_id=recipe_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "NOT_FOUND",
+                "message": f"Recipe with identifier '{recipe_id}' not found",
+            },
+        ) from None
+    except RecipeManagementUnavailableError:
+        logger.warning("Recipe Management Service unavailable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "SERVICE_UNAVAILABLE",
+                "message": "Recipe Management Service is not available",
+            },
+        ) from None
+    except RecipeManagementError as e:
+        logger.exception("Recipe Management Service error")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "error": "DOWNSTREAM_ERROR",
+                "message": f"Recipe Management Service error: {e}",
+            },
+        ) from None
+
+    # Step 2: Build recipe context for pairings service
+    context = RecipeContext(
+        recipe_id=recipe_id,
+        title=recipe.title,
+        description=recipe.description,
+        ingredients=[ing.ingredient_name for ing in recipe.ingredients],
+    )
+
+    # Step 3: Get pairings from service
+    try:
+        result = await pairings_service.get_pairings(
+            context=context,
+            limit=limit,
+            offset=offset,
+        )
+    except PairingsLLMError:
+        logger.warning("LLM unavailable for pairing generation", recipe_id=recipe_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "LLM_UNAVAILABLE",
+                "message": "Pairings service temporarily unavailable",
+            },
+        ) from None
+
+    # Handle None result (service not initialized)
+    if result is None:
+        logger.warning("Pairings service returned None", recipe_id=recipe_id)
+        return PairingSuggestionsResponse(
+            recipe_id=recipe_id,
+            pairing_suggestions=[],
+            limit=limit,
+            offset=offset,
+            count=0,
+        )
+
+    # Step 4: Apply countOnly filter
+    if count_only:
+        result.pairing_suggestions = []
+
+    logger.info(
+        "Returning pairing suggestions",
+        recipe_id=recipe_id,
+        count=result.count,
+        returned_count=len(result.pairing_suggestions),
+    )
+
+    return result
