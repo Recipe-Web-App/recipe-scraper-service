@@ -21,6 +21,7 @@ from app.observability.logging import get_logger, setup_logging
 from app.observability.tracing import shutdown_tracing
 from app.services.allergen.service import AllergenService
 from app.services.nutrition.service import NutritionService
+from app.services.pairings.service import PairingsService
 from app.services.popular.service import PopularRecipesService
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.scraping.service import RecipeScraperService
@@ -98,6 +99,9 @@ async def _startup(app: FastAPI, settings: Settings) -> None:
 
     # Initialize Substitution Service (optional - non-critical, requires LLM)
     await _init_substitution_service(app, cache_client)
+
+    # Initialize Pairings Service (optional - non-critical, requires LLM)
+    await _init_pairings_service(app, cache_client)
 
     # Initialize Recipe Scraper Service (optional - non-critical)
     await _init_scraper_service(app, cache_client)
@@ -231,6 +235,34 @@ async def _init_substitution_service(
         app.state.substitution_service = None
 
 
+async def _init_pairings_service(
+    app: FastAPI, cache_client: Redis[bytes] | None
+) -> None:
+    """Initialize pairings service (requires LLM)."""
+    # Get LLM client - required for pairings service
+    llm_client: LLMClientProtocol | None = None
+    try:
+        llm_client = get_llm_client()
+    except RuntimeError:
+        logger.warning(
+            "LLM client not available - pairings service will be unavailable"
+        )
+        app.state.pairings_service = None
+        return
+
+    try:
+        pairings_service = PairingsService(
+            cache_client=cache_client,
+            llm_client=llm_client,
+        )
+        await pairings_service.initialize()
+        app.state.pairings_service = pairings_service
+        logger.info("PairingsService initialized")
+    except Exception:
+        logger.exception("Failed to initialize PairingsService - pairings unavailable")
+        app.state.pairings_service = None
+
+
 async def _init_scraper_service(
     app: FastAPI, cache_client: Redis[bytes] | None
 ) -> None:
@@ -351,6 +383,11 @@ async def _shutdown(app: FastAPI) -> None:
     if hasattr(app.state, "substitution_service") and app.state.substitution_service:
         await app.state.substitution_service.shutdown()
         logger.debug("SubstitutionService shutdown")
+
+    # Shutdown Pairings Service
+    if hasattr(app.state, "pairings_service") and app.state.pairings_service:
+        await app.state.pairings_service.shutdown()
+        logger.debug("PairingsService shutdown")
 
     # Shutdown LLM client
     await _shutdown_llm_client()
