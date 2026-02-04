@@ -208,3 +208,21 @@ async def check_redis_health() -> dict[str, str]:
         results["redis_rate_limit"] = "unhealthy"
 
     return results
+
+
+async def clear_cache() -> None:
+    """Clear all keys from the cache Redis instance.
+
+    This flushes the entire cache database. Only affects the cache instance,
+    not the queue or rate limit instances.
+
+    Raises:
+        RuntimeError: If cache client is not initialized.
+    """
+    if _cache_client is None:
+        msg = "Redis cache client not initialized. Call init_redis_pools() first."
+        raise RuntimeError(msg)
+
+    logger.info("Clearing cache database")
+    await _cache_client.flushdb()
+    logger.info("Cache database cleared")

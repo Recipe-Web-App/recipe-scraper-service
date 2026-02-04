@@ -118,6 +118,7 @@ def mock_redis() -> MagicMock:
     mock.ttl = AsyncMock(return_value=-2)
     mock.ping = AsyncMock(return_value=True)
     mock.close = AsyncMock()
+    mock.flushdb = AsyncMock(return_value=True)
 
     # Scan iterator mock
     async def mock_scan_iter(*args: Any, **kwargs: Any) -> AsyncGenerator[str]:
