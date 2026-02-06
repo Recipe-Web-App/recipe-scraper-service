@@ -10,6 +10,7 @@ import pytest
 
 from app.services.recipe_management.client import RecipeManagementClient
 from app.services.recipe_management.exceptions import (
+    RecipeManagementNotFoundError,
     RecipeManagementResponseError,
     RecipeManagementTimeoutError,
     RecipeManagementUnavailableError,
@@ -361,3 +362,202 @@ class TestCreateRecipeRequestSerialization:
         assert "preparationTime" not in data
         assert "cookingTime" not in data
         assert "difficulty" not in data
+
+
+class TestRecipeManagementClientGetRecipe:
+    """Tests for get_recipe method."""
+
+    async def test_get_recipe_success(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should fetch recipe and return response."""
+        await client.initialize()
+
+        response_data = {
+            "id": 123,
+            "title": "Test Recipe",
+            "slug": "test-recipe",
+            "description": "A test recipe",
+            "servings": 4,
+            "ingredients": [
+                {
+                    "id": 1,
+                    "ingredientName": "flour",
+                    "quantity": 2.0,
+                    "unit": "CUP",
+                }
+            ],
+            "steps": [{"id": 1, "stepNumber": 1, "instruction": "Mix"}],
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = orjson.dumps(response_data)
+
+        client._http_client.get = AsyncMock(return_value=mock_response)  # type: ignore[union-attr]
+
+        result = await client.get_recipe(123, "test-token")
+
+        assert result.id == 123
+        assert result.title == "Test Recipe"
+        assert len(result.ingredients) == 1
+
+        await client.shutdown()
+
+    async def test_get_recipe_sends_auth_header(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should send Authorization header."""
+        await client.initialize()
+
+        response_data = {
+            "id": 1,
+            "title": "Test",
+            "slug": "test",
+            "description": "desc",
+            "servings": 2,
+            "ingredients": [],
+            "steps": [],
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = orjson.dumps(response_data)
+
+        client._http_client.get = AsyncMock(return_value=mock_response)  # type: ignore[union-attr]
+
+        await client.get_recipe(1, "my-auth-token")
+
+        call_args = client._http_client.get.call_args  # type: ignore[union-attr]
+        headers = call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer my-auth-token"
+
+        await client.shutdown()
+
+    async def test_get_recipe_raises_when_not_initialized(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should raise RuntimeError if client not initialized."""
+        with pytest.raises(RuntimeError, match="not initialized"):
+            await client.get_recipe(123, "token")
+
+    async def test_get_recipe_raises_not_found_on_404(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should raise RecipeManagementNotFoundError on 404."""
+        await client.initialize()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+
+        client._http_client.get = AsyncMock(return_value=mock_response)  # type: ignore[union-attr]
+
+        with pytest.raises(RecipeManagementNotFoundError):
+            await client.get_recipe(999, "token")
+
+        await client.shutdown()
+
+    async def test_get_recipe_raises_timeout_error(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should raise RecipeManagementTimeoutError on timeout."""
+        await client.initialize()
+
+        client._http_client.get = AsyncMock(  # type: ignore[union-attr]
+            side_effect=httpx.TimeoutException("timeout")
+        )
+
+        with pytest.raises(RecipeManagementTimeoutError):
+            await client.get_recipe(123, "token")
+
+        await client.shutdown()
+
+    async def test_get_recipe_raises_unavailable_error(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should raise RecipeManagementUnavailableError on connection error."""
+        await client.initialize()
+
+        client._http_client.get = AsyncMock(  # type: ignore[union-attr]
+            side_effect=httpx.RequestError("Connection refused")
+        )
+
+        with pytest.raises(RecipeManagementUnavailableError):
+            await client.get_recipe(123, "token")
+
+        await client.shutdown()
+
+    async def test_get_recipe_raises_response_error_on_server_error(
+        self,
+        client: RecipeManagementClient,
+    ) -> None:
+        """Should raise RecipeManagementResponseError on 500."""
+        await client.initialize()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.content = orjson.dumps({"message": "Internal error"})
+
+        client._http_client.get = AsyncMock(return_value=mock_response)  # type: ignore[union-attr]
+
+        with pytest.raises(RecipeManagementResponseError) as exc_info:
+            await client.get_recipe(123, "token")
+
+        assert exc_info.value.status_code == 500
+
+        await client.shutdown()
+
+
+class TestRecipeManagementClientErrorHandling:
+    """Tests for error response handling edge cases."""
+
+    async def test_handles_invalid_json_in_error_response(
+        self,
+        client: RecipeManagementClient,
+        sample_request: CreateRecipeRequest,
+    ) -> None:
+        """Should handle non-JSON error response body."""
+        await client.initialize()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.content = b"Not valid JSON"
+        mock_response.text = "Internal Server Error"
+
+        client._http_client.post = AsyncMock(return_value=mock_response)  # type: ignore[union-attr]
+
+        with pytest.raises(RecipeManagementResponseError) as exc_info:
+            await client.create_recipe(sample_request, "token")
+
+        assert exc_info.value.status_code == 500
+        assert "Internal Server Error" in str(exc_info.value)
+
+        await client.shutdown()
+
+    async def test_handles_empty_error_response_body(
+        self,
+        client: RecipeManagementClient,
+        sample_request: CreateRecipeRequest,
+    ) -> None:
+        """Should handle empty error response body."""
+        await client.initialize()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.content = b""
+        mock_response.text = ""
+
+        client._http_client.post = AsyncMock(return_value=mock_response)  # type: ignore[union-attr]
+
+        with pytest.raises(RecipeManagementResponseError) as exc_info:
+            await client.create_recipe(sample_request, "token")
+
+        assert exc_info.value.status_code == 503
+
+        await client.shutdown()

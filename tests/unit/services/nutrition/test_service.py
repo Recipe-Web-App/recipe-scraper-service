@@ -120,6 +120,50 @@ class TestNutritionServiceLifecycle:
 
         await service.shutdown()
 
+    async def test_initialize_gets_cache_client_when_none(self) -> None:
+        """Should try to get cache client when not provided."""
+        mock_cache = MagicMock()
+        service = NutritionService(cache_client=None, repository=MagicMock())
+
+        with patch(
+            "app.services.nutrition.service.get_cache_client",
+            return_value=mock_cache,
+        ):
+            await service.initialize()
+
+        assert service._cache_client is mock_cache
+        await service.shutdown()
+
+    async def test_initialize_handles_cache_unavailable(self) -> None:
+        """Should log warning when cache unavailable."""
+        service = NutritionService(cache_client=None, repository=MagicMock())
+
+        with patch(
+            "app.services.nutrition.service.get_cache_client",
+            side_effect=RuntimeError("Redis not available"),
+        ):
+            await service.initialize()
+
+        # Should still initialize
+        assert service._converter is not None
+        assert service._cache_client is None
+        await service.shutdown()
+
+    async def test_initialize_creates_repository_when_none(self) -> None:
+        """Should create repository when not provided."""
+        service = NutritionService(cache_client=MagicMock(), repository=None)
+
+        with patch(
+            "app.services.nutrition.service.NutritionRepository"
+        ) as mock_repo_class:
+            mock_repo_instance = MagicMock()
+            mock_repo_class.return_value = mock_repo_instance
+
+            await service.initialize()
+
+        assert service._repository is mock_repo_instance
+        await service.shutdown()
+
     async def test_shutdown_completes_without_error(
         self,
         service: NutritionService,
@@ -291,6 +335,32 @@ class TestGetIngredientNutritionCaching:
 
 class TestGetRecipeNutrition:
     """Tests for get_recipe_nutrition method."""
+
+    async def test_returns_missing_when_not_initialized(
+        self,
+        service: NutritionService,
+    ) -> None:
+        """Should return all ingredients as missing when not initialized."""
+        # Don't call initialize
+        ingredients = [
+            Ingredient(
+                ingredient_id=1,
+                name="flour",
+                quantity=Quantity(amount=100, measurement=IngredientUnit.G),
+            ),
+            Ingredient(
+                ingredient_id=2,
+                name="sugar",
+                quantity=Quantity(amount=50, measurement=IngredientUnit.G),
+            ),
+        ]
+
+        result = await service.get_recipe_nutrition(ingredients)
+
+        assert result.ingredients is None
+        assert result.missing_ingredients is not None
+        assert 1 in result.missing_ingredients
+        assert 2 in result.missing_ingredients
 
     async def test_aggregates_multiple_ingredients(
         self,

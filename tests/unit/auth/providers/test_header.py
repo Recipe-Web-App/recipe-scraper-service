@@ -10,6 +10,9 @@ from app.auth.providers.exceptions import AuthenticationError
 from app.auth.providers.header import HeaderAuthProvider
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestHeaderAuthProvider:
     """Tests for HeaderAuthProvider."""
 

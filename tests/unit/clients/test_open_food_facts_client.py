@@ -342,3 +342,94 @@ class TestSerialization:
         assert len(deserialized.allergens) == len(original.allergens)
         assert deserialized.allergens[0].allergen == Allergen.GLUTEN
         assert deserialized.allergens[1].allergen == Allergen.MILK
+
+
+class TestParseProductEdgeCases:
+    """Tests for _parse_product edge cases."""
+
+    def test_handles_non_string_product_name(self) -> None:
+        """Should handle non-string product_name."""
+        client = OpenFoodFactsClient()
+        product_data: dict[str, object] = {
+            "product_name": 12345,  # Not a string
+            "allergens_tags": [],
+        }
+
+        result = client._parse_product(product_data)
+
+        assert result.product_name == ""
+
+    def test_handles_non_list_allergens_tags(self) -> None:
+        """Should handle non-list allergens_tags."""
+        client = OpenFoodFactsClient()
+        product_data: dict[str, object] = {
+            "product_name": "Test",
+            "allergens_tags": "not a list",
+        }
+
+        result = client._parse_product(product_data)
+
+        assert result.allergens == ()
+
+    def test_handles_non_string_tag_in_list(self) -> None:
+        """Should skip non-string tags in allergens_tags."""
+        client = OpenFoodFactsClient()
+        product_data: dict[str, object] = {
+            "product_name": "Test",
+            "allergens_tags": [123, "en:gluten"],  # First is not a string
+        }
+
+        result = client._parse_product(product_data)
+
+        assert len(result.allergens) == 1
+        assert result.allergens[0].allergen == Allergen.GLUTEN
+
+
+class TestCacheEdgeCases:
+    """Tests for cache-related edge cases."""
+
+    async def test_get_from_cache_returns_none_when_no_cache(self) -> None:
+        """Should return None when cache client is None."""
+        client = OpenFoodFactsClient(cache_client=None)
+
+        result = await client._get_from_cache("test")
+
+        assert result is None
+
+    async def test_get_from_cache_handles_exception(
+        self,
+        mock_cache_client: MagicMock,
+    ) -> None:
+        """Should handle cache read exceptions gracefully."""
+        mock_cache_client.get.side_effect = Exception("Redis error")
+        client = OpenFoodFactsClient(cache_client=mock_cache_client)
+
+        result = await client._get_from_cache("test")
+
+        assert result is None
+
+    async def test_save_to_cache_does_nothing_when_no_cache(self) -> None:
+        """Should not error when cache client is None."""
+        client = OpenFoodFactsClient(cache_client=None)
+        product = OpenFoodFactsProduct(
+            product_name="Test",
+            allergens=(OpenFoodFactsAllergen(Allergen.GLUTEN, "CONTAINS"),),
+        )
+
+        # Should not raise
+        await client._save_to_cache("test", product)
+
+    async def test_save_to_cache_handles_exception(
+        self,
+        mock_cache_client: MagicMock,
+    ) -> None:
+        """Should handle cache write exceptions gracefully."""
+        mock_cache_client.setex.side_effect = Exception("Redis error")
+        client = OpenFoodFactsClient(cache_client=mock_cache_client)
+        product = OpenFoodFactsProduct(
+            product_name="Test",
+            allergens=(OpenFoodFactsAllergen(Allergen.GLUTEN, "CONTAINS"),),
+        )
+
+        # Should not raise
+        await client._save_to_cache("test", product)

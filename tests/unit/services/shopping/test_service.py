@@ -532,3 +532,130 @@ class TestGetRecipeShoppingInfo:
 
         assert len(result.ingredients) == 1
         assert "chicken" in result.ingredients
+
+
+class TestShoppingServiceInitialization:
+    """Tests for service initialization edge cases."""
+
+    async def test_initialize_handles_cache_unavailable(self) -> None:
+        """Test initialize handles cache unavailability gracefully."""
+        from unittest.mock import patch
+
+        # Create service without injected dependencies
+        service = ShoppingService()
+
+        with (
+            patch(
+                "app.services.shopping.service.get_cache_client",
+                side_effect=Exception("Redis unavailable"),
+            ),
+            patch("app.services.shopping.service.PricingRepository") as mock_repo_class,
+            patch(
+                "app.services.shopping.service.NutritionRepository"
+            ) as mock_nutrition_class,
+            patch("app.services.shopping.service.UnitConverter"),
+        ):
+            mock_repo_class.return_value = MagicMock()
+            mock_nutrition_class.return_value = MagicMock()
+
+            await service.initialize()
+
+            # Should be initialized even without cache
+            assert service._initialized is True
+            assert service._cache_client is None
+
+    async def test_initialize_creates_repositories_when_none(self) -> None:
+        """Test initialize creates repositories when not injected."""
+        from unittest.mock import patch
+
+        service = ShoppingService()
+
+        with (
+            patch(
+                "app.services.shopping.service.get_cache_client",
+                new_callable=AsyncMock,
+            ) as mock_get_cache,
+            patch("app.services.shopping.service.PricingRepository") as mock_repo_class,
+            patch(
+                "app.services.shopping.service.NutritionRepository"
+            ) as mock_nutrition_class,
+            patch(
+                "app.services.shopping.service.UnitConverter"
+            ) as mock_converter_class,
+        ):
+            mock_cache = MagicMock()
+            mock_get_cache.return_value = mock_cache
+            mock_repo = MagicMock()
+            mock_repo_class.return_value = mock_repo
+            mock_nutrition_repo = MagicMock()
+            mock_nutrition_class.return_value = mock_nutrition_repo
+            mock_converter_class.return_value = MagicMock()
+
+            await service.initialize()
+
+            mock_repo_class.assert_called_once()
+            mock_nutrition_class.assert_called_once()
+            assert service._repository is mock_repo
+            assert service._nutrition_repository is mock_nutrition_repo
+
+
+class TestShoppingServiceNotInitialized:
+    """Tests for service methods when not initialized."""
+
+    async def test_get_recipe_shopping_info_raises_when_not_initialized(self) -> None:
+        """Test get_recipe_shopping_info raises when not initialized."""
+        service = ShoppingService()
+
+        with pytest.raises(RuntimeError, match="not initialized"):
+            await service.get_recipe_shopping_info(recipe_id=1, ingredients=[])
+
+
+class TestShoppingServiceCacheEdgeCases:
+    """Tests for cache-related edge cases."""
+
+    async def test_get_from_cache_returns_none_when_cache_unavailable(
+        self,
+        service: ShoppingService,
+    ) -> None:
+        """Test _get_from_cache returns None when cache client is None."""
+        service._cache_client = None
+
+        result = await service._get_from_cache("some_key")
+
+        assert result is None
+
+    async def test_get_from_cache_handles_exception(
+        self,
+        service: ShoppingService,
+    ) -> None:
+        """Test _get_from_cache handles exceptions gracefully."""
+        service._cache_client = AsyncMock()
+        service._cache_client.get = AsyncMock(side_effect=Exception("Connection lost"))
+
+        result = await service._get_from_cache("some_key")
+
+        assert result is None
+
+    async def test_cache_result_does_nothing_when_cache_unavailable(
+        self,
+        service: ShoppingService,
+    ) -> None:
+        """Test _cache_result does nothing when cache client is None."""
+        service._cache_client = None
+
+        # Should not raise
+        await service._cache_result("some_key", MagicMock())
+
+    async def test_cache_result_handles_exception(
+        self,
+        service: ShoppingService,
+    ) -> None:
+        """Test _cache_result handles exceptions gracefully."""
+        service._cache_client = AsyncMock()
+        service._cache_client.setex = AsyncMock(side_effect=Exception("Write failed"))
+
+        mock_response = MagicMock()
+        mock_response.model_dump.return_value = {"test": "data"}
+
+        # Should not raise
+        await service._cache_result("some_key", mock_response)

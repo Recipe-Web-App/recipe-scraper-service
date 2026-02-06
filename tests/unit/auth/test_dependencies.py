@@ -4,9 +4,12 @@ Tests cover:
 - CurrentUser model
 - Permission and role requirements
 - Convenience functions
+- Async authentication dependencies
 """
 
 from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -19,10 +22,21 @@ from app.auth.dependencies import (
     RequirePermissions,
     RequirePremium,
     RequireRoles,
+    get_auth_result,
+    get_auth_result_optional,
+    get_current_user,
+    get_current_user_optional,
     require_permissions,
     require_roles,
 )
 from app.auth.permissions import Permission, Role
+from app.auth.providers import (
+    AuthenticationError,
+    AuthResult,
+    AuthServiceUnavailableError,
+    TokenExpiredError,
+    TokenInvalidError,
+)
 
 
 pytestmark = pytest.mark.unit
@@ -321,3 +335,379 @@ class TestPrebuiltDependencies:
         assert isinstance(RequirePremium, RequireRoles)
         assert Role.ADMIN in RequirePremium.roles
         assert Role.PREMIUM in RequirePremium.roles
+
+
+# =============================================================================
+# Async Authentication Dependency Tests
+# =============================================================================
+
+
+class TestCurrentUserFromAuthResult:
+    """Tests for CurrentUser.from_auth_result class method."""
+
+    def test_maps_all_fields_correctly(self) -> None:
+        """Should map all AuthResult fields to CurrentUser."""
+        auth_result = AuthResult(
+            user_id="user-789",
+            roles=["admin", "user"],
+            permissions=["recipe:read", "recipe:write"],
+            token_type="access",
+        )
+
+        user = CurrentUser.from_auth_result(auth_result)
+
+        assert user.id == "user-789"
+        assert user.roles == ["admin", "user"]
+        assert user.permissions == ["recipe:read", "recipe:write"]
+        assert user.token_type == "access"
+
+    def test_handles_empty_roles_and_permissions(self) -> None:
+        """Should handle AuthResult with empty roles and permissions."""
+        auth_result = AuthResult(
+            user_id="user-empty",
+            roles=[],
+            permissions=[],
+            token_type="access",
+        )
+
+        user = CurrentUser.from_auth_result(auth_result)
+
+        assert user.id == "user-empty"
+        assert user.roles == []
+        assert user.permissions == []
+
+
+class TestGetAuthResult:
+    """Tests for get_auth_result async dependency."""
+
+    @pytest.fixture
+    def mock_request(self) -> MagicMock:
+        """Create a mock FastAPI request."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_auth_result(self) -> AuthResult:
+        """Create a mock authentication result."""
+        return AuthResult(
+            user_id="test-user-123",
+            roles=["user"],
+            permissions=["recipe:read"],
+            token_type="access",
+        )
+
+    async def test_validates_token_successfully(
+        self, mock_request: MagicMock, mock_auth_result: AuthResult
+    ) -> None:
+        """Should return AuthResult for valid token."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(return_value=mock_auth_result)
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            result = await get_auth_result(mock_request, "valid-token")
+
+        assert result == mock_auth_result
+        mock_provider.validate_token.assert_called_once()
+
+    async def test_header_mode_ignores_token(
+        self, mock_request: MagicMock, mock_auth_result: AuthResult
+    ) -> None:
+        """Should set token to empty string in header mode."""
+        from app.core.config import AuthMode
+
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(return_value=mock_auth_result)
+        mock_settings = MagicMock()
+        mock_settings.auth_mode_enum = AuthMode.HEADER
+
+        with (
+            patch(
+                "app.auth.dependencies.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            await get_auth_result(mock_request, "some-token")
+
+        # In header mode, empty string should be passed
+        mock_provider.validate_token.assert_called_once_with("", mock_request)
+
+    async def test_raises_401_on_token_expired(self, mock_request: MagicMock) -> None:
+        """Should raise 401 when token is expired."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(side_effect=TokenExpiredError())
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            with pytest.raises(HTTPException) as exc_info:
+                await get_auth_result(mock_request, "expired-token")
+
+        assert exc_info.value.status_code == 401
+        assert "expired" in exc_info.value.detail.lower()
+        assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
+
+    async def test_raises_401_on_token_invalid(self, mock_request: MagicMock) -> None:
+        """Should raise 401 when token is invalid."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(
+            side_effect=TokenInvalidError("Malformed token")
+        )
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            with pytest.raises(HTTPException) as exc_info:
+                await get_auth_result(mock_request, "invalid-token")
+
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
+
+    async def test_raises_401_on_authentication_error(
+        self, mock_request: MagicMock
+    ) -> None:
+        """Should raise 401 on generic authentication error."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(
+            side_effect=AuthenticationError("Auth failed")
+        )
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            with pytest.raises(HTTPException) as exc_info:
+                await get_auth_result(mock_request, "bad-token")
+
+        assert exc_info.value.status_code == 401
+
+    async def test_raises_503_on_service_unavailable(
+        self, mock_request: MagicMock
+    ) -> None:
+        """Should raise 503 when auth service is unavailable."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(
+            side_effect=AuthServiceUnavailableError("Service down")
+        )
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            with pytest.raises(HTTPException) as exc_info:
+                await get_auth_result(mock_request, "any-token")
+
+        assert exc_info.value.status_code == 503
+        assert "unavailable" in exc_info.value.detail.lower()
+
+
+class TestGetAuthResultOptional:
+    """Tests for get_auth_result_optional async dependency."""
+
+    @pytest.fixture
+    def mock_request(self) -> MagicMock:
+        """Create a mock FastAPI request."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_auth_result(self) -> AuthResult:
+        """Create a mock authentication result."""
+        return AuthResult(
+            user_id="test-user-456",
+            roles=["user"],
+            permissions=["recipe:read"],
+            token_type="access",
+        )
+
+    async def test_returns_auth_result_for_valid_token(
+        self, mock_request: MagicMock, mock_auth_result: AuthResult
+    ) -> None:
+        """Should return AuthResult for valid token."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(return_value=mock_auth_result)
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            result = await get_auth_result_optional(mock_request, "valid-token")
+
+        assert result == mock_auth_result
+
+    async def test_returns_none_for_no_token(self, mock_request: MagicMock) -> None:
+        """Should return None when no token provided."""
+        with patch("app.auth.dependencies.get_settings") as mock_settings:
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            result = await get_auth_result_optional(mock_request, None)
+
+        assert result is None
+
+    async def test_returns_none_on_token_expired(self, mock_request: MagicMock) -> None:
+        """Should return None when token is expired (not raise)."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(side_effect=TokenExpiredError())
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            result = await get_auth_result_optional(mock_request, "expired-token")
+
+        assert result is None
+
+    async def test_returns_none_on_token_invalid(self, mock_request: MagicMock) -> None:
+        """Should return None when token is invalid (not raise)."""
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(side_effect=TokenInvalidError())
+
+        with (
+            patch("app.auth.dependencies.get_settings") as mock_settings,
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            mock_settings.return_value.auth_mode_enum.name = "LOCAL_JWT"
+
+            result = await get_auth_result_optional(mock_request, "invalid-token")
+
+        assert result is None
+
+    async def test_header_mode_returns_none_on_auth_error(
+        self, mock_request: MagicMock
+    ) -> None:
+        """Should return None in header mode when no X-User-ID header."""
+        from app.core.config import AuthMode
+
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(
+            side_effect=AuthenticationError("No user header")
+        )
+        mock_settings = MagicMock()
+        mock_settings.auth_mode_enum = AuthMode.HEADER
+
+        with (
+            patch(
+                "app.auth.dependencies.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            result = await get_auth_result_optional(mock_request, None)
+
+        assert result is None
+
+    async def test_header_mode_returns_result_when_valid(
+        self, mock_request: MagicMock, mock_auth_result: AuthResult
+    ) -> None:
+        """Should return AuthResult in header mode when valid."""
+        from app.core.config import AuthMode
+
+        mock_provider = MagicMock()
+        mock_provider.validate_token = AsyncMock(return_value=mock_auth_result)
+        mock_settings = MagicMock()
+        mock_settings.auth_mode_enum = AuthMode.HEADER
+
+        with (
+            patch(
+                "app.auth.dependencies.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "app.auth.dependencies.get_auth_provider",
+                return_value=mock_provider,
+            ),
+        ):
+            result = await get_auth_result_optional(mock_request, None)
+
+        assert result == mock_auth_result
+
+
+class TestGetCurrentUser:
+    """Tests for get_current_user async dependency."""
+
+    async def test_creates_current_user_from_auth_result(self) -> None:
+        """Should convert AuthResult to CurrentUser."""
+        auth_result = AuthResult(
+            user_id="user-current-123",
+            roles=["admin"],
+            permissions=["recipe:read"],
+            token_type="access",
+        )
+
+        user = await get_current_user(auth_result)
+
+        assert isinstance(user, CurrentUser)
+        assert user.id == "user-current-123"
+        assert user.roles == ["admin"]
+        assert user.permissions == ["recipe:read"]
+
+
+class TestGetCurrentUserOptional:
+    """Tests for get_current_user_optional async dependency."""
+
+    async def test_creates_current_user_when_authenticated(self) -> None:
+        """Should return CurrentUser when auth_result is provided."""
+        auth_result = AuthResult(
+            user_id="user-opt-123",
+            roles=["user"],
+            permissions=["recipe:read"],
+            token_type="access",
+        )
+
+        user = await get_current_user_optional(auth_result)
+
+        assert isinstance(user, CurrentUser)
+        assert user.id == "user-opt-123"
+
+    async def test_returns_none_when_not_authenticated(self) -> None:
+        """Should return None when auth_result is None."""
+        user = await get_current_user_optional(None)
+
+        assert user is None

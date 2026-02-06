@@ -32,6 +32,9 @@ from tests.fixtures.llm_responses import create_groq_response
 
 pytestmark = pytest.mark.unit
 
+# High rate limit to disable rate limiting delays in tests
+TEST_RATE_LIMIT = 10000.0
+
 
 class SampleSchema(BaseModel):
     """Sample schema for testing structured output."""
@@ -46,6 +49,7 @@ class TestGroqClientInitialization:
     async def test_initialize_creates_http_client(self) -> None:
         """Should create HTTP client on initialize."""
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
         )
@@ -58,6 +62,7 @@ class TestGroqClientInitialization:
     async def test_shutdown_closes_http_client(self) -> None:
         """Should close HTTP client on shutdown."""
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
         )
@@ -70,6 +75,7 @@ class TestGroqClientInitialization:
     async def test_initialize_idempotent(self) -> None:
         """Should be safe to call initialize multiple times."""
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
         )
@@ -84,6 +90,7 @@ class TestGroqClientInitialization:
     def test_chat_url_default(self) -> None:
         """Should use default Groq API URL."""
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
         )
@@ -93,6 +100,7 @@ class TestGroqClientInitialization:
     def test_chat_url_custom(self) -> None:
         """Should allow custom base URL."""
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             base_url="https://custom.groq.com/v1/",
@@ -115,6 +123,7 @@ class TestGroqClientGenerate:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -141,6 +150,7 @@ class TestGroqClientGenerate:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -165,6 +175,7 @@ class TestGroqClientGenerate:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -186,6 +197,7 @@ class TestGroqClientGenerate:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -210,13 +222,15 @@ class TestGroqClientErrors:
     async def test_rate_limit_error(self) -> None:
         """Should raise LLMRateLimitError on 429."""
         respx.post("https://api.groq.com/openai/v1/chat/completions").mock(
-            return_value=httpx.Response(429, headers={"retry-after": "60"})
+            return_value=httpx.Response(429, headers={"retry-after": "0"})
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
+            max_retries=0,  # Don't retry to avoid delays
         )
 
         with pytest.raises(LLMRateLimitError, match="rate limit"):
@@ -232,6 +246,7 @@ class TestGroqClientErrors:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -251,6 +266,7 @@ class TestGroqClientErrors:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -270,6 +286,7 @@ class TestGroqClientErrors:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -303,6 +320,7 @@ class TestGroqClientRetry:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -331,6 +349,7 @@ class TestGroqClientRetry:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -363,6 +382,7 @@ class TestGroqClientCaching:
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_result))
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_client=mock_redis,
@@ -393,6 +413,7 @@ class TestGroqClientCaching:
         mock_redis.set = AsyncMock()
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_client=mock_redis,
@@ -425,6 +446,7 @@ class TestGroqClientCaching:
         mock_redis.set = AsyncMock()
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_client=mock_redis,
@@ -452,6 +474,7 @@ class TestGroqClientCaching:
         mock_redis.set = AsyncMock(side_effect=Exception("Redis write failed"))
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_client=mock_redis,
@@ -479,6 +502,7 @@ class TestGroqClientCaching:
         mock_redis.set = AsyncMock()
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_client=mock_redis,
@@ -509,6 +533,7 @@ class TestGroqClientCaching:
         mock_redis.set = AsyncMock()
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_client=mock_redis,
@@ -536,6 +561,7 @@ class TestGroqClientGenerateStructured:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -560,6 +586,7 @@ class TestGroqClientGenerateStructured:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -581,6 +608,7 @@ class TestGroqClientGenerateStructured:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -617,6 +645,7 @@ class TestGroqClientRetryExhaustion:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -644,6 +673,7 @@ class TestGroqClientRetryExhaustion:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -673,6 +703,7 @@ class TestGroqClientOptions:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -700,6 +731,7 @@ class TestGroqClientOptions:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -732,6 +764,7 @@ class TestGroqClientOptions:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
@@ -759,6 +792,7 @@ class TestGroqClientOptions:
         )
 
         client = GroqClient(
+            requests_per_minute=TEST_RATE_LIMIT,
             api_key="test-api-key",
             model="llama-3.1-8b-instant",
             cache_enabled=False,
