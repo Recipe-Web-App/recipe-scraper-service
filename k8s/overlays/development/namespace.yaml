@@ -1,0 +1,10 @@
+# ==============================================================================
+# Namespace - Development
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recipe-scraper-dev
+  labels:
+    app.kubernetes.io/name: recipe-scraper-service
+    environment: development

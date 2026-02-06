@@ -1,575 +1,420 @@
-# Recipe Scraper Service 🍽️
+# Recipe Scraper Service
 
-[![CI/CD Pipeline](https://github.com/jsamuelsen11/recipe-scraper-service/actions/workflows/ci.yml/badge.svg)](https://github.com/jsamuelsen11/recipe-scraper-service/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/github/jsamuelsen11/recipe-scraper-service/branch/main/graph/badge.svg)](https://codecov.io/github/jsamuelsen11/recipe-scraper-service)
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
+Enterprise-grade FastAPI microservice for recipe scraping with JWT authentication,
+Redis caching, background job processing, and full observability.
 
-A modern, high-performance FastAPI microservice for scraping and managing
-recipe data from various sources. Built with industry best practices,
-comprehensive monitoring, and enterprise-grade security.
+## Architecture Overview
 
-## ✨ Features
+```mermaid
+flowchart TB
+    subgraph External["External Traffic"]
+        Client[Client Applications]
+        LB[Load Balancer / Ingress]
+    end
 
-### 🚀 Modern Architecture
+    subgraph K8s["Kubernetes Cluster"]
+        subgraph API["API Layer"]
+            direction TB
+            API1[API Pod 1]
+            API2[API Pod 2]
+            HPA[Horizontal Pod Autoscaler]
+        end
 
-- **FastAPI 0.128+** with async/await support and Python 3.13 JIT compiler
-- **Multi-tier caching** with Redis, in-memory, and file-based layers
-- **Comprehensive health checks** with Kubernetes-ready probes
-- **OpenAPI 3.1** documentation with interactive examples
-- **Rate limiting** and security middleware stack
+        subgraph Workers["Background Workers"]
+            Worker1[ARQ Worker Pod]
+        end
 
-### 🔒 Security First
+        subgraph Observability["Observability Stack"]
+            Prometheus[Prometheus]
+            OTLP[OTLP Collector]
+        end
 
-- **OAuth2 Authentication** with JWT validation and token introspection
-- **Secret scanning** with detect-secrets and TruffleHog
-- **Dependency vulnerability scanning** with Safety and Snyk
-- **Code security analysis** with Bandit and Semgrep
-- **Container security scanning** with Trivy
-- **Security headers** and CORS configuration
+        subgraph Storage["Data Layer"]
+            Redis[(Redis)]
+            subgraph RedisDbs["Redis Databases"]
+                Cache[DB 0: Cache]
+                Queue[DB 1: Job Queue]
+                RateLimit[DB 2: Rate Limits]
+            end
+        end
+    end
 
-### 📊 Observability
+    Client --> LB
+    LB --> API1 & API2
+    HPA -.-> API1 & API2
 
-- **Prometheus metrics** for performance monitoring
-- **Structured logging** with request tracing
-- **Health endpoints** for Kubernetes/Docker health checks
-- **Grafana-ready dashboards** for monitoring
+    API1 & API2 --> Redis
+    API1 & API2 --> Queue
+    API1 & API2 -.->|metrics| Prometheus
+    API1 & API2 -.->|traces| OTLP
 
-### 🧪 Testing Excellence
+    Worker1 --> Queue
+    Worker1 --> Cache
+    Worker1 -.->|metrics| Prometheus
 
-- **95%+ test coverage** with unit and integration tests
-- **Property-based testing** with Hypothesis
-- **Contract testing** with OpenAPI spec validation
-- **Performance benchmarking** with pytest-benchmark
-- **Testcontainers** for realistic integration testing
-
-### 🏗️ DevOps Ready
-
-- **Multi-stage Docker builds** with security hardening
-- **GitHub Actions CI/CD** with matrix testing across Python versions
-- **Kubernetes manifests** for production deployment
-- **Automated dependency updates** with Dependabot
-- **Pre-commit hooks** with comprehensive code quality checks
-
-## 🏛️ Architecture
-
-### Project Structure
-
-```text
-recipe-scraper-service/
-├── app/
-│   ├── api/v1/              # Versioned API endpoints
-│   │   ├── routes/          # Route handlers (recipes, health, etc.)
-│   │   └── schemas/         # Request/response models
-│   ├── core/                # Core configuration and logging
-│   ├── db/                  # Database models and session management
-│   ├── services/            # Business logic and external integrations
-│   ├── utils/               # Utilities (caching, validation, etc.)
-│   └── middleware/          # Custom middleware (logging, security)
-├── tests/
-│   ├── unit/                # Fast, isolated unit tests
-│   ├── component/           # API component tests with testcontainers
-│   └── performance/         # Load and performance tests
-├── config/                  # Configuration files (logging, scraping rules)
-├── k8s/                     # Kubernetes deployment manifests
-├── .github/workflows/       # CI/CD pipeline definitions
-└── docs/                    # Sphinx documentation
+    Redis --> Cache & Queue & RateLimit
 ```
 
-### Technology Stack
+### Application Architecture
 
-- **Runtime**: Python 3.13 with JIT compilation
-- **Framework**: FastAPI 0.128+ with async support
-- **Database**: PostgreSQL with SQLAlchemy 2.0+
-- **Caching**: Redis + multi-tier caching system
-- **Monitoring**: Prometheus + Grafana
-- **Testing**: pytest + testcontainers + hypothesis
-- **Security**: Bandit + Safety + Semgrep + Trivy
+```mermaid
+flowchart TB
+    subgraph Request["Incoming Request"]
+        HTTP[HTTP Request]
+    end
 
-### Service-to-Service Authentication
+    subgraph Middleware["Middleware Stack"]
+        direction TB
+        RequestID[Request ID Middleware]
+        Timing[Timing Middleware]
+        Logging[Logging Middleware]
+        Security[Security Headers]
+        CORS[CORS Middleware]
+    end
 
-The service uses **OAuth2 client credentials flow** for authenticating with
-downstream services:
+    subgraph Auth["Authentication Layer"]
+        AuthProvider[Auth Provider]
+        JWT[JWT / Introspection]
+        Permissions[Permission Checker]
+        Dependencies[Auth Dependencies]
+    end
 
-- **ServiceTokenManager**: Handles token acquisition and automatic refresh
-- **Token Storage**: Tokens cached in-memory with automatic expiry handling
-- **Service URLs**: Centralized configuration via `ServiceURLs` class
-- **Required Credentials**: `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` in environment
+    subgraph API["API Layer"]
+        Router[API Router v1]
+        subgraph Endpoints["Endpoints"]
+            Health[Health Routes]
+            Future[Future Routes...]
+        end
+    end
 
-Downstream services integrated:
+    subgraph Core["Core Services"]
+        Exceptions[Exception Handlers]
+        Schemas[Pydantic Schemas]
+    end
 
-- **auth-service**: OAuth2 token endpoint for service authentication
-- **notification-service**: Email notifications for recipe events (planned)
-- **user-management-service**: User and follower data (planned)
+    subgraph Services["Business Logic"]
+        ServiceLayer[Service Layer]
+        Downstreams[Downstream Clients]
+    end
 
-## 🚀 Quick Start
+    subgraph Cache["Caching Layer"]
+        RateLimiter[Rate Limiter]
+        CacheDecorator["@cached Decorator"]
+        RedisClient[Redis Client Pool]
+    end
+
+    subgraph Workers["Background Processing"]
+        JobQueue[Job Enqueue API]
+        ARQ[ARQ Worker]
+        Tasks[Task Definitions]
+    end
+
+    subgraph Observability["Observability"]
+        Metrics[Prometheus Metrics]
+        Tracing[OpenTelemetry Traces]
+        StructuredLogs[Structured Logging]
+    end
+
+    subgraph Response["Outgoing Response"]
+        HTTPRes[HTTP Response]
+    end
+
+    %% Request Flow
+    HTTP --> RequestID --> Timing --> Logging --> Security --> CORS
+    CORS --> RateLimiter
+    RateLimiter --> Router
+
+    Router --> Health
+    Router --> Future
+
+    Future --> AuthProvider --> JWT --> Permissions --> Dependencies
+
+    Dependencies --> ServiceLayer
+    ServiceLayer --> CacheDecorator --> RedisClient
+    ServiceLayer --> Downstreams
+    ServiceLayer --> JobQueue --> ARQ --> Tasks
+
+    %% Observability connections
+    Timing -.-> Metrics
+    Logging -.-> StructuredLogs
+    ServiceLayer -.-> Tracing
+    RedisClient -.-> Metrics
+
+    %% Response flow
+    ServiceLayer --> Schemas --> HTTPRes
+    Exceptions -.-> HTTPRes
+```
+
+### Request Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant M as Middleware
+    participant RL as Rate Limiter
+    participant R as Router
+    participant A as Auth
+    participant S as Service
+    participant Ca as Cache
+    participant Re as Redis
+    participant W as Worker
+    participant O as Observability
+
+    C->>M: HTTP Request
+    M->>M: Add Request ID
+    M->>M: Start Timer
+    M->>O: Log Request
+
+    M->>RL: Check Rate Limit
+    RL->>Re: Get/Increment Counter
+    Re-->>RL: Count
+
+    alt Rate Limited
+        RL-->>C: 429 Too Many Requests
+    else Allowed
+        RL->>R: Forward Request
+    end
+
+    R->>A: Authenticate (if protected)
+    A->>A: Extract Bearer Token
+    A->>A: Decode & Validate JWT
+    A->>A: Check Permissions
+    A-->>R: User Context
+
+    R->>S: Call Service Method
+    S->>Ca: Check Cache
+    Ca->>Re: GET cached_key
+
+    alt Cache Hit
+        Re-->>Ca: Cached Data
+        Ca-->>S: Return Cached
+    else Cache Miss
+        S->>S: Execute Business Logic
+        S->>Ca: Store in Cache
+        Ca->>Re: SET cached_key
+    end
+
+    opt Async Work Needed
+        S->>W: Enqueue Background Job
+        W->>Re: LPUSH job_queue
+    end
+
+    S-->>R: Response Data
+    R-->>M: HTTP Response
+    M->>O: Log Response + Timing
+    M->>O: Record Metrics
+    M-->>C: HTTP Response
+```
+
+## Features
+
+- **FastAPI Framework** - Modern async Python web framework with automatic OpenAPI docs
+- **JWT Authentication** - Secure token-based auth with access/refresh token flow
+- **Redis Caching** - High-performance caching with configurable TTLs
+- **Rate Limiting** - Protect endpoints from abuse with SlowAPI
+- **Background Jobs** - Async task processing with ARQ (Redis-backed)
+- **Full Observability** - Prometheus metrics, OpenTelemetry tracing, structured JSON logging
+- **Production Ready** - Multi-stage Docker builds, Kubernetes manifests, HPA, PDB, NetworkPolicies
+- **Comprehensive Tests** - 530+ tests with 90%+ coverage (unit, integration, e2e, performance)
+
+## Data Attribution
+
+Nutritional information provided by this service is sourced from the USDA FoodData Central database:
+
+> **U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, 2019. fdc.nal.usda.gov.**
+
+For more information about the data source, visit [FoodData Central](https://fdc.nal.usda.gov/).
+
+## Quick Start
 
 ### Prerequisites
 
-- **Python 3.13+** (leverages JIT compiler for performance)
-- **Poetry 2.1.3+** for dependency management
-- **Docker** for containerized deployment
-- **Git** with pre-commit hooks
+- Python 3.14+
+- Redis 7+
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
-### Development Setup
-
-1. **Clone and setup the repository**:
-
-   ```bash
-   git clone https://github.com/jsamuelsen11/recipe-scraper-service.git
-   cd recipe-scraper-service
-
-   # Copy and configure environment
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-2. **Install dependencies**:
-
-   ```bash
-   poetry install
-   poetry shell
-   ```
-
-3. **Set up pre-commit hooks**:
-
-   ```bash
-   pre-commit install
-   ```
-
-4. **Start local development server**:
-
-   ```bash
-   # Using Poetry script
-   poetry run dev
-
-   # Or directly with uvicorn
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-5. **Access the application**:
-   - **API Documentation**: <http://localhost:8000/docs>
-   - **Alternative Docs**: <http://localhost:8000/redoc>
-   - **Health Check**: <http://localhost:8000/api/v1/health>
-   - **Metrics**: <http://localhost:8000/metrics>
-
-## 🧪 Testing
-
-### Running Tests
+### Local Development
 
 ```bash
-# Run all tests with coverage
-pytest --cov=app tests/
+# Clone and navigate
+cd recipe-scraper-service
 
-# Run only unit tests (fast)
-poetry run test-unit
+# Install dependencies with uv
+uv sync
 
-# Run component tests with testcontainers
-pytest tests/component/ -v
+# Or with pip
+pip install -e ".[dev]"
 
-# Run performance benchmarks
-pytest tests/performance/ --benchmark-only
+# Start Redis (Docker)
+docker run -d --name redis -p 6379:6379 redis:7-alpine
 
-# Generate HTML coverage report
-pytest --cov=app --cov-report=html tests/
+# Run the service
+uvicorn app.main:app --reload
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+```
+
+### Docker
+
+```bash
+# Build production image
+docker build -t recipe-scraper-service .
+
+# Build development image
+docker build --target development -t recipe-scraper-service:dev .
+
+# Run with Docker Compose
+docker compose up -d
+```
+
+## Project Structure
+
+```text
+recipe-scraper-service/
+├── src/app/                    # Application source code
+│   ├── api/                    # API endpoints
+│   │   └── v1/
+│   │       ├── endpoints/      # Route handlers
+│   │       └── router.py       # API router
+│   ├── auth/                   # Authentication
+│   │   ├── jwt.py              # JWT token handling
+│   │   ├── oauth2.py           # OAuth2 schemes
+│   │   ├── permissions.py      # RBAC permissions
+│   │   └── dependencies.py     # FastAPI dependencies
+│   ├── cache/                  # Caching layer
+│   │   ├── redis.py            # Redis client management
+│   │   ├── decorators.py       # @cached decorator
+│   │   └── rate_limit.py       # Rate limiting
+│   ├── core/                   # Core framework
+│   │   ├── config.py           # Settings management
+│   │   ├── exceptions.py       # Custom exceptions
+│   │   ├── events/             # Lifecycle events
+│   │   └── middleware/         # HTTP middleware
+│   ├── observability/          # Monitoring
+│   │   ├── logging.py          # Structured logging
+│   │   ├── metrics.py          # Prometheus metrics
+│   │   └── tracing.py          # OpenTelemetry tracing
+│   ├── workers/                # Background jobs
+│   │   ├── arq.py              # ARQ configuration
+│   │   ├── jobs.py             # Job enqueueing
+│   │   └── tasks/              # Task definitions
+│   ├── schemas/                # Pydantic models
+│   ├── services/               # Business logic
+│   └── main.py                 # Application entry
+├── tests/                      # Test suite
+│   ├── unit/                   # Unit tests
+│   ├── integration/            # Integration tests
+│   ├── e2e/                    # End-to-end tests
+│   └── performance/            # Benchmark tests
+├── k8s/                        # Kubernetes manifests
+│   ├── base/                   # Base resources
+│   └── overlays/               # Environment overrides
+├── scripts/                    # Utility scripts
+├── docs/                       # Documentation
+└── pyproject.toml              # Project configuration
+```
+
+## API Endpoints
+
+### Health & Monitoring
+
+| Endpoint                        | Method | Description        | Auth |
+| ------------------------------- | ------ | ------------------ | ---- |
+| `/`                             | GET    | Service info       | No   |
+| `/api/v1/recipe-scraper/health` | GET    | Liveness probe     | No   |
+| `/api/v1/recipe-scraper/ready`  | GET    | Readiness probe    | No   |
+| `/metrics`                      | GET    | Prometheus metrics | No   |
+| `/docs`                         | GET    | OpenAPI Swagger UI | No   |
+| `/redoc`                        | GET    | OpenAPI ReDoc      | No   |
+
+### Recipe Scraper API (`/api/v1/recipe-scraper/`)
+
+| Endpoint                                                   | Method | Description                    | Auth |
+| ---------------------------------------------------------- | ------ | ------------------------------ | ---- |
+| `/api/v1/recipe-scraper/recipes`                           | POST   | Create recipe from URL         | Yes  |
+| `/api/v1/recipe-scraper/recipes/popular`                   | GET    | Get popular recipes            | No   |
+| `/api/v1/recipe-scraper/recipes/{id}/nutritional-info`     | GET    | Get recipe nutritional info    | No   |
+| `/api/v1/recipe-scraper/recipes/{id}/pairings`             | GET    | Get recipe pairing suggestions | No   |
+| `/api/v1/recipe-scraper/recipes/{id}/shopping-info`        | GET    | Get recipe shopping info       | No   |
+| `/api/v1/recipe-scraper/ingredients/{id}/nutritional-info` | GET    | Get ingredient nutrition       | No   |
+| `/api/v1/recipe-scraper/ingredients/{id}/substitutions`    | GET    | Get ingredient substitutes     | No   |
+| `/api/v1/recipe-scraper/ingredients/{id}/shopping-info`    | GET    | Get ingredient shopping info   | No   |
+| `/api/v1/recipe-scraper/admin/cache`                       | DELETE | Clear service cache            | Yes  |
+
+> **Note**: Authentication is handled by an external auth-service. This service validates
+> tokens via configurable providers (introspection, local JWT, or header-based for
+> development). See `docs/api/recipe-scraper-openapi.yaml` for full API specification.
+
+## Configuration
+
+All configuration is via environment variables:
+
+| Variable                          | Default                | Description                                  |
+| --------------------------------- | ---------------------- | -------------------------------------------- |
+| `APP_NAME`                        | Recipe Scraper Service | Application name                             |
+| `ENVIRONMENT`                     | development            | Environment (development/staging/production) |
+| `DEBUG`                           | false                  | Enable debug mode                            |
+| `JWT_SECRET_KEY`                  | -                      | **Required in production**                   |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | 30                     | Access token TTL                             |
+| `JWT_REFRESH_TOKEN_EXPIRE_DAYS`   | 7                      | Refresh token TTL                            |
+| `REDIS_HOST`                      | localhost              | Redis hostname                               |
+| `REDIS_PORT`                      | 6379                   | Redis port                                   |
+| `REDIS_PASSWORD`                  | -                      | Redis password                               |
+| `RATE_LIMIT_DEFAULT`              | 100/minute             | Default rate limit                           |
+| `RATE_LIMIT_AUTH`                 | 5/minute               | Auth endpoint rate limit                     |
+| `OTLP_ENDPOINT`                   | -                      | OpenTelemetry collector endpoint             |
+| `LOG_LEVEL`                       | INFO                   | Logging level                                |
+| `LOG_FORMAT`                      | json                   | Log format (json/text)                       |
+
+See [docs/configuration.md](docs/configuration.md) for the complete list.
+
+## Documentation
+
+- [Architecture](docs/architecture.md) - System design and component overview
+- [API Reference](docs/api.md) - Detailed API documentation
+- [Development Guide](docs/development.md) - Local setup and contribution guidelines
+- [Deployment Guide](docs/deployment.md) - Production deployment instructions
+- [Configuration](docs/configuration.md) - Complete configuration reference
+
+## Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run by category
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests (requires Redis)
+pytest -m e2e           # End-to-end tests
+pytest -m performance   # Benchmark tests
+
+# With coverage report
+pytest --cov=app --cov-report=html
 open htmlcov/index.html
 ```
 
-### Test Categories
+## Deployment
 
-- **Unit Tests** (`tests/unit/`): Fast, isolated tests with mocked dependencies
-- **Component Tests** (`tests/component/`): End-to-end API tests with real databases
-- **Performance Tests** (`tests/performance/`): Load testing and benchmarks
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file based on `.env.example`:
+### Kubernetes
 
 ```bash
-# Database Configuration
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=recipe_scraper
-POSTGRES_SCHEMA=public
-RECIPE_SCRAPER_DB_USER=recipe_user
-RECIPE_SCRAPER_DB_PASSWORD=your_password
+# Deploy to development
+kubectl apply -k k8s/overlays/development
 
-# External APIs
-SPOONACULAR_API_KEY=your_spoonacular_api_key
+# Deploy to staging
+kubectl apply -k k8s/overlays/staging
 
-# Cache Configuration
-REDIS_URL=redis://localhost:6379/0
-
-# Security Settings
-ALLOWED_ORIGINS=["http://localhost:3000", "https://yourdomain.com"]
-ENABLE_RATE_LIMITING=true
-RATE_LIMIT_PER_MINUTE=100
+# Deploy to production
+kubectl apply -k k8s/overlays/production
 ```
 
-### Configuration Files
+See [docs/deployment.md](docs/deployment.md) for detailed instructions.
 
-- `config/logging.json`: Structured logging configuration
-- `config/recipe_scraping/`: Recipe scraping rules and website configurations
+## License
 
-## 📊 Monitoring & Observability
-
-### Health Checks
-
-- **Liveness**: `/api/v1/liveness` - Basic service health
-- **Readiness**: `/api/v1/readiness` - Dependencies health
-- **Comprehensive**: `/api/v1/health` - Detailed system status
-
-### Metrics
-
-Prometheus metrics available at `/metrics`:
-
-- HTTP request metrics (duration, status codes, throughput)
-- Cache performance (hits, misses, evictions)
-- Database connection pool metrics
-- Custom business metrics
-
-### Grafana Dashboards
-
-Pre-built dashboards for:
-
-- API Performance & Error Rates
-- System Resources & Health
-- Business Metrics & Usage
-- Cache Performance
-
-## 🚀 Deployment
-
-### Docker Production Build
-
-```bash
-# Build optimized production image
-docker build -t recipe-scraper-service:latest .
-
-# Run with production settings
-docker run -p 8000:8000 \
-  --env-file .env.production \
-  recipe-scraper-service:latest
-```
-
-### Kubernetes Deployment
-
-```bash
-# Apply Kubernetes manifests
-kubectl apply -f k8s/
-
-# Check deployment status
-kubectl get pods -l app=recipe-scraper-service
-
-# View logs
-kubectl logs -f deployment/recipe-scraper-service
-```
-
-### Environment-Specific Configurations
-
-- **Development**: Hot reload, debug logging, local databases
-- **Staging**: Production-like with test data
-- **Production**: Optimized performance, monitoring, security
-
-## 🔒 Security
-
-### Security Features
-
-- **Secret scanning** in CI/CD pipeline
-- **Dependency vulnerability scanning**
-- **Container security scanning**
-- **Code security analysis**
-- **Security headers** middleware
-- **Rate limiting** per endpoint
-- **Input validation** with Pydantic
-
-### Security Best Practices
-
-- Secrets managed via environment variables
-- Non-root container execution
-- Minimal container attack surface
-- Regular security updates via Dependabot
-- Pre-commit security hooks
-
-## 🤝 Contributing
-
-### Development Workflow
-
-1. **Fork the repository** and create a feature branch
-2. **Install development dependencies**: `poetry install`
-3. **Set up pre-commit hooks**: `pre-commit install`
-4. **Make your changes** following the coding standards
-5. **Add tests** for new functionality
-6. **Run the test suite**: `pytest`
-7. **Submit a pull request** with a clear description
-
-### Code Quality Standards
-
-- **Code formatting**: Black (line length: 88)
-- **Import sorting**: isort
-- **Linting**: Ruff with comprehensive rule set
-- **Type checking**: MyPy in strict mode
-- **Documentation**: Google-style docstrings
-- **Security**: Bandit security analysis
-- **Test coverage**: Minimum 80% (target 95%)
-
-### Commit Message Format
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```text
-feat: add new recipe validation endpoint
-fix: resolve caching issue with Redis connection
-docs: update API documentation
-chore: update dependencies
-```
-
-## 📈 Performance
-
-### Optimization Features
-
-- **Python 3.13 JIT compiler** for improved runtime performance
-- **Multi-tier caching** (Memory → Redis → File)
-- **Async/await** throughout the application
-- **Connection pooling** for database and external APIs
-- **Response compression** with GZip middleware
-- **Efficient serialization** with optimized JSON handling
-
-### Benchmarks
-
-- **Health checks**: < 10ms response time
-- **Recipe scraping**: < 2s for most websites
-- **API throughput**: 1000+ requests/second (with caching)
-- **Memory usage**: < 512MB under normal load
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Poetry installation fails**:
-
-```bash
-# Clear poetry cache
-poetry cache clear . --all
-poetry install
-```
-
-**Database connection issues**:
-
-```bash
-# Check database connectivity
-psql -h localhost -U recipe_user -d recipe_scraper
-
-# Verify environment variables
-echo $POSTGRES_HOST
-```
-
-**Redis connection issues**:
-
-```bash
-# Test Redis connection
-redis-cli -u $REDIS_URL ping
-```
-
-### Debugging
-
-Enable debug logging:
-
-```bash
-export LOG_LEVEL=DEBUG
-uvicorn app.main:app --reload
-```
-
-## 📄 API Documentation
-
-### Interactive Documentation
-
-- **Swagger UI**: <http://localhost:8000/docs>
-- **ReDoc**: <http://localhost:8000/redoc>
-- **OpenAPI Spec**: <http://localhost:8000/openapi.json>
-
-### Key Endpoints
-
-- `POST /api/v1/recipe-scraper/create-recipe` - Create recipe from URL
-- `GET /api/v1/recipe-scraper/popular-recipes` - Get trending recipes
-- `GET /api/v1/nutritional-info/{ingredient}` - Get nutritional data
-- `GET /api/v1/recommendations/substitutes` - Get ingredient substitutes
-- `GET /api/v1/health` - Comprehensive health check
-
-## 📊 Metrics & Monitoring
-
-### Available Metrics
-
-- `http_requests_total` - Total HTTP requests by method/status
-- `http_request_duration_seconds` - Request duration histogram
-- `cache_hits_total` - Cache hit/miss statistics
-- `cache_operation_duration_seconds` - Cache operation performance
-- `health_checks_total` - Health check statistics
-
-### Alerting Rules
-
-Pre-configured Prometheus alerting rules for:
-
-- High error rates (>5% 5xx responses)
-- Slow response times (>2s 95th percentile)
-- Cache hit ratio degradation (<80%)
-- Service availability issues
-
-## 📚 Documentation
-
-### Core Documentation
-
-- **[API Documentation](API.md)** - Comprehensive API reference with
-  examples
-- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment
-  strategies
-- **[Contributing Guide](.github/CONTRIBUTING.md)** - Development
-  workflow and standards
-- **[Security Policy](.github/SECURITY.md)** - Security guidelines and
-  vulnerability reporting
-
-### Additional Resources
-
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant guidance for development
-- **[Interactive API Docs](http://localhost:8000/docs)** - Swagger UI
-  (when running)
-- **[Alternative API Docs](http://localhost:8000/redoc)** - ReDoc
-  interface (when running)
-
-## 🔄 Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for automatically generated release notes
-based on [Conventional Commits](https://conventionalcommits.org/).
-
-## 📜 License
-
-This project is licensed under the MIT License - see the
-[LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [FastAPI](https://fastapi.tiangolo.com/) for the amazing framework
-- [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) for recipe parsing
-- [Spoonacular API](https://spoonacular.com/food-api) for nutritional data
-- All contributors who help improve this service
-
-## 🚧 Remaining Work & Recommended Enhancements
-
-While the Recipe Scraper Service is feature-complete and production-ready,
-here are recommended enhancements for future development:
-
-### **HIGH Priority**
-
-#### **🔧 Configuration & Dependency Management**
-
-- **Poetry Configuration Migration**: Update `pyproject.toml` to use
-  modern `[project]` section instead of deprecated `[tool.poetry]` fields
-- **Database Migrations**: Implement Alembic migrations for schema
-  versioning and deployment automation
-- **Environment Configuration**: Add validation for required environment
-  variables at startup
-
-#### **🧪 Testing Infrastructure**
-
-- **Dependencies Installation Issue**: Tests currently fail due to missing
-  `loguru` module - requires dependency resolution
-- **Integration Tests**: Implement full end-to-end API tests with
-  testcontainers for database interactions
-- **Performance Benchmarks**: Add load testing scenarios for recipe
-  scraping endpoints
-- **Contract Testing**: Add OpenAPI spec validation tests to ensure API
-  contract compliance
-
-### **MEDIUM Priority**
-
-#### **🔐 Security Enhancements**
-
-- **✅ Authentication & Authorization**: JWT-based OAuth2 authentication
-  system with optional/required modes
-- **API Key Management**: Add API key authentication for external service
-  access
-- **Input Sanitization**: Enhanced validation for recipe URLs and
-  user-generated content
-- **Rate Limiting Per User**: Implement user-specific rate limiting
-  instead of IP-based only
-
-#### **📊 Observability & Monitoring**
-
-- **Distributed Tracing**: Implement OpenTelemetry for request tracing
-  across services
-- **Custom Business Metrics**: Add metrics for recipe scraping success
-  rates, popular websites, user engagement
-- **Alerting Rules**: Implement Prometheus alerting rules for service
-  health monitoring
-- **Log Aggregation**: Set up centralized logging with ELK stack or
-  similar
-
-#### **🚀 Performance & Scalability**
-
-- **Background Task Processing**: Implement Celery or similar for
-  asynchronous recipe processing
-- **Database Connection Pooling**: Optimize PostgreSQL connection handling
-  for high throughput
-- **CDN Integration**: Add support for recipe image caching and delivery
-- **API Response Caching**: Implement intelligent caching for frequently
-  requested recipes
-
-### **LOW Priority (Nice-to-Have)**
-
-#### **🔄 Service Integrations**
-
-- **Message Queue**: Add RabbitMQ/Apache Kafka for inter-service
-  communication
-- **Email Service**: Integration for user notifications (recipe updates,
-  recommendations)
-- **Image Processing**: Automatic image optimization and thumbnail
-  generation
-- **Search Service**: Elasticsearch integration for advanced recipe search
-  capabilities
-
-#### **🛠️ Development Experience**
-
-- **GraphQL API**: Alternative GraphQL endpoint for frontend flexibility
-- **SDK Generation**: Auto-generate client SDKs for multiple languages
-- **Development Tools**: Hot-reload development environment with Docker
-- **API Versioning Strategy**: Implement comprehensive API versioning with
-  deprecation policies
-
-#### **📈 Advanced Features**
-
-- **Machine Learning**: Recipe recommendation engine based on user
-  preferences
-- **Nutritional Analysis**: AI-powered nutritional fact verification
-- **Recipe Similarity**: Implement recipe clustering and similarity
-  matching
-- **Batch Processing**: Bulk recipe import/export functionality
-
-### **🔍 Technical Debt**
-
-- **Health Check Paths**: Inconsistent paths in Kubernetes deployment
-  (`/api/liveness` vs `/api/v1/liveness`)
-- **Error Response Standardization**: Ensure all endpoints return
-  consistent error format
-- **Database Schema Optimization**: Review and optimize database indexes
-  for query performance
-- **Configuration Validation**: Add comprehensive startup validation for
-  all configuration parameters
-
----
-
-**Implementation Status**: ✅ **85% Complete - Production Ready**
-
-The service is fully functional with enterprise-grade security, monitoring,
-and deployment capabilities. The remaining work focuses on operational
-excellence and advanced features rather than core functionality.
-
----
-
-**Made with ❤️ by [jsamuelsen11](https://github.com/jsamuelsen11)**
-
-For questions, issues, or contributions, please visit our
-[GitHub repository](https://github.com/jsamuelsen11/recipe-scraper-service).
+MIT License - see [LICENSE](LICENSE) for details.

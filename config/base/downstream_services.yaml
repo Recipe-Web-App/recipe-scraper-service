@@ -1,0 +1,5 @@
+downstream_services:
+  recipe_management:
+    url: null # Override in environment-specific config
+    timeout: 10.0
+    max_retries: 2

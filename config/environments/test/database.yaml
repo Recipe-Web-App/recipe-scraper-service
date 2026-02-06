@@ -1,0 +1,7 @@
+database:
+  host: localhost
+  port: 5432
+  user: recipe_management_user
+  min_pool_size: 1
+  max_pool_size: 5
+  ssl: false

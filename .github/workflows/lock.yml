@@ -2,7 +2,8 @@ name: Lock Threads
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight UTC
+    # Run daily at midnight UTC
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,29 +16,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Lock closed issues and PRs
-        uses: dessant/lock-threads@v6
+      - name: Lock closed issues
+        uses: dessant/lock-threads@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-          # Lock issues closed for 90+ days
-          issue-inactive-days: '90'
-          issue-lock-reason: 'resolved'
+          issue-inactive-days: 90
+          issue-lock-reason: resolved
           issue-comment: |
-            This issue has been automatically locked since there has not been any recent activity
-            after it was closed. Please open a new issue for related bugs or questions following
-            the issue template.
+            This issue has been automatically locked since there has been no recent activity after it was closed.
 
-          # Lock PRs closed for 90+ days
-          pr-inactive-days: '90'
-          pr-lock-reason: 'resolved'
+            If you believe this issue should be reopened, please create a new issue and reference this one.
+
+            Thank you for your contributions!
+
+      - name: Lock merged pull requests
+        uses: dessant/lock-threads@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-inactive-days: 60
+          pr-lock-reason: resolved
           pr-comment: |
-            This pull request has been automatically locked since there has not been any recent
-            activity after it was closed. Please open a new pull request for related changes.
+            This pull request has been automatically locked since there has been no recent activity after it was merged.
 
-          # Don't process issues/PRs with these labels
-          exclude-any-issue-labels: 'no-locking,discussion'
-          exclude-any-pr-labels: 'no-locking,discussion'
+            If you have a related concern, please open a new issue and link to this PR.
 
-          # Process up to 50 items per run
-          process-only: '50'
+            Thank you for your contributions!
+
+      - name: Lock closed unmerged pull requests
+        uses: dessant/lock-threads@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-inactive-days: 60
+          pr-lock-reason: resolved
+          exclude-pr-created-before: ""
+          exclude-any-pr-labels: "blocked,on-hold"
+          pr-comment: |
+            This pull request has been automatically locked since there has been no recent activity after it was closed.
+
+            If you would like to continue this work, please open a new PR and reference this one.

@@ -2,49 +2,68 @@
 
 ## Supported Versions
 
-We release patches for security vulnerabilities. Currently supported versions:
+We release security updates for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| Version  | Supported          |
+| -------- | ------------------ |
+| latest   | :white_check_mark: |
+| < latest | :x:                |
+
+We recommend always running the latest version for security patches.
 
 ## Reporting a Vulnerability
 
-**Please DO NOT report security vulnerabilities through public GitHub issues.**
+**Please do not report security vulnerabilities through public GitHub issues.**
 
-### For Critical and High Severity Issues
+### Private Reporting (Preferred)
 
-If you discover a security vulnerability, please report it via
-**GitHub Security Advisories**:
+Report security vulnerabilities using [GitHub Security Advisories](https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new).
 
-1. Go to <https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new>
-2. Click "Report a vulnerability"
-3. Fill out the security advisory form with details
+This allows us to:
 
-### What to Include in Your Report
+- Discuss the vulnerability privately
+- Develop and test a fix
+- Coordinate disclosure timing
+- Issue a CVE if necessary
 
-To help us better understand and resolve the issue, please include as
-much of the following information as possible:
+### What to Include
 
-- **Type of vulnerability** (e.g., SQL injection, XSS, authentication bypass, etc.)
-- **Full path** of the source file(s) related to the vulnerability
-- **Location** of the affected code (tag/branch/commit or direct URL)
-- **Step-by-step instructions** to reproduce the issue
-- **Proof-of-concept or exploit code** (if possible)
-- **Impact** of the vulnerability
-- **Suggested fix** (if you have one)
-- **Your contact information** for follow-up
+When reporting a vulnerability, please include:
 
-### Response Timeline
+1. **Description** - Clear description of the vulnerability
+2. **Impact** - What can an attacker achieve?
+3. **Reproduction Steps** - Step-by-step instructions to reproduce
+4. **Affected Components** - Which parts of the service are affected
+5. **Suggested Fix** - If you have ideas for remediation
+6. **Environment** - Version, configuration, deployment details
+7. **Proof of Concept** - Code or requests demonstrating the issue (if safe to share)
+
+### Example Report
+
+```text
+Title: JWT Token Signature Bypass
+
+Description: The JWT validation does not properly verify signatures...
+
+Impact: An attacker can forge tokens and gain unauthorized access...
+
+Steps to Reproduce:
+1. Create a JWT with algorithm "none"
+2. Send to /api/v1/recipe-scraper/recipes
+3. Token is accepted without signature verification
+
+Affected: src/app/core/security/jwt.py line 45
+
+Suggested Fix: Enforce algorithm whitelist and reject "none"
+
+Environment: v1.2.3, Docker deployment
+```
+
+## Response Timeline
 
 - **Initial Response**: Within 48 hours
 - **Status Update**: Within 7 days
-- **Fix Timeline**: Depends on severity
-  - **Critical**: 1-3 days
-  - **High**: 7-14 days
-  - **Medium**: 14-30 days
-  - **Low**: 30-90 days
+- **Fix Timeline**: Varies by severity (critical: days, high: weeks, medium: months)
 
 ## Severity Levels
 
@@ -52,240 +71,148 @@ much of the following information as possible:
 
 - Remote code execution
 - Authentication bypass
-- Privilege escalation
-- Data exposure of sensitive information (API keys, credentials, PII)
+- Privilege escalation to admin
+- Mass data exposure
 
 ### High
 
-- SQL injection
-- Cross-site scripting (XSS) with significant impact
-- Server-side request forgery (SSRF)
-- Insecure deserialization
-- Path traversal
+- Token forgery/manipulation
+- Injection vulnerabilities
+- Unauthorized access to user data
+- Denial of service affecting all users
 
 ### Medium
 
-- Cross-site request forgery (CSRF)
-- Information disclosure (non-sensitive)
-- Denial of service (DoS)
-- Insecure direct object references
+- Information disclosure (limited)
+- CSRF vulnerabilities
+- Rate limiting bypass
+- Session fixation
 
 ### Low
 
-- Security misconfiguration
-- Missing security headers
 - Verbose error messages
-- Minor information leakage
+- Security header issues
+- Best practice violations
 
 ## Security Features
 
-The Recipe Scraper Service implements several security features:
+This service implements multiple security layers:
 
-### Authentication & Authorization
+### Authentication Security
 
-- API key authentication for external access
-- Rate limiting on all endpoints
-- Request validation and sanitization
-- Session management with secure token handling
+- **JWT Tokens** - Cryptographically signed tokens with configurable expiration
+- **OAuth2 Support** - Standard OAuth2 flows with PKCE support
+- **Token Validation** - Strict signature and claims verification
+- **Role-Based Access Control** - Granular permissions system
 
-### Data Protection
+### Application Security
 
-- **SQL Injection Prevention**: SQLAlchemy ORM with parameterized queries
-- **XSS Prevention**: Input validation and output encoding
-- **CSRF Protection**: CSRF tokens for state-changing operations
-- **Secrets Management**: Environment variables for sensitive configuration
-- **TLS/SSL**: HTTPS enforcement in production
+- **Rate Limiting** - Per-IP and per-user request throttling
+- **CORS Protection** - Configurable cross-origin policies
+- **Input Validation** - Pydantic models validate all inputs
+- **URL Validation** - Strict URL validation before scraping
+- **Secure Headers** - CSP, HSTS, X-Frame-Options, etc.
 
-### Infrastructure Security
+### Infrastructure
 
-- **Database**: PostgreSQL with connection pooling and prepared statements
-- **Caching**: Redis with secure connection strings
-- **Docker**: Multi-stage builds, non-root user, minimal base images
-- **Logging**: Security event logging without exposing sensitive data
+- **Secret Management** - Secrets via environment variables (never in code)
+- **Audit Logging** - Comprehensive security event logging
+- **Health Monitoring** - Liveness/readiness probes
+- **TLS Support** - HTTPS with configurable certificates
+- **Non-root Container** - Application runs as non-privileged user
 
-### Dependency Security
+## Security Best Practices
 
-- **Automated Scanning**: Dependabot for vulnerability detection
-- **Security Audits**: Regular `safety` and `bandit` scans
-- **SBOM Generation**: Software Bill of Materials for releases
+### For Operators
 
-## Security Best Practices for Operators
+1. **Use TLS/HTTPS** - Always encrypt traffic in production
+2. **Rotate Secrets** - Regularly rotate JWT signing keys
+3. **Monitor Logs** - Watch for suspicious patterns
+4. **Update Dependencies** - Keep Python packages current
+5. **Limit Exposure** - Use network policies and firewalls
+6. **Configure CORS** - Whitelist only trusted origins
+7. **Set Rate Limits** - Protect against brute force and DoS
+8. **Redis Security** - Use authentication and TLS
+9. **Backup Secrets** - Securely store signing key backups
 
-### Deployment Security Checklist
+### For Developers
 
-Before deploying to production, ensure:
+1. **Never Commit Secrets** - Use `.env` (gitignored)
+2. **Validate Inputs** - Use Pydantic for all inputs
+3. **Handle Errors Securely** - Don't leak sensitive info in errors
+4. **Run Security Checks** - Use `bandit` before committing
+5. **Review Dependencies** - Check for known vulnerabilities
+6. **Test Security** - Include security test cases
 
-- [ ] All environment variables are set and secrets are secured
-- [ ] Database uses strong passwords and restricted access
-- [ ] Redis is password-protected and not exposed publicly
-- [ ] API keys are rotated regularly
-- [ ] TLS/SSL certificates are valid and up to date
-- [ ] Security headers are configured (HSTS, CSP, X-Frame-Options, etc.)
-- [ ] Rate limiting is enabled and configured appropriately
-- [ ] Logging is enabled but doesn't capture sensitive data
-- [ ] Firewall rules restrict access to necessary ports only
-- [ ] Container images are scanned for vulnerabilities
-- [ ] Dependencies are up to date
+## Security Checklist
 
-### Configuration Security
+Before deploying:
 
-**Environment Variables** (store in `.env`, never commit):
-
-```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost/dbname # pragma: allowlist secret
-
-# API Keys
-SPOONACULAR_API_KEY=your_api_key_here
-
-# Redis
-REDIS_URL=redis://:password@localhost:6379
-
-# Security
-SECRET_KEY=your_secret_key_here
-JWT_SECRET=your_jwt_secret_here
-```
-
-**Secure Defaults**:
-
-- Use environment-specific configurations
-- Enable HTTPS redirect in production
-- Set secure cookie flags (Secure, HttpOnly, SameSite)
-- Configure CORS to allow only trusted domains
-
-### Monitoring & Incident Response
-
-- Monitor logs for suspicious activity
-- Set up alerts for failed authentication attempts
-- Track API rate limit violations
-- Review security scan results regularly
-- Have an incident response plan
+- [ ] TLS/HTTPS configured
+- [ ] Strong JWT signing key (256+ bits)
+- [ ] Rate limiting configured
+- [ ] CORS whitelist configured
+- [ ] Secrets in environment variables (not code)
+- [ ] Redis authentication enabled
+- [ ] Security headers enabled
+- [ ] Audit logging enabled
+- [ ] Dependencies updated
+- [ ] Security scan passed (bandit)
+- [ ] Network policies applied
+- [ ] Monitoring and alerting configured
 
 ## Known Security Considerations
 
-### Recipe Scraping
+### Token Storage
 
-- **URL Validation**: All URLs are validated before scraping to prevent SSRF
-- **Content Sanitization**: Scraped content is sanitized to prevent XSS
-- **Rate Limiting**: Per-source rate limiting to prevent abuse
-- **Timeout Controls**: Requests have timeout limits to prevent DoS
+- Access tokens are short-lived JWTs (recommended: 15 minutes)
+- Refresh tokens stored in Redis with TTL
+- Revoked tokens maintained in blacklist
 
-### Third-Party Integrations
+### Redis Security
 
-- **Spoonacular API**: API keys are stored securely and rotated
-- **External Recipe Sites**: Scraping respects robots.txt and rate limits
-- **Image Downloads**: Images are validated and scanned for malicious content
+- Optional authentication (recommended)
+- Optional TLS (recommended in production)
+- TTL on all cached data
 
-### Database Security
+### URL Scraping
 
-- **Connection Pooling**: Limited connections to prevent resource exhaustion
-- **Query Parameterization**: All queries use SQLAlchemy ORM or parameters
-- **Access Control**: Least privilege principle for database users
-- **Backup Encryption**: Database backups are encrypted at rest
+- URLs are validated before scraping
+- External requests have timeouts
+- Response size limits enforced
+- Content-Type verification
 
 ## Disclosure Policy
 
-### Coordinated Disclosure
+We follow **coordinated disclosure**:
 
-We follow a coordinated disclosure process:
-
-1. **Report Received**: We acknowledge your report within 48 hours
-2. **Investigation**: We investigate and verify the vulnerability
-3. **Fix Development**: We develop and test a fix
-4. **Fix Deployment**: We deploy the fix to production
-5. **Public Disclosure**: We publicly disclose the vulnerability after:
-   - Fix is deployed to all affected systems
-   - Affected users are notified (if applicable)
-   - 90 days have passed (whichever comes first)
-
-### Credit and Recognition
-
-We appreciate the work of security researchers:
-
-- We will credit you in the security advisory (unless you prefer to remain anonymous)
-- Your name will be added to our
-  [Security Hall of Fame](../README.md#security-hall-of-fame) (if you wish)
-- We may offer a thank-you letter or swag for significant discoveries
+1. Vulnerability reported privately
+2. We confirm and develop fix
+3. Fix tested and released
+4. Public disclosure after fix is deployed
+5. Credit given to reporter (if desired)
 
 ## Security Updates
 
-### How to Stay Informed
+Subscribe to:
 
-- **GitHub Security Advisories**: Subscribe to security advisories for this repository
-- **Release Notes**: Check [CHANGELOG.md](../CHANGELOG.md) for security fixes
-- **GitHub Watch**: Watch this repository for security-related releases
-- **RSS Feed**: Subscribe to the releases RSS feed
-
-### Applying Security Updates
-
-```bash
-# Update to the latest version
-git pull origin main
-poetry update
-poetry install
-
-# Review changelog for breaking changes
-cat CHANGELOG.md
-
-# Run tests
-pytest
-
-# Deploy to production
-# (follow your deployment process)
-```
-
-## Security Tools
-
-This project uses the following security tools:
-
-### Automated Scanning
-
-- **Bandit**: Python security linter
-- **Safety**: Dependency vulnerability scanner
-- **Trivy**: Container and filesystem vulnerability scanner
-- **CodeQL**: Semantic code analysis
-- **Dependabot**: Automated dependency updates
-
-### Running Security Scans Locally
-
-```bash
-# Python security scanner
-poetry run bandit -r app/
-
-# Dependency vulnerability check
-poetry run safety check
-
-# Pre-commit hooks (includes security checks)
-pre-commit run --all-files
-```
+- [GitHub Security Advisories](https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories)
+- [Release Notes](https://github.com/Recipe-Web-App/recipe-scraper-service/releases)
+- Watch repository for security patches
 
 ## Contact
 
-For security concerns that don't require immediate disclosure:
+For security concerns: Use [GitHub Security Advisories](https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new)
 
-- **Email**: <security@recipe-web-app.com> (if available)
-- **GitHub**: @jsamuelsen11
-
-For urgent security issues, always use **GitHub Security Advisories**.
-
-## Resources
-
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [CWE Top 25](https://cwe.mitre.org/top25/archive/2023/2023_top25_list.html)
-- [Python Security Best Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
-- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)
-- [SQLAlchemy Security](https://docs.sqlalchemy.org/en/20/faq/security.html)
+For general questions: See [SUPPORT.md](SUPPORT.md)
 
 ## Acknowledgments
 
-We thank the following security researchers for responsibly disclosing vulnerabilities:
+We thank security researchers who responsibly disclose vulnerabilities. Contributors will be acknowledged (with
+permission) in:
 
-<!-- List will be populated as researchers report vulnerabilities -->
+- Security advisories
+- Release notes
+- This document
 
-_No vulnerabilities have been publicly disclosed at this time._
-
----
-
-**Last Updated**: 2025-10-07
-
-Thank you for helping keep the Recipe Scraper Service and our users safe!
+Thank you for helping keep this project secure!

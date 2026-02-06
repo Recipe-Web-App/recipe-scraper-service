@@ -2,8 +2,8 @@ name: Stale Issues and PRs
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Run daily at midnight UTC
-  workflow_dispatch:  # Allow manual triggering
+    - cron: "0 0 * * *" # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
 
 permissions:
   issues: write
@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Mark stale issues and PRs
-        uses: actions/stale@v10
+        uses: actions/stale@v9
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -36,8 +36,8 @@ jobs:
 
             Thank you for your contributions!
 
-          stale-issue-label: 'stale'
-          exempt-issue-labels: 'pinned,security,critical,in-progress'
+          stale-issue-label: "stale"
+          exempt-issue-labels: "pinned,security,critical,in-progress"
 
           close-issue-message: |
             This issue was automatically closed due to inactivity.
@@ -60,8 +60,8 @@ jobs:
 
             Thank you for your contributions!
 
-          stale-pr-label: 'stale'
-          exempt-pr-labels: 'pinned,security,work-in-progress,blocked'
+          stale-pr-label: "stale"
+          exempt-pr-labels: "pinned,security,work-in-progress,blocked"
 
           close-pr-message: |
             This pull request was automatically closed due to inactivity.

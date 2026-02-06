@@ -1,0 +1,3 @@
+observability:
+  tracing:
+    enabled: true

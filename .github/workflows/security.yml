@@ -6,20 +6,51 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: '0 6 * * 1'  # Run every Monday at 6 AM UTC
-  workflow_dispatch:
+    - cron: "0 6 * * 1" # Run every Monday at 6 AM UTC
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.13'
+  PYTHON_VERSION: "3.14"
+  UV_VERSION: "0.5"
 
 permissions:
   contents: read
 
 jobs:
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["python"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
@@ -31,7 +62,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
@@ -49,23 +80,23 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          exit-code: '0'  # Don't fail the build
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          exit-code: "0" # Don't fail the build
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
   bandit:
     name: Bandit Security Scanner
@@ -76,57 +107,59 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install bandit[sarif]
+        run: uv sync --all-extras --dev
 
       - name: Run Bandit Security Scanner
-        run: |
-          bandit -r app/ -f sarif -o bandit-results.sarif || true
+        run: uv run bandit -r src -f sarif -o bandit.sarif || true
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: bandit-results.sarif
+          sarif_file: bandit.sarif
 
-  safety:
-    name: Safety Dependency Check
+  pip-audit:
+    name: Pip Audit
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      security-events: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: |
-          poetry install
+        run: uv sync --all-extras --dev
 
-      - name: Run Safety check
-        run: |
-          poetry run safety check --json || true
+      - name: Export requirements
+        run: uv export --format requirements-txt > requirements.txt
+
+      - name: Run pip-audit
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: requirements.txt
 
   sbom:
     name: Generate SBOM
@@ -136,7 +169,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -147,7 +180,7 @@ jobs:
           format: spdx-json
 
       - name: Upload SBOM as artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: sbom
           path: sbom.spdx.json
@@ -162,7 +195,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -179,14 +212,14 @@ jobs:
       - name: Run Trivy on Docker image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'recipe-scraper-service:scan'
-          format: 'sarif'
-          output: 'trivy-docker.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          image-ref: "recipe-scraper-service:scan"
+          format: "sarif"
+          output: "trivy-docker.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
 
       - name: Upload Docker scan results
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-docker.sarif'
-          category: 'docker-image'
+          sarif_file: "trivy-docker.sarif"
+          category: "docker-image"

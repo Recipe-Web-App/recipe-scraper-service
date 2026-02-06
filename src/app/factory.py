@@ -1,0 +1,147 @@
+"""Application factory for creating FastAPI instances.
+
+This module provides the create_app factory function that:
+- Configures the FastAPI application with appropriate settings
+- Sets up middleware stack in the correct order
+- Registers exception handlers
+- Mounts API routers
+- Configures OpenAPI documentation
+"""
+
+from __future__ import annotations
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from slowapi.errors import RateLimitExceeded
+
+from app.api.v1.endpoints.root import router as root_router
+from app.api.v1.router import router as v1_router
+from app.cache.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.config import Settings, get_settings
+from app.core.events import lifespan
+from app.core.exceptions import setup_exception_handlers
+from app.core.middleware.logging import LoggingMiddleware
+from app.core.middleware.request_id import RequestIDMiddleware
+from app.core.middleware.security_headers import SecurityHeadersMiddleware
+from app.core.middleware.timing import TimingMiddleware
+from app.observability.metrics import setup_metrics
+from app.observability.tracing import setup_tracing
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create and configure a FastAPI application instance.
+
+    Args:
+        settings: Optional settings override. If not provided, uses get_settings().
+
+    Returns:
+        Configured FastAPI application instance.
+    """
+    if settings is None:
+        settings = get_settings()
+
+    # Create FastAPI app with configuration
+    # All URLs must use the API prefix for gateway routing
+    prefix = settings.api.v1_prefix
+    app = FastAPI(
+        title=settings.app.name,
+        version=settings.app.version,
+        description="Recipe Scraper Service - Enterprise-grade API for recipe management",
+        lifespan=lifespan,
+        docs_url=f"{prefix}/docs" if settings.is_non_production else None,
+        redoc_url=f"{prefix}/redoc" if settings.is_non_production else None,
+        openapi_url=f"{prefix}/openapi.json" if settings.is_non_production else None,
+        debug=settings.app.debug,
+    )
+
+    # Store settings in app state for access in routes
+    app.state.settings = settings
+
+    # Setup rate limiting
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+    # Setup exception handlers
+    setup_exception_handlers(app)
+
+    # Setup middleware (order matters - first added = last executed)
+    _setup_middleware(app, settings)
+
+    # Mount API routers
+    _setup_routers(app, settings)
+
+    # Setup observability (after routes are mounted)
+    setup_tracing(app, settings)
+    setup_metrics(app)
+
+    return app
+
+
+def _setup_middleware(app: FastAPI, settings: Settings) -> None:
+    """Configure middleware stack.
+
+    Middleware is executed in reverse order of addition:
+    - Last added middleware runs first on request
+    - First added middleware runs first on response
+
+    Order from request perspective:
+    1. SecurityHeadersMiddleware (adds security headers)
+    2. RequestIDMiddleware (adds request ID for tracing)
+    3. TimingMiddleware (measures request time)
+    4. LoggingMiddleware (logs requests/responses)
+    5. GZipMiddleware (compresses responses)
+    6. CORSMiddleware (handles CORS)
+    """
+    # CORS - must be added first (runs last on request, first on response)
+    if settings.api.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[str(origin) for origin in settings.api.cors_origins],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["X-Request-ID", "X-Process-Time"],
+        )
+
+    # GZip compression for responses
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # Request/response logging
+    # All paths must use the API prefix for gateway routing
+    prefix = settings.api.v1_prefix
+    app.add_middleware(
+        LoggingMiddleware,
+        exclude_paths={
+            f"{prefix}/health",
+            f"{prefix}/ready",
+            f"{prefix}/metrics",
+        },
+    )
+
+    # Request timing
+    app.add_middleware(TimingMiddleware)
+
+    # Request ID for tracing
+    app.add_middleware(RequestIDMiddleware)
+
+    # Security headers (runs first on request)
+    app.add_middleware(SecurityHeadersMiddleware)
+
+
+def _setup_routers(app: FastAPI, settings: Settings) -> None:
+    """Mount API routers.
+
+    All routers must use the API prefix for gateway routing.
+
+    Args:
+        app: FastAPI application instance.
+        settings: Application settings.
+    """
+    prefix = settings.api.v1_prefix
+
+    # Mount root router with prefix (for service discovery)
+    app.include_router(root_router, prefix=prefix)
+
+    # Mount v1 API router with prefix
+    app.include_router(v1_router, prefix=prefix)

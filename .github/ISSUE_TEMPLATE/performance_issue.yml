@@ -1,6 +1,6 @@
 ---
 name: Performance Issue
-description: Report performance degradation or optimization opportunities
+description: Report a performance problem or slowdown
 title: "[Performance]: "
 labels: ["performance", "needs-triage"]
 assignees:
@@ -9,15 +9,32 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this template to report performance problems or suggest performance
-        optimizations for the recipe scraper service.
+        Thanks for reporting a performance issue! Please provide details to help us investigate.
 
   - type: textarea
     id: description
     attributes:
       label: Performance Issue Description
-      description: Describe the performance problem
-      placeholder: "API endpoint /recipes/scrape is taking too long..."
+      description: A clear description of the performance problem
+      placeholder: Describe the performance issue you're experiencing
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What performance did you expect?
+      placeholder: "e.g., Response time should be under 500ms"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Performance
+      description: What performance are you seeing?
+      placeholder: "e.g., Response time is 5+ seconds"
     validations:
       required: true
 
@@ -27,28 +44,14 @@ body:
       label: Affected Component
       description: Which component has the performance issue?
       options:
-        - Recipe Scraping Engine
-        - Web Scraper (Popular Recipes)
-        - Spoonacular Integration
-        - Nutritional Analysis
-        - API Endpoints
-        - Database Queries
-        - Cache Operations
-        - Background Tasks
+        - Recipe Scraping
+        - API Response Time
+        - Redis Cache
+        - Background Jobs
+        - Memory Usage
+        - CPU Usage
+        - Startup Time
         - Other
-    validations:
-      required: true
-
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Impact Severity
-      description: How severe is the performance impact?
-      options:
-        - Critical (Service unusable/timing out)
-        - High (Significantly degraded user experience)
-        - Medium (Noticeable slowdown)
-        - Low (Minor optimization opportunity)
     validations:
       required: true
 
@@ -56,98 +59,49 @@ body:
     id: metrics
     attributes:
       label: Performance Metrics
-      description: Provide specific performance metrics (response times, throughput, resource usage)
+      description: Include any metrics or measurements
       placeholder: |
-        - Current response time: 15 seconds
-        - Expected response time: < 2 seconds
-        - CPU usage: 95%
-        - Memory usage: 8GB
-        - Database query time: 10 seconds
-    validations:
-      required: true
+        - Average response time: X ms
+        - P95 response time: X ms
+        - Memory usage: X MB
+        - CPU usage: X%
 
   - type: textarea
-    id: steps
+    id: reproduction
     attributes:
       label: Steps to Reproduce
       description: How can we reproduce this performance issue?
       placeholder: |
-        1. Send request to /api/v1/recipes/scrape
-        2. With URL from allrecipes.com
-        3. Measure response time
-    validations:
-      required: true
-
-  - type: textarea
-    id: load
-    attributes:
-      label: Load Characteristics
-      description: Describe the load when this performance issue occurs
-      placeholder: |
-        - Number of concurrent requests: 100
-        - Requests per second: 10
-        - Data volume: 10,000 recipes in database
-    validations:
-      required: true
+        1. Make request to endpoint X
+        2. With payload Y
+        3. Observe slow response
 
   - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: Environment details where performance issue occurs
+      description: Your deployment environment
       value: |
-        - Python version:
         - Deployment: (Docker/Kubernetes/Local)
-        - OS:
-        - CPU cores:
-        - RAM:
-        - PostgreSQL version:
-        - Redis version:
-      placeholder: Fill in environment details
+        - Resources: (CPU/Memory allocated)
+        - Concurrent users/requests:
+        - Redis configuration:
     validations:
       required: true
-
-  - type: textarea
-    id: configuration
-    attributes:
-      label: Configuration
-      description: Relevant configuration settings
-      placeholder: |
-        DATABASE_POOL_SIZE=10
-        REDIS_MAX_CONNECTIONS=50
-        WORKER_PROCESSES=4
 
   - type: textarea
     id: profiling
     attributes:
       label: Profiling Data (if available)
-      description: Include profiling data, slow query logs, or performance traces
-      render: shell
-      placeholder: Paste profiling output here
-
-  - type: textarea
-    id: suggestions
-    attributes:
-      label: Optimization Suggestions
-      description: Do you have suggestions for improving performance?
-      placeholder: "Could be optimized by adding database index on..."
-
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional Context
-      description: Any other information about the performance issue
-      placeholder: Graphs, charts, or additional metrics
+      description: Include any profiling or tracing data
+      render: text
 
   - type: checkboxes
     id: terms
     attributes:
       label: Checklist
-      description: Please confirm the following
       options:
-        - label: I have searched existing issues to avoid duplicates
+        - label: I have searched existing issues for similar performance problems
           required: true
-        - label: I have provided specific performance metrics
+        - label: I have provided metrics or measurements
           required: true
-        - label: I can provide profiling data if needed
-          required: false

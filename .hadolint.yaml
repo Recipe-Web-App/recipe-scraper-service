@@ -1,0 +1,20 @@
+# ==============================================================================
+# Hadolint Configuration
+# ==============================================================================
+# See: https://github.com/hadolint/hadolint#configure
+
+ignored:
+  # DL3008: Pin versions in apt get install
+  # Reason: Pinning apt package versions is impractical - versions vary across
+  # distributions, become outdated quickly, and add significant maintenance burden.
+  # We mitigate this risk through:
+  # - Using slim base images with minimal packages
+  # - Regularly rebuilding images to get security updates
+  # - Using multi-stage builds to minimize final image size
+  - DL3008
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - gcr.io
+  - quay.io

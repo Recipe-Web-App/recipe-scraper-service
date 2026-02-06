@@ -1,3 +1,0 @@
-auth_service_token_url: "http://sous-chef-proxy.local/api/v1/auth/oauth2/token"
-notification_service_url: "http://sous-chef-proxy.local"
-user_management_service_url: "http://sous-chef-proxy.local"

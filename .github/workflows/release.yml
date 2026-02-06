@@ -1,127 +1,225 @@
-name: Release and Changelog
+name: Release
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      version_type:
-        description: 'Version bump type'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-        - patch
-        - minor
-        - major
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.14"
+  UV_VERSION: "0.5"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 permissions:
   contents: write
-  pull-requests: write
+  packages: write
+  id-token: write # For SBOM attestations
 
 jobs:
-  release:
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'chore(release):')"
+
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: |
-          npm install -g \
-            conventional-changelog-cli \
-            conventional-commits-parser \
-            conventional-recommended-bump \
-            semver
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Get current version
-        id: current_version
-        run: |
-          CURRENT_VERSION=$(poetry version -s)
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Determine version bump
-        id: version_bump
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            BUMP_TYPE="${{ github.event.inputs.version_type }}"
-          else
-            # Auto-determine bump type from conventional commits
-            BUMP_TYPE=$(conventional-recommended-bump -p angular)
-          fi
-
-          NEW_VERSION=$(semver -i $BUMP_TYPE ${{ steps.current_version.outputs.current_version }})
-          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if release needed
-        id: check_release
-        run: |
-          if [ "${{ steps.current_version.outputs.current_version }}" = "${{ steps.version_bump.outputs.new_version }}" ]; then
-            echo "needs_release=false" >> $GITHUB_OUTPUT
-            echo "No release needed - no conventional commits found"
-          else
-            echo "needs_release=true" >> $GITHUB_OUTPUT
-            echo "Release needed: ${{ steps.current_version.outputs.current_version }} -> ${{ steps.version_bump.outputs.new_version }}"
-          fi
+      - name: Get version
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
-        if: steps.check_release.outputs.needs_release == 'true'
+        id: changelog
         run: |
-          conventional-changelog -p angular -i CHANGELOG.md -s -r 0
+          if [[ ${{ steps.get_version.outputs.version }} == v*.*.* ]]; then
+            # Get the previous tag
+            PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -2 | tail -1)
+            if [ -n "$PREV_TAG" ]; then
+              CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
+            else
+              CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+            fi
+          else
+            CHANGELOG="Pre-release version"
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Update version in pyproject.toml
-        if: steps.check_release.outputs.needs_release == 'true'
-        run: |
-          poetry version ${{ steps.version_bump.outputs.new_version }}
-
-      - name: Commit changes
-        if: steps.check_release.outputs.needs_release == 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add CHANGELOG.md pyproject.toml
-          git commit -m "chore(release): v${{ steps.version_bump.outputs.new_version }}"
-          git push
-
-      - name: Create GitHub Release
-        if: steps.check_release.outputs.needs_release == 'true'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version_bump.outputs.new_version }}
-          release_name: Release v${{ steps.version_bump.outputs.new_version }}
-          body_path: CHANGELOG.md
-          draft: false
-          prerelease: false
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          body: |
+            ## Changes
+            ${{ steps.changelog.outputs.changelog }}
 
-      - name: Build and publish to PyPI
-        if: steps.check_release.outputs.needs_release == 'true'
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+            ## Installation
+
+            ### Docker
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}
+            ```
+
+            ### Docker Compose
+            ```yaml
+            services:
+              recipe-scraper:
+                image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}
+                ports:
+                  - "8000:8000"
+                environment:
+                  - REDIS_URL=redis://redis:6379
+            ```
+
+            ### From Source (uv)
+            ```bash
+            git clone https://github.com/${{ github.repository }}.git
+            cd recipe-scraper-service
+            git checkout ${{ steps.get_version.outputs.version }}
+            uv sync
+            uv run uvicorn src.app.main:app --host 0.0.0.0 --port 8000
+            ```
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, '-') }}
+          generate_release_notes: true
+
+  build-package:
+    name: Build Python Package
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Build package
+        run: uv build
+
+      - name: Generate checksums
         run: |
-          poetry build
-          poetry publish
+          cd dist
+          for file in *; do
+            sha256sum "$file" > "${file}.sha256"
+          done
+
+      - name: Upload package to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: |
+            dist/*
+
+  build-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM with syft
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: recipe-scraper-service-sbom.spdx.json
+          output-file: recipe-scraper-service-sbom.spdx.json
+          format: spdx-json
+
+      - name: Upload SBOM to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: recipe-scraper-service-sbom.spdx.json
+
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.create-release.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}
+          artifact-name: docker-sbom.spdx.json
+          output-file: docker-sbom.spdx.json
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Upload Docker SBOM to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: docker-sbom.spdx.json

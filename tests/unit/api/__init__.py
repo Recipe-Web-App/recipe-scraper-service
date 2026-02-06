@@ -1,1 +1,1 @@
-"""API tests package."""
+"""Unit tests for API endpoints."""

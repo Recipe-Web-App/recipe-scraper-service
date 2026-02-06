@@ -1,0 +1,10 @@
+# ==============================================================================
+# Namespace - Staging
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recipe-scraper-staging
+  labels:
+    app.kubernetes.io/name: recipe-scraper-service
+    environment: staging

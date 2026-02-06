@@ -1,15 +1,18 @@
+---
 # PR Labeler Configuration
+# Automatically labels PRs based on changed files
 
 # Dependencies
 dependencies:
   - pyproject.toml
-  - poetry.lock
-  - requirements.txt
+  - uv.lock
 
 # Documentation
 documentation:
-  - '**/*.md'
+  - "**/*.md"
   - docs/**/*
+  - CLAUDE.md
+  - README.md
 
 # GitHub configuration
 github:
@@ -24,34 +27,57 @@ docker:
   - Dockerfile
   - docker-compose*.yml
   - .dockerignore
+  - docker/**/*
 
 # Configuration
 configuration:
-  - '**/*.yml'
-  - '**/*.yaml'
-  - '**/*.json'
+  - "**/*.yml"
+  - "**/*.yaml"
+  - "**/*.json"
+  - "**/*.toml"
   - .env.example
 
-# Python source
+# Source code
 python:
-  - '**/*.py'
-  - app/**/*
+  - "**/*.py"
+  - src/**/*
 
 # Tests
 tests:
-  - '**/test_*.py'
-  - '**/*_test.py'
+  - "**/test_*.py"
+  - "**/*_test.py"
   - tests/**/*
+  - conftest.py
 
-# Database
-database:
-  - app/db/**/*
-  - migrations/**/*
-
-# API
+# API/Endpoints
 api:
-  - app/api/**/*
+  - src/app/api/**/*
+  - src/app/routes/**/*
+
+# Authentication
+auth:
+  - src/app/auth/**/*
+  - src/app/core/security/**/*
+
+# Core/Middleware
+core:
+  - src/app/core/**/*
+  - src/app/middleware/**/*
+
+# Background Jobs
+background-jobs:
+  - src/app/worker/**/*
+  - src/app/jobs/**/*
+
+# Observability
+observability:
+  - src/app/observability/**/*
 
 # Scripts
 scripts:
   - scripts/**/*
+  - "**/*.sh"
+
+# Kubernetes
+kubernetes:
+  - k8s/**/*

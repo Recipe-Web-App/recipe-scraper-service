@@ -1,0 +1,1812 @@
+openapi: 3.1.0
+info:
+  title: Recipe Scraper Service
+  summary: High-performance recipe scraping microservice
+  description: A modern, secure API for scraping and managing recipe data with comprehensive
+    monitoring. This service provides endpoints for recipe scraping, nutritional analysis,
+    ingredient substitutions, recipe recommendations, and shopping information.
+  contact:
+    name: Recipe Scraper Team
+    url: https://github.com/jsamuelsen11/recipe-scraper-service
+    email: jsamuelsen11@gmail.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  version: 2.0.0
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.recipe-scraper.example.com
+    description: Production server
+paths:
+  /api/v1/recipe-scraper:
+    get:
+      tags:
+        - Root
+      summary: Root endpoint
+      description: Root endpoint providing basic service information and health status.
+      operationId: root
+      responses:
+        "200":
+          description: Service information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: Recipe Scraper Service
+                  version:
+                    type: string
+                    example: 2.0.0
+                  status:
+                    type: string
+                    example: operational
+                  docs:
+                    type: string
+                    example: /api/v1/recipe-scraper/docs
+                  health:
+                    type: string
+                    example: /api/v1/recipe-scraper/health
+  /api/v1/recipe-scraper/docs:
+    get:
+      tags:
+        - Documentation
+      summary: Interactive API documentation
+      description: Swagger UI interactive API documentation. Only available in development
+        mode. Provides a web-based interface for exploring and testing API endpoints.
+      operationId: swaggerDocs
+      responses:
+        "200":
+          description: Swagger UI HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+              example: "<!DOCTYPE html><html>...</html>"
+        "404":
+          description: Documentation not available (production mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                docs_disabled:
+                  summary: Documentation disabled in production
+                  value:
+                    error: NOT_FOUND
+                    message: Documentation is not available in production mode
+  /api/v1/recipe-scraper/redoc:
+    get:
+      tags:
+        - Documentation
+      summary: ReDoc API documentation
+      description: ReDoc-style API documentation. Only available in development mode.
+        Provides an alternative documentation view with a clean, readable layout.
+      operationId: redocDocs
+      responses:
+        "200":
+          description: ReDoc HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+              example: "<!DOCTYPE html><html>...</html>"
+        "404":
+          description: Documentation not available (production mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                docs_disabled:
+                  summary: Documentation disabled in production
+                  value:
+                    error: NOT_FOUND
+                    message: Documentation is not available in production mode
+  /api/v1/recipe-scraper/openapi.json:
+    get:
+      tags:
+        - Documentation
+      summary: OpenAPI specification
+      description: Raw OpenAPI 3.1 specification in JSON format. Only available in
+        development mode. Can be used to generate client SDKs or import into API tools.
+      operationId: openApiSpec
+      responses:
+        "200":
+          description: OpenAPI specification JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                description: OpenAPI 3.1 specification document
+              example:
+                openapi: "3.1.0"
+                info:
+                  title: Recipe Scraper Service
+                  version: "2.0.0"
+        "404":
+          description: Specification not available (production mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                spec_disabled:
+                  summary: OpenAPI spec disabled in production
+                  value:
+                    error: NOT_FOUND
+                    message: OpenAPI specification is not available in production mode
+  /api/v1/recipe-scraper/metrics:
+    get:
+      tags:
+        - Monitoring
+      summary: Prometheus metrics
+      description: Endpoint that serves Prometheus metrics for monitoring and observability.
+      operationId: metrics
+      responses:
+        "200":
+          description: Prometheus metrics in text format
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: '# HELP http_requests_total Total number of HTTP requests
+
+                # TYPE http_requests_total counter
+
+                http_requests_total{method="GET",endpoint="/api/health"} 42'
+  /api/v1/recipe-scraper/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      description: Readiness check including database and external dependencies. Used
+        by Kubernetes for readiness probes.
+      operationId: readinessProbe
+      responses:
+        "200":
+          description: Service is ready or degraded but operational
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ready
+                      - degraded
+                    example: ready
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-01-31T12:00:00Z"
+                  checks:
+                    type: object
+                    properties:
+                      database:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum:
+                              - healthy
+                              - degraded
+                          responseTimeMs:
+                            type: number
+                          message:
+                            type: string
+                  message:
+                    type: string
+                    example: Service ready
+  /api/v1/recipe-scraper/health:
+    get:
+      tags:
+        - Health
+      summary: Comprehensive health check
+      description: Detailed health status including all dependencies and metrics.
+        Provides comprehensive information about service health, database connectivity,
+        external APIs, and performance metrics.
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy or degraded but operational
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+        "503":
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+  /api/v1/recipe-scraper/recipes:
+    post:
+      tags:
+        - Recipes
+      summary: Create a recipe from a URL
+      description: Scrapes recipe data from a provided URL and stores it in the database.
+        This endpoint supports most popular recipe websites and will extract recipe
+        title, description, ingredients list with quantities and units, cooking instructions,
+        nutritional information (when available), and images/metadata.
+      operationId: createRecipe
+      security:
+        - BearerAuth: []
+        - OAuth2:
+            - write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecipeRequest"
+            examples:
+              allrecipes_example:
+                summary: AllRecipes URL
+                value:
+                  recipeUrl: https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/
+              food_network_example:
+                summary: Food Network URL
+                value:
+                  recipeUrl: https://www.foodnetwork.com/recipes/alton-brown/chocolate-chip-cookies-recipe-1947703
+      responses:
+        "201":
+          description: Recipe successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRecipeResponse"
+              examples:
+                success_example:
+                  summary: Successful recipe creation
+                  value:
+                    recipe:
+                      recipeId: 123
+                      title: Classic Chocolate Chip Cookies
+                      description: Soft and chewy chocolate chip cookies that are
+                        perfect for any occasion
+                      originUrl: https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/
+                      servings: 24
+                      preparationTime: 15
+                      cookingTime: 12
+                      difficulty: easy
+                      ingredients:
+                        - ingredientId: 1
+                          name: all-purpose flour
+                          quantity:
+                            amount: 2.25
+                            measurement: CUP
+                        - ingredientId: 2
+                          name: butter
+                          quantity:
+                            amount: 1.0
+                            measurement: CUP
+                      steps:
+                        - stepNumber: 1
+                          instruction: "Preheat oven to 375\xB0F (190\xB0C)."
+                          optional: false
+                        - stepNumber: 2
+                          instruction: Mix flour and baking soda in a bowl.
+                          optional: false
+        "400":
+          description: Invalid URL or unsupported website
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_url:
+                  summary: Invalid recipe URL
+                  value:
+                    error: INVALID_RECIPE_URL
+                    message: Unable to scrape recipe from the provided URL
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/recipes/popular:
+    get:
+      tags:
+        - Recipes
+      summary: Get popular recipes from the internet
+      description: Retrieves a curated list of popular recipe URLs from various cooking
+        websites. This endpoint aggregates trending and popular recipes from major
+        cooking platforms and returns them in a paginated format. The service maintains
+        a cache of popular recipes that is updated periodically to ensure fresh content
+        while maintaining good performance.
+      operationId: getPopularRecipes
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Number of recipes to return (1-100)
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of recipes to skip for pagination
+        - name: countOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return only the total count instead of recipe data
+      responses:
+        "200":
+          description: Popular recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopularRecipesResponse"
+              examples:
+                popular_recipes:
+                  summary: List of popular recipes
+                  value:
+                    recipes:
+                      - recipeName: Simple Macaroni and Cheese
+                        url: https://www.allrecipes.com/recipe/231506/simple-macaroni-and-cheese/
+                      - recipeName: Baked Macaroni and Cheese
+                        url: https://www.foodnetwork.com/recipes/alton-brown/baked-macaroni-and-cheese-recipe-1939524
+                    limit: 50
+                    offset: 0
+                    count: 150
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/recipes/{recipeId}/nutritional-info:
+    get:
+      tags:
+        - Recipes
+        - Nutritional Info
+      summary: Get nutritional info for a recipe
+      description: Returns comprehensive nutritional information for all ingredients
+        in the recipe, with options to include total aggregated values and per-ingredient
+        breakdowns.
+      operationId: getRecipeNutritionalInfo
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the recipe (must be > 0)
+        - name: includeTotal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Include total aggregated nutritional information
+        - name: includeIngredients
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include per-ingredient nutritional breakdowns
+      responses:
+        "200":
+          description: Nutritional information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeNutritionalInfoResponse"
+        "206":
+          description: Partial content - some ingredient nutritional data unavailable
+          headers:
+            X-Partial-Content:
+              schema:
+                type: string
+                example: "101,102,103"
+              description: Comma-separated list of ingredient IDs for which nutritional data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeNutritionalInfoResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_flags:
+                  summary: Missing required flags
+                  value:
+                    error: BAD_REQUEST
+                    message: At least one of 'includeTotal' or 'includeIngredients' must be true.
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/ingredients/{ingredientId}/nutritional-info:
+    get:
+      tags:
+        - Ingredients
+        - Nutritional Info
+      summary: Get nutritional info for an ingredient
+      description: Returns comprehensive nutritional information for a specific ingredient,
+        with optional quantity adjustment for custom serving sizes.
+      operationId: getIngredientNutritionalInfo
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the ingredient (must be > 0)
+        - name: amount
+          in: query
+          required: false
+          schema:
+            type: number
+            exclusiveMinimum: 0
+          description: Quantity amount for the ingredient
+        - name: measurement
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/IngredientUnitEnum"
+          description: Measurement unit for the quantity
+      responses:
+        "200":
+          description: Ingredient nutritional information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientNutritionalInfoResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                incomplete_quantity:
+                  summary: Incomplete quantity specification
+                  value:
+                    error: BAD_REQUEST
+                    message: Both 'amount' and 'measurement' must be provided together when used.
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/ingredients/{ingredientId}/substitutions:
+    get:
+      tags:
+        - Ingredients
+        - Recommendations
+      summary: Get substitutions for ingredient
+      description: Returns AI-powered recommended substitutions for a given ingredient,
+        with conversion ratios and quantity adjustments.
+      operationId: getIngredientSubstitutions
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the ingredient (must be > 0)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Number of substitutions to return (1-100)
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of substitutions to skip for pagination
+        - name: countOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return only the total count instead of substitution data
+        - name: amount
+          in: query
+          required: false
+          schema:
+            type: number
+            exclusiveMinimum: 0
+          description: Quantity amount for conversion calculations
+        - name: measurement
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/IngredientUnitEnum"
+          description: Measurement unit for quantity
+      responses:
+        "200":
+          description: Ingredient substitutions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendedSubstitutionsResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                incomplete_quantity:
+                  summary: Incomplete quantity specification
+                  value:
+                    error: BAD_REQUEST
+                    message: Both amount and measurement must be provided together.
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/recipes/{recipeId}/pairings:
+    get:
+      tags:
+        - Recipes
+        - Recommendations
+      summary: Get recipe pairing suggestions
+      description: Recommends recipes that pair well with the given recipe, using
+        AI-powered analysis of flavor profiles and cuisine types.
+      operationId: getRecipePairings
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the recipe (must be > 0)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Number of pairing suggestions to return (1-100)
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of suggestions to skip for pagination
+        - name: countOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return only the total count instead of pairing data
+      responses:
+        "200":
+          description: Recipe pairing suggestions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingSuggestionsResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/ingredients/{ingredientId}/shopping-info:
+    get:
+      tags:
+        - Shopping
+        - Ingredients
+      summary: Get shopping information for an ingredient
+      description: Retrieves shopping information for a specific ingredient, including
+        estimated prices, availability, and quantity conversions for grocery shopping.
+      operationId: getIngredientShoppingInfo
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The unique identifier of the ingredient
+        - name: amount
+          in: query
+          required: false
+          schema:
+            type: number
+            exclusiveMinimum: 0
+          description: Quantity amount for price calculation
+        - name: measurement
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/IngredientUnitEnum"
+          description: Measurement unit for the quantity
+      responses:
+        "200":
+          description: Shopping information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientShoppingInfoResponse"
+              examples:
+                flour_example:
+                  summary: Flour shopping info
+                  value:
+                    ingredientName: all-purpose flour
+                    quantity:
+                      amount: 2.5
+                      measurement: CUP
+                    estimatedPrice: "1.25"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                incomplete_quantity:
+                  summary: Incomplete quantity specification
+                  value:
+                    error: BAD_REQUEST
+                    message: Both 'amount' and 'measurement' must be provided together when used.
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/recipes/{recipeId}/shopping-info:
+    get:
+      tags:
+        - Shopping
+        - Recipes
+      summary: Get shopping information for a complete recipe
+      description: Retrieves comprehensive shopping information for all ingredients
+        in a recipe, including individual ingredient prices and total estimated cost
+        for grocery shopping.
+      operationId: getRecipeShoppingInfo
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The unique identifier of the recipe
+      responses:
+        "200":
+          description: Shopping information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeShoppingInfoResponse"
+              examples:
+                recipe_shopping:
+                  summary: Complete recipe shopping info
+                  value:
+                    recipeId: 123
+                    ingredients:
+                      flour:
+                        ingredientName: all-purpose flour
+                        quantity:
+                          amount: 2.5
+                          measurement: CUP
+                        estimatedPrice: "1.25"
+                      sugar:
+                        ingredientName: granulated sugar
+                        quantity:
+                          amount: 1.0
+                          measurement: CUP
+                        estimatedPrice: "0.75"
+                    totalEstimatedCost: "2.00"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/ingredients/{ingredientId}/allergens:
+    get:
+      tags:
+        - Ingredients
+        - Allergens
+      summary: Get allergen info for an ingredient
+      description: Returns allergen information for a specific ingredient, including
+        allergen types, presence classification (contains, may contain, traces),
+        and confidence scores from the data source.
+      operationId: getIngredientAllergens
+      security:
+        - BearerAuth: []
+        - OAuth2:
+            - read
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the ingredient (must be > 0)
+      responses:
+        "200":
+          description: Allergen information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngredientAllergenResponse"
+              examples:
+                wheat_flour:
+                  summary: Wheat flour with gluten allergens
+                  value:
+                    ingredientId: 101
+                    ingredientName: wheat flour
+                    usdaFoodDescription: "Flour, wheat, all-purpose, enriched"
+                    allergens:
+                      - allergen: GLUTEN
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: WHEAT
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                    dataSource: USDA
+                    overallConfidence: 1.0
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/recipe-scraper/recipes/{recipeId}/allergens:
+    get:
+      tags:
+        - Recipes
+        - Allergens
+      summary: Get allergen info for a recipe
+      description: Returns aggregated allergen information for all ingredients in
+        a recipe. Allergens are categorized as "contains" (definitely present) or
+        "may contain" (cross-contamination possible). Use includeIngredientDetails
+        for per-ingredient breakdown.
+      operationId: getRecipeAllergens
+      security:
+        - BearerAuth: []
+        - OAuth2:
+            - read
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: The ID of the recipe (must be > 0)
+        - name: includeIngredientDetails
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include per-ingredient allergen breakdown
+      responses:
+        "200":
+          description: Allergen information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAllergenResponse"
+              examples:
+                complete_recipe:
+                  summary: Recipe with multiple allergens
+                  value:
+                    contains:
+                      - GLUTEN
+                      - MILK
+                      - EGGS
+                    mayContain:
+                      - TREE_NUTS
+                    allergens:
+                      - allergen: GLUTEN
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: MILK
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: EGGS
+                        presenceType: CONTAINS
+                        confidenceScore: 0.95
+                        sourceNotes: "From Open Food Facts: Eggs, whole"
+                      - allergen: TREE_NUTS
+                        presenceType: MAY_CONTAIN
+                        confidenceScore: 0.95
+                        sourceNotes: "From Open Food Facts: Chocolate chips"
+                    ingredientDetails: null
+                    missingIngredients: []
+        "206":
+          description: Partial content - some ingredient allergen data unavailable
+          headers:
+            X-Partial-Content:
+              schema:
+                type: string
+                example: "105,108"
+              description: Comma-separated list of ingredient IDs for which allergen data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAllergenResponse"
+              examples:
+                partial_recipe:
+                  summary: Recipe with missing ingredient data
+                  value:
+                    contains:
+                      - GLUTEN
+                      - MILK
+                    mayContain: []
+                    allergens:
+                      - allergen: GLUTEN
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                      - allergen: MILK
+                        presenceType: CONTAINS
+                        confidenceScore: 1.0
+                        sourceNotes: null
+                    ingredientDetails: null
+                    missingIngredients:
+                      - 105
+                      - 108
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          description: Recipe Management Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                service_unavailable:
+                  summary: Recipe service unavailable
+                  value:
+                    error: SERVICE_UNAVAILABLE
+                    message: Recipe Management Service is currently unavailable
+  /api/v1/recipe-scraper/admin/cache:
+    delete:
+      tags:
+        - Admin
+      summary: Clear service cache
+      description: Clears the cache for the Recipe Scraper service. This endpoint
+        is intended for administrative use only and requires service-to-service authentication.
+      operationId: clearCache
+      security:
+        - OAuth2:
+            - admin
+      responses:
+        "200":
+          description: Cache cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Cache cleared successfully
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+components:
+  schemas:
+    CreateRecipeRequest:
+      type: object
+      required:
+        - recipeUrl
+      properties:
+        recipeUrl:
+          type: string
+          format: uri
+          description: The recipe URL to create. Should point to a valid recipe page.
+          example: https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/
+      description: Request schema for creating a recipe from a URL.
+    CreateRecipeResponse:
+      type: object
+      required:
+        - recipe
+      properties:
+        recipe:
+          $ref: "#/components/schemas/Recipe"
+      description: Response model returned after a recipe is successfully created.
+    Recipe:
+      type: object
+      required:
+        - title
+        - ingredients
+        - steps
+      properties:
+        recipeId:
+          type: integer
+          description: Unique ID of the recipe
+          example: 123
+        title:
+          type: string
+          description: Title of the recipe
+          example: Classic Chocolate Chip Cookies
+        description:
+          type: string
+          nullable: true
+          description: Description of the recipe
+          example: Soft and chewy chocolate chip cookies that are perfect for any
+            occasion
+        originUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Original source URL
+          example: https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/
+        servings:
+          type: number
+          nullable: true
+          description: Number of servings
+          example: 24
+        preparationTime:
+          type: integer
+          nullable: true
+          description: Preparation time in minutes
+          example: 15
+        cookingTime:
+          type: integer
+          nullable: true
+          description: Cooking time in minutes
+          example: 12
+        difficulty:
+          type: string
+          nullable: true
+          description: Difficulty level
+          enum:
+            - easy
+            - medium
+            - hard
+          example: easy
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ingredient"
+          description: List of ingredients
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeStep"
+          description: List of preparation steps
+      description: Represents a recipe with all relevant fields.
+    Ingredient:
+      type: object
+      required:
+        - ingredientId
+      properties:
+        ingredientId:
+          type: integer
+          description: The ID of the ingredient
+          example: 1
+        name:
+          type: string
+          nullable: true
+          description: Name of the ingredient
+          example: all-purpose flour
+        quantity:
+          $ref: "#/components/schemas/Quantity"
+          nullable: true
+      description: Common schema for ingredient data.
+    Quantity:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          minimum: 0
+          description: The numeric value of the ingredient quantity
+          example: 2.25
+        measurement:
+          $ref: "#/components/schemas/IngredientUnitEnum"
+          default: UNIT
+      description: Sub-schema for ingredient quantity.
+    RecipeStep:
+      type: object
+      required:
+        - stepNumber
+        - instruction
+      properties:
+        stepNumber:
+          type: integer
+          description: Step number in the recipe
+          example: 1
+        instruction:
+          type: string
+          description: Instruction for this step
+          example: "Preheat oven to 375\xB0F (190\xB0C)."
+        optional:
+          type: boolean
+          default: false
+          description: Whether this step is optional
+        timerSeconds:
+          type: integer
+          nullable: true
+          description: Optional timer in seconds
+          example: 720
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the step was created
+      description: Represents a single step in the recipe preparation.
+    IngredientUnitEnum:
+      type: string
+      enum:
+        - G
+        - KG
+        - OZ
+        - LB
+        - ML
+        - L
+        - CUP
+        - TBSP
+        - TSP
+        - PIECE
+        - CLOVE
+        - SLICE
+        - PINCH
+        - CAN
+        - BOTTLE
+        - PACKET
+        - UNIT
+      description: Units of measurement for recipe ingredients.
+    PopularRecipesResponse:
+      type: object
+      required:
+        - recipes
+        - limit
+        - offset
+        - count
+      properties:
+        recipes:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebRecipe"
+          description: Paginated recipes list.
+        limit:
+          type: integer
+          description: Max number of recipes returned.
+          example: 50
+        offset:
+          type: integer
+          description: Start index of recipes.
+          example: 0
+        count:
+          type: integer
+          description: Total number of available recipes.
+          example: 150
+      description: Response schema representing a list of popular recipes from the
+        internet.
+    WebRecipe:
+      type: object
+      required:
+        - recipeName
+        - url
+      properties:
+        recipeName:
+          type: string
+          description: The name of the recipe as found online.
+          example: Simple Macaroni and Cheese
+        url:
+          type: string
+          format: uri
+          description: The source URL where the recipe is located.
+          example: https://www.allrecipes.com/recipe/231506/simple-macaroni-and-cheese/
+      description: Schema containing a recipe from the internet.
+    RecipeNutritionalInfoResponse:
+      type: object
+      properties:
+        ingredients:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/IngredientNutritionalInfoResponse"
+          nullable: true
+          description: Nutritional information for each ingredient in the recipe.
+        missingIngredients:
+          type: array
+          items:
+            type: integer
+          nullable: true
+          description: List of ingredient IDs for which nutritional information could
+            not be retrieved.
+        total:
+          $ref: "#/components/schemas/IngredientNutritionalInfoResponse"
+          nullable: true
+          description: Total aggregated nutritional information for the recipe.
+      description: Response schema representing nutritional information for a recipe.
+    IngredientNutritionalInfoResponse:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          $ref: "#/components/schemas/Quantity"
+        usdaFoodDescription:
+          type: string
+          nullable: true
+          description: USDA food description for matched ingredient
+        macroNutrients:
+          $ref: "#/components/schemas/MacroNutrients"
+        vitamins:
+          $ref: "#/components/schemas/Vitamins"
+        minerals:
+          $ref: "#/components/schemas/Minerals"
+      description: Contains overall nutritional information for an ingredient.
+    NutrientUnit:
+      type: string
+      enum:
+        - GRAM
+        - MILLIGRAM
+        - MICROGRAM
+        - KILOCALORIE
+      description: Unit of measurement for nutritional values.
+    NutrientValue:
+      type: object
+      required:
+        - measurement
+      properties:
+        amount:
+          type: number
+          minimum: 0
+          nullable: true
+          description: Numeric value of the nutrient
+        measurement:
+          $ref: "#/components/schemas/NutrientUnit"
+      description: A nutrient measurement with amount and unit.
+    MacroNutrients:
+      type: object
+      properties:
+        calories:
+          $ref: "#/components/schemas/NutrientValue"
+        carbs:
+          $ref: "#/components/schemas/NutrientValue"
+        protein:
+          $ref: "#/components/schemas/NutrientValue"
+        cholesterol:
+          $ref: "#/components/schemas/NutrientValue"
+        sodium:
+          $ref: "#/components/schemas/NutrientValue"
+        fiber:
+          $ref: "#/components/schemas/NutrientValue"
+        sugar:
+          $ref: "#/components/schemas/NutrientValue"
+        addedSugar:
+          $ref: "#/components/schemas/NutrientValue"
+        fats:
+          $ref: "#/components/schemas/Fats"
+      description: Contains macro-nutrient information for an ingredient.
+    Fats:
+      type: object
+      properties:
+        total:
+          $ref: "#/components/schemas/NutrientValue"
+        saturated:
+          $ref: "#/components/schemas/NutrientValue"
+        monounsaturated:
+          $ref: "#/components/schemas/NutrientValue"
+        polyunsaturated:
+          $ref: "#/components/schemas/NutrientValue"
+        trans:
+          $ref: "#/components/schemas/NutrientValue"
+      description: Contains fat breakdown information for an ingredient.
+    Vitamins:
+      type: object
+      properties:
+        vitaminA:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminB6:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminB12:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminC:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminD:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminE:
+          $ref: "#/components/schemas/NutrientValue"
+        vitaminK:
+          $ref: "#/components/schemas/NutrientValue"
+      description: Contains vitamin information for an ingredient.
+    Minerals:
+      type: object
+      properties:
+        calcium:
+          $ref: "#/components/schemas/NutrientValue"
+        iron:
+          $ref: "#/components/schemas/NutrientValue"
+        magnesium:
+          $ref: "#/components/schemas/NutrientValue"
+        potassium:
+          $ref: "#/components/schemas/NutrientValue"
+        zinc:
+          $ref: "#/components/schemas/NutrientValue"
+      description: Contains mineral information for an ingredient.
+    RecommendedSubstitutionsResponse:
+      type: object
+      required:
+        - ingredient
+        - recommendedSubstitutions
+      properties:
+        ingredient:
+          $ref: "#/components/schemas/Ingredient"
+        recommendedSubstitutions:
+          type: array
+          items:
+            $ref: "#/components/schemas/IngredientSubstitution"
+          description: List of recommended substitution options.
+        limit:
+          type: integer
+          default: 50
+          description: The maximum number of substitutions to return.
+        offset:
+          type: integer
+          default: 0
+          description: The starting index for pagination of results.
+        count:
+          type: integer
+          default: 0
+          description: The total number of substitution recommendations available.
+      description: Response schema representing a list of substitutions for an ingredient.
+    IngredientSubstitution:
+      type: object
+      required:
+        - ingredient
+        - conversionRatio
+      properties:
+        ingredient:
+          type: string
+          description: The name of the suggested substitute ingredient.
+          example: whole wheat flour
+        quantity:
+          $ref: "#/components/schemas/Quantity"
+          nullable: true
+          description: The amount of the substitute ingredient to use.
+        conversionRatio:
+          $ref: "#/components/schemas/ConversionRatio"
+      description: Represents a single substitution recommendation for an ingredient.
+    ConversionRatio:
+      type: object
+      required:
+        - ratio
+        - measurement
+      properties:
+        ratio:
+          type: number
+          minimum: 0
+          description: The numeric conversion ratio from original to substitute.
+          example: 0.75
+        measurement:
+          $ref: "#/components/schemas/IngredientUnitEnum"
+      description: Represents the conversion ratio between original and substitute
+        ingredients.
+    PairingSuggestionsResponse:
+      type: object
+      required:
+        - recipeId
+        - pairingSuggestions
+        - limit
+        - offset
+        - count
+      properties:
+        recipeId:
+          type: integer
+          description: The ID of the recipe being evaluated for pairing.
+          example: 123
+        pairingSuggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebRecipe"
+          description: A list of recommended pairing recipes.
+        limit:
+          type: integer
+          description: The maximum number of items returned.
+          example: 50
+        offset:
+          type: integer
+          description: The offset used for pagination.
+          example: 0
+        count:
+          type: integer
+          description: The total number of available suggestions.
+          example: 25
+      description: Response model for pairing suggestions.
+    IngredientShoppingInfoResponse:
+      type: object
+      required:
+        - ingredientName
+        - quantity
+      properties:
+        ingredientName:
+          type: string
+          description: The name of the ingredient
+          example: all-purpose flour
+        quantity:
+          $ref: "#/components/schemas/Quantity"
+        estimatedPrice:
+          type: string
+          nullable: true
+          description: The estimated price of the ingredient (None if unavailable)
+          example: "1.25"
+      description: Response schema representing shopping information for an ingredient.
+    RecipeShoppingInfoResponse:
+      type: object
+      required:
+        - recipeId
+        - ingredients
+        - totalEstimatedCost
+      properties:
+        recipeId:
+          type: integer
+          minimum: 1
+          description: The unique identifier of the recipe
+          example: 123
+        ingredients:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/IngredientShoppingInfoResponse"
+          description: Dictionary mapping ingredient names to their shopping information
+        totalEstimatedCost:
+          type: string
+          description: The total estimated cost for all ingredients
+          example: "15.75"
+      description: Response schema representing shopping information for a recipe.
+    HealthCheckResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - version
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+          description: Overall service health status
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+          example: "2025-01-31T12:00:00Z"
+        version:
+          type: string
+          description: Service version
+          example: 2.0.0
+        uptimeSeconds:
+          type: integer
+          description: Service uptime in seconds
+          example: 3600
+        checks:
+          type: object
+          properties:
+            database:
+              $ref: "#/components/schemas/HealthCheckItem"
+            cache:
+              $ref: "#/components/schemas/HealthCheckItem"
+            externalApis:
+              type: object
+              properties:
+                spoonacular:
+                  $ref: "#/components/schemas/HealthCheckItem"
+        databaseMonitoring:
+          type: object
+          description: Database monitoring status
+          properties:
+            enabled:
+              type: boolean
+              example: true
+            lastCheck:
+              type: string
+              format: date-time
+              example: "2025-01-31T12:00:00Z"
+        responseTimeMs:
+          type: number
+          description: Health check response time in milliseconds
+          example: 45.2
+      description: Comprehensive health check response schema.
+    HealthCheckItem:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+          description: Component health status
+        responseTimeMs:
+          type: number
+          description: Component response time in milliseconds
+        message:
+          type: string
+          description: Status message
+      description: Individual health check item schema.
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code for this specific error
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+          example: Field is required
+        field:
+          type: string
+          nullable: true
+          description: Field path that caused the error (for validation errors)
+          example: body.recipeUrl
+      description: Individual error detail for structured error responses.
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code for programmatic handling
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: Recipe with identifier '123' not found
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+          nullable: true
+          description: Detailed error information (for validation errors)
+        requestId:
+          type: string
+          nullable: true
+          description: Request ID for tracing and support
+          example: req_abc123xyz
+      description: Standard error response schema.
+    ValidationError:
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          description: Location of the validation error
+        msg:
+          type: string
+          description: Validation error message
+        type:
+          type: string
+          description: Validation error type
+      description: Pydantic validation error schema.
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationError"
+      description: HTTP validation error response.
+    AllergenEnum:
+      type: string
+      enum:
+        - MILK
+        - EGGS
+        - FISH
+        - SHELLFISH
+        - TREE_NUTS
+        - PEANUTS
+        - WHEAT
+        - SOYBEANS
+        - SESAME
+        - CELERY
+        - MUSTARD
+        - LUPIN
+        - SULPHITES
+        - ALMONDS
+        - CASHEWS
+        - HAZELNUTS
+        - WALNUTS
+        - GLUTEN
+        - COCONUT
+        - CORN
+        - YEAST
+        - GELATIN
+        - KIWI
+        - PORK
+        - BEEF
+        - ALCOHOL
+        - SULFUR_DIOXIDE
+        - PHENYLALANINE
+        - NONE
+        - UNKNOWN
+      description: Common allergens for ingredient classification. Includes FDA Big 9,
+        EU allergens, and additional common allergens.
+    AllergenPresenceTypeEnum:
+      type: string
+      enum:
+        - CONTAINS
+        - MAY_CONTAIN
+        - TRACES
+      description: Classification of how an allergen is present in an ingredient.
+        CONTAINS means definitely present, MAY_CONTAIN indicates cross-contamination
+        possible, TRACES means may contain trace amounts.
+    AllergenDataSourceEnum:
+      type: string
+      enum:
+        - USDA
+        - OPEN_FOOD_FACTS
+        - LLM_INFERRED
+        - MANUAL
+      description: Source of allergen data. USDA has highest confidence (1.0),
+        Open Food Facts has 0.95, LLM inference has 0.75.
+    AllergenInfo:
+      type: object
+      required:
+        - allergen
+        - presenceType
+      properties:
+        allergen:
+          $ref: "#/components/schemas/AllergenEnum"
+        presenceType:
+          $ref: "#/components/schemas/AllergenPresenceTypeEnum"
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Confidence score (0-1) for this allergen classification
+          example: 0.95
+        sourceNotes:
+          type: string
+          nullable: true
+          description: Additional notes about the allergen source or reason
+          example: "From Open Food Facts: Chocolate chips"
+      description: Single allergen with presence type and confidence metadata.
+    IngredientAllergenResponse:
+      type: object
+      properties:
+        ingredientId:
+          type: integer
+          nullable: true
+          description: Database ingredient identifier
+          example: 101
+        ingredientName:
+          type: string
+          nullable: true
+          description: Ingredient name as queried
+          example: wheat flour
+        usdaFoodDescription:
+          type: string
+          nullable: true
+          description: USDA food description if available
+          example: "Flour, wheat, all-purpose, enriched"
+        allergens:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenInfo"
+          description: List of allergens present in this ingredient
+        dataSource:
+          $ref: "#/components/schemas/AllergenDataSourceEnum"
+          nullable: true
+        overallConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Overall confidence score for the allergen profile
+          example: 1.0
+      description: Allergen information response for a single ingredient.
+    RecipeAllergenResponse:
+      type: object
+      properties:
+        contains:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenEnum"
+          description: Allergens definitely present in the recipe
+        mayContain:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenEnum"
+          description: Allergens that may be present (cross-contamination, traces)
+        allergens:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllergenInfo"
+          description: Detailed allergen information with confidence scores
+        ingredientDetails:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/IngredientAllergenResponse"
+          nullable: true
+          description: Per-ingredient allergen breakdown (if requested)
+        missingIngredients:
+          type: array
+          items:
+            type: integer
+          description: Ingredient IDs without allergen data
+      description: Aggregated allergen information for a recipe.
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            missing_token:
+              summary: Missing authentication token
+              value:
+                error: UNAUTHORIZED
+                message: Authentication required
+            invalid_token:
+              summary: Invalid authentication token
+              value:
+                error: UNAUTHORIZED
+                message: Invalid or expired authentication token
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            insufficient_permissions:
+              summary: Insufficient permissions
+              value:
+                error: FORBIDDEN
+                message: Insufficient permissions for this operation
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            recipe_not_found:
+              summary: Recipe not found
+              value:
+                error: NOT_FOUND
+                message: Recipe with identifier '123' not found
+            ingredient_not_found:
+              summary: Ingredient not found
+              value:
+                error: NOT_FOUND
+                message: Ingredient with identifier '456' not found
+    ValidationError:
+      description: Request validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/HTTPValidationError"
+          examples:
+            field_required:
+              summary: Required field missing
+              value:
+                detail:
+                  - loc:
+                      - body
+                      - recipeUrl
+                    msg: field required
+                    type: value_error.missing
+            invalid_type:
+              summary: Invalid field type
+              value:
+                detail:
+                  - loc:
+                      - path
+                      - recipeId
+                    msg: value is not a valid integer
+                    type: type_error.integer
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth2 JWT Bearer token authentication. Include the token in the
+        Authorization header as 'Bearer <token>'.
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: /oauth/token
+          scopes:
+            read: Read access to resources - allows viewing recipes, ingredients,
+              and nutritional information
+            write: Write access to resources - allows creating and modifying recipes
+            admin: Administrative access - allows cache management and system operations
+      description: OAuth2 authentication with JWT tokens. Obtain a token using client
+        credentials flow.
+security:
+  - BearerAuth: []
+  - OAuth2: []
+tags:
+  - name: Root
+    description: Root and basic service endpoints
+  - name: Documentation
+    description: API documentation endpoints (Swagger UI, ReDoc, OpenAPI spec) - only
+      available in development mode
+  - name: Health
+    description: Health check and monitoring endpoints for service observability
+  - name: Monitoring
+    description: Prometheus metrics and monitoring endpoints
+  - name: Recipes
+    description: Recipe scraping, creation, and management operations
+  - name: Ingredients
+    description: Ingredient-related operations and information retrieval
+  - name: Nutritional Info
+    description: |
+      Nutritional information and analysis for recipes and ingredients.
+
+      **Data Source:** U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, 2019. fdc.nal.usda.gov.
+  - name: Allergens
+    description: |
+      Allergen information and analysis for recipes and ingredients.
+
+      Uses tiered data lookup: Database (USDA) → Open Food Facts API → LLM inference.
+      Supports FDA Big 9 allergens, EU allergens, and additional common allergens.
+
+      **Data Sources:**
+      - USDA FoodData Central (confidence: 1.0)
+      - Open Food Facts (confidence: 0.95)
+      - LLM Inference (confidence: 0.75)
+  - name: Recommendations
+    description: AI-powered recommendations for ingredient substitutions and recipe
+      pairings
+  - name: Shopping
+    description: Shopping information, pricing, and grocery list generation
+  - name: Admin
+    description: Administrative operations requiring elevated permissions
+externalDocs:
+  description: Recipe Scraper Service Documentation
+  url: https://github.com/jsamuelsen11/recipe-scraper-service

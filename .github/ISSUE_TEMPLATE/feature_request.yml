@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-description: Propose a new feature or enhancement for the recipe scraper service
+description: Suggest a new feature or enhancement for the recipe scraper service
 title: "[Feature]: "
 labels: ["enhancement", "needs-triage"]
 assignees:
@@ -9,15 +9,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to propose a new feature! Please fill out the form below
-        to help us understand your request and evaluate its implementation.
+        Thanks for suggesting a feature! Please provide as much detail as possible to help us
+        understand and evaluate your request.
 
   - type: textarea
     id: problem
     attributes:
       label: Problem Statement
-      description: What problem does this feature solve? What need does it address?
-      placeholder: "I'm trying to do X, but the service doesn't support Y..."
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: A clear description of what the problem is. Ex. I'm always frustrated when [...]
     validations:
       required: true
 
@@ -25,8 +25,8 @@ body:
     id: solution
     attributes:
       label: Proposed Solution
-      description: Describe your proposed solution or feature
-      placeholder: "Add a new endpoint that allows users to..."
+      description: Describe the solution you'd like
+      placeholder: A clear description of what you want to happen
     validations:
       required: true
 
@@ -34,27 +34,25 @@ body:
     id: alternatives
     attributes:
       label: Alternatives Considered
-      description: What other approaches or solutions have you considered?
-      placeholder: "I also considered..."
-    validations:
-      required: true
+      description: Describe any alternative solutions or features you've considered
+      placeholder: What other approaches could solve this problem?
 
   - type: dropdown
     id: component
     attributes:
       label: Component Area
-      description: Which area of the service would this feature affect?
+      description: Which area does this feature relate to?
       options:
-        - Recipe Scraping Engine
-        - Web Scraper (Popular Recipes)
-        - Spoonacular Integration
-        - Nutritional Analysis
-        - Recipe Recommendations
+        - Recipe Scraping
         - API Endpoints
-        - Database Models
-        - Cache Layer
-        - Background Tasks
+        - Authentication/Authorization
+        - Caching
+        - Rate Limiting
+        - Background Jobs
+        - Monitoring/Metrics
+        - Configuration
         - Documentation
+        - CLI Tools
         - Other
     validations:
       required: true
@@ -65,80 +63,55 @@ body:
       label: Priority
       description: How important is this feature to you?
       options:
-        - Critical (Blocking current work)
-        - High (Important for common use cases)
+        - Critical (Blocking my use case)
+        - High (Would significantly improve my workflow)
         - Medium (Nice to have)
         - Low (Minor improvement)
     validations:
       required: true
 
   - type: textarea
-    id: use_case
+    id: use-case
     attributes:
-      label: Use Case Description
-      description: Describe a specific use case or scenario where this feature would be useful
-      placeholder: "As a user, I want to... so that I can..."
+      label: Use Case
+      description: Describe your specific use case for this feature
+      placeholder: |
+        I need this feature because...
+        My application does...
+        This would help me...
     validations:
       required: true
 
   - type: textarea
-    id: api_design
+    id: api-example
     attributes:
-      label: API Design (if applicable)
-      description: If this involves API changes, provide a proposed API design
+      label: API Design (Optional)
+      description: If applicable, show what the API might look like
+      render: python
       placeholder: |
-        POST /api/v1/recipes/batch-scrape
-        Request:
-        {
-          "urls": ["url1", "url2"]
-        }
-        Response:
-        {
-          "recipes": [...]
-        }
+        # Example API usage
+        response = client.scrape_recipe(url="https://example.com/recipe")
 
-  - type: checkboxes
-    id: breaking_changes
+  - type: textarea
+    id: breaking-changes
     attributes:
       label: Breaking Changes
-      description: Would this feature introduce breaking changes?
-      options:
-        - label: This feature may introduce breaking changes to existing APIs
-          required: false
-        - label: This feature requires database schema changes
-          required: false
-        - label: This feature requires configuration changes
-          required: false
+      description: Would this feature require breaking changes to existing APIs?
+      placeholder: Describe any potential breaking changes
 
   - type: textarea
-    id: breaking_details
-    attributes:
-      label: Breaking Change Details
-      description: If this introduces breaking changes, describe them and potential migration paths
-      placeholder: "This would change the response structure for..."
-
-  - type: checkboxes
     id: security
     attributes:
-      label: Security Implications
-      description: Does this feature have security implications?
-      options:
-        - label: This feature may have security implications
-          required: false
-
-  - type: textarea
-    id: security_details
-    attributes:
-      label: Security Details
-      description: If there are security implications, describe them
-      placeholder: "This feature would require authentication because..."
+      label: Security Considerations
+      description: Are there any security implications to consider?
+      placeholder: Describe security aspects of this feature
 
   - type: textarea
     id: additional
     attributes:
       label: Additional Context
-      description: Add any other context, mockups, diagrams, or examples
-      placeholder: "Here's a mockup of how this could work..."
+      description: Add any other context, mockups, or examples about the feature request
+      placeholder: Links to similar implementations, diagrams, etc.
 
   - type: checkboxes
     id: terms
@@ -146,9 +119,9 @@ body:
       label: Checklist
       description: Please confirm the following
       options:
-        - label: I have searched existing issues to avoid duplicates
+        - label: I have searched existing issues and discussions
           required: true
-        - label: I have provided a clear description of the problem and solution
+        - label: This feature aligns with the project's goals
           required: true
-        - label: I am willing to help test this feature if implemented
+        - label: I am willing to help implement or test this feature
           required: false

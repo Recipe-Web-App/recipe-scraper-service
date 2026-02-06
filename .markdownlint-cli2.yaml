@@ -1,0 +1,12 @@
+# Markdownlint-cli2 configuration
+# See https://github.com/DavidAnson/markdownlint-cli2
+
+# Use .markdownlint.yaml for rules
+config: .markdownlint.yaml
+
+# Files to ignore
+ignores:
+  - AGENTS.md
+  - CLAUDE.md
+  - .beads/**
+  - .claude/**

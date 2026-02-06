@@ -1,112 +1,124 @@
-# Multi-stage Docker build for Recipe Scraper Service
-# Stage 1: Build dependencies and compile Python packages
-FROM python:3.13-slim AS builder
+# syntax=docker/dockerfile:1
+# ==============================================================================
+# Recipe Scraper Service - Multi-stage Production Dockerfile
+# ==============================================================================
+# Build arguments for flexibility
+ARG PYTHON_VERSION=3.14
+ARG UV_VERSION=0.5
 
-# Set build environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    POETRY_VERSION=2.1.3 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VENV_IN_PROJECT=1 \
-    POETRY_NO_INTERACTION=1
+# ==============================================================================
+# Stage 1: Base Python image with UV
+# ==============================================================================
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+FROM python:${PYTHON_VERSION}-slim AS base
 
-# Install system dependencies for building
+# Prevent Python from writing bytecode and enable unbuffered output
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    # UV settings
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    # App settings
+    APP_HOME=/app
+
+WORKDIR $APP_HOME
+
+# ==============================================================================
+# Stage 2: Builder - Install dependencies
+# ==============================================================================
+FROM base AS builder
+
+# Copy UV from official image
+COPY --from=uv /uv /usr/local/bin/uv
+
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc \
-    libpq-dev \
     curl \
-    git \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-
-# Add Poetry to PATH
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
-# Set working directory
-WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock* ./
 
-# Configure Poetry and install dependencies
-RUN poetry config virtualenvs.create true \
-    && poetry config virtualenvs.in-project true \
-    && poetry install --only=main --no-root
+# Create virtual environment and install dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
-# Download required NLTK data for ingredient-parser-nlp
-RUN .venv/bin/python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng', download_dir='/opt/nltk_data')"
+# ==============================================================================
+# Stage 3: Production image
+# ==============================================================================
+FROM base AS production
 
-# Stage 2: Runtime image
-FROM python:3.13-slim AS runtime
+# Create non-root user for security
+RUN groupadd --gid 1000 appgroup && \
+    useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
 
-# Create non-root user for security (matching K8s securityContext)
-RUN groupadd --gid 10001 appuser \
-    && useradd --uid 10001 --gid appuser --shell /bin/bash --create-home appuser
-
-# Set runtime environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/home/appuser/.venv/bin:$PATH" \
-    PYTHONPATH="/app" \
-    NLTK_DATA="/opt/nltk_data"
-
-# Install runtime system dependencies
+# Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
     curl \
-    dumb-init \
+    tini \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get purge -y --auto-remove \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean
 
-# Set working directory
-WORKDIR /app
+# Copy virtual environment from builder
+COPY --from=builder --chown=appuser:appgroup $APP_HOME/.venv $APP_HOME/.venv
 
-# Copy virtual environment from builder stage
-COPY --from=builder --chown=appuser:appuser /app/.venv /home/appuser/.venv
-
-# Copy NLTK data from builder stage
-COPY --from=builder /opt/nltk_data /opt/nltk_data
-
-# Fix permissions for virtual environment executables
-RUN chmod +x /home/appuser/.venv/bin/*
+# Add venv to PATH
+ENV PATH="$APP_HOME/.venv/bin:$PATH"
 
 # Copy application code
-COPY --chown=appuser:appuser ./app ./app
-COPY --chown=appuser:appuser ./config ./config
-COPY --chown=appuser:appuser ./pyproject.toml .
+COPY --chown=appuser:appgroup src/ $APP_HOME/src/
+COPY --chown=appuser:appgroup scripts/ $APP_HOME/scripts/
 
-# Create necessary directories and set permissions
-RUN mkdir -p /app/logs /app/tmp \
-    && chown -R appuser:appuser /app
-
-# Security: Remove sensitive package managers and tools
-RUN apt-get remove -y curl \
-    && apt-get autoremove -y \
-    && apt-get clean
+# Make scripts executable
+RUN chmod +x "${APP_HOME}/scripts/"*.sh
 
 # Switch to non-root user
 USER appuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/liveness', timeout=5)"
+# Expose port
+EXPOSE 8000
+
+# Use tini as init system for proper signal handling
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Default command - can be overridden
+CMD ["scripts/entrypoint.sh"]
+
+# ==============================================================================
+# Stage 4: Development image (includes dev dependencies)
+# ==============================================================================
+FROM base AS development
+
+# Copy UV from official image
+COPY --from=uv /uv /usr/local/bin/uv
+
+# Install development dependencies and create non-root user
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 appgroup \
+    && useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser \
+    && chown -R appuser:appgroup $APP_HOME
+
+# Copy all project files
+COPY --chown=appuser:appgroup . .
+
+# Install all dependencies including dev
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
+
+# Add venv to PATH
+ENV PATH="$APP_HOME/.venv/bin:$PATH"
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8000
 
-# Use dumb-init for proper signal handling
-ENTRYPOINT ["dumb-init", "--"]
-
-# Default command with security hardening
-CMD ["/home/appuser/.venv/bin/python", "-m", "uvicorn", "app.main:app", \
-    "--host", "0.0.0.0", \
-    "--port", "8000", \
-    "--workers", "1", \
-    "--access-log", \
-    "--log-level", "info"]
+# Development command with hot reload
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

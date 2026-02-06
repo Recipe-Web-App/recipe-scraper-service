@@ -1,4 +1,4 @@
-# EditorConfig helps maintain consistent coding styles across editors and IDEs
+# EditorConfig - https://editorconfig.org
 
 root = true
 
@@ -9,12 +9,29 @@ indent_style = space
 indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
+max_line_length = 88
+
+[*.py]
+indent_size = 4
+
+[*.{yaml,yml,json,toml}]
+indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+max_line_length = 120
 
-[*.py]
-max_line_length = 88
+[Makefile]
+indent_style = tab
 
-[*.{yml,yaml,json}]
+[justfile]
+indent_size = 4
+
+[Dockerfile*]
+indent_size = 4
+
+[*.sh]
+indent_size = 2
+
+[*.{html,css,js,ts,tsx}]
 indent_size = 2

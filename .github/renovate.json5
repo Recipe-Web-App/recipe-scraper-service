@@ -1,0 +1,173 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // Recommended presets with useful Renovate features
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    "replacements:all",
+    "workarounds:all"
+  ],
+
+  // Schedule: Weekly on Mondays at 9:00 AM ET
+  "timezone": "America/New_York",
+  "schedule": ["after 9am on monday"],
+
+  // Global settings
+  "assignees": ["jsamuelsen11"],
+  "labels": ["dependencies"],
+  "semanticCommits": "enabled",
+
+  // PR limits (matches Dependabot's 100 limit)
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 100,
+
+  // Auto-rebase on conflicts (matches rebase-strategy: auto)
+  "rebaseWhen": "conflicted",
+
+  // Lock file maintenance - Renovate feature not in Dependabot
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"],
+    "automerge": true
+  },
+
+  // Security updates at any time
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"],
+    "schedule": ["at any time"]
+  },
+
+  "packageRules": [
+    // ===========================================
+    // PYTHON DEPENDENCIES
+    // ===========================================
+
+    // Base config for all Python packages
+    {
+      "description": "Python dependencies base config",
+      "matchManagers": ["pep621", "pip_requirements", "pip-compile"],
+      "addLabels": ["python"],
+      "semanticCommitType": "deps"
+    },
+
+    // Python patch updates - grouped and automerged
+    {
+      "description": "Group Python patch updates",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["patch"],
+      "matchDepTypes": ["dependencies"],
+      "groupName": "python-patch-updates",
+      "automerge": true,
+      "automergeType": "pr"
+    },
+
+    // Python minor updates - grouped, NOT automerged (direct deps)
+    {
+      "description": "Group Python minor updates",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor"],
+      "matchDepTypes": ["dependencies"],
+      "groupName": "python-minor-updates",
+      "automerge": false
+    },
+
+    // Python dev dependencies - grouped with dev prefix
+    {
+      "description": "Group Python dev dependencies",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["devDependencies", "optional-dependencies"],
+      "matchPackageNames": [
+        "/^pytest/",
+        "ruff",
+        "mypy",
+        "bandit",
+        "coverage",
+        "/^types-/",
+        "pre-commit",
+        "hypothesis",
+        "polyfactory",
+        "freezegun",
+        "respx",
+        "/^testcontainers/",
+        "pip-audit"
+      ],
+      "groupName": "python-dev-dependencies",
+      "semanticCommitType": "deps-dev",
+      "automerge": true
+    },
+
+    // Python major updates - NOT grouped, NOT automerged
+    {
+      "description": "Python major updates require manual review",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "prBodyNotes": [
+        ":warning: **Major version update** - This PR requires manual review before merging."
+      ]
+    },
+
+    // ===========================================
+    // GITHUB ACTIONS
+    // ===========================================
+
+    // All GitHub Actions grouped together
+    {
+      "description": "Group all GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "addLabels": ["github-actions"],
+      "semanticCommitType": "ci",
+      "automerge": true,
+      "automergeType": "pr"
+    },
+
+    // ===========================================
+    // DOCKER
+    // ===========================================
+
+    // Docker updates - NOT grouped (matches Dependabot behavior)
+    {
+      "description": "Docker dependencies config",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchDatasources": ["docker"],
+      "addLabels": ["docker"],
+      "semanticCommitType": "docker",
+      "automerge": true,
+      "automergeType": "pr"
+    },
+
+    // ===========================================
+    // DOCUMENTATION DEPS (bonus grouping)
+    // ===========================================
+
+    {
+      "description": "Documentation dependencies",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["/^mkdocs/", "/^mkdocstrings/"],
+      "groupName": "documentation-deps",
+      "semanticCommitType": "docs",
+      "automerge": true
+    }
+  ],
+
+  // Regex managers for version detection in Dockerfile ARGs
+  "regexManagers": [
+    {
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG\\s+UV_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "astral-sh/uv",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+
+  // Ignore paths
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/__pycache__/**"
+  ]
+}

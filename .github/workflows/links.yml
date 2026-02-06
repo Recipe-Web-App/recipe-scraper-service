@@ -1,15 +1,14 @@
-name: Check Links
+name: Link Checker
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '**/*.md'
   pull_request:
+    branches: [main, develop]
     paths:
-      - '**/*.md'
+      - "**.md"
+      - "docs/**"
   schedule:
-    - cron: '0 0 * * 1'  # Run weekly on Monday at midnight UTC
+    # Run weekly on Sundays at 6 AM UTC
+    - cron: "0 6 * * 0"
   workflow_dispatch:
 
 concurrency:
@@ -18,60 +17,79 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
-  link-checker:
-    name: Check Documentation Links
+  link-check:
+    name: Check Broken Links
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Check links in markdown files
+        id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
+          # Check all markdown files
           args: |
             --verbose
             --no-progress
-            --exclude-path node_modules
-            --exclude-path htmlcov
-            --exclude-path .venv
-            --exclude-private
-            --accept 200,204,301,302,307,308,429
-            --timeout 20
-            --retry-wait-time 5
-            --max-retries 3
+            --exclude-mail
+            --exclude 'localhost'
+            --exclude '127.0.0.1'
+            --exclude-path '.github/ISSUE_TEMPLATE'
             '**/*.md'
+          # Only fail on errors, not warnings
           fail: true
+          # Output file
+          output: lychee-report.md
 
-      - name: Create Issue on Failure
-        if: failure()
-        uses: actions/github-script@v8
+      - name: Generate link report summary
+        if: always()
+        run: |
+          if [ -f lychee-report.md ]; then
+            echo "## Link Check Report" > link-summary.md
+            echo "" >> link-summary.md
+            cat lychee-report.md >> link-summary.md
+          else
+            echo "No broken links found!" > link-summary.md
+          fi
+
+      - name: Upload link report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            const title = '🔗 Broken links detected in documentation';
-            const body = `The link checker has found broken links in the documentation.
+          name: link-check-report
+          path: link-summary.md
+          retention-days: 30
 
-            **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: links
+          message: |
+            ## Broken Links Detected
 
-            Please review and fix any broken links.`;
+            This PR introduces broken or invalid links in documentation.
 
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'documentation,automated'
-            });
+            <details>
+            <summary>View link check report</summary>
 
-            const existingIssue = issues.data.find(issue => issue.title === title);
+            $(cat link-summary.md)
 
-            if (!existingIssue) {
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: title,
-                body: body,
-                labels: ['documentation', 'automated']
-              });
-            }
+            </details>
+
+            Please fix the broken links before merging.
+
+      - name: Comment success on PR
+        if: github.event_name == 'pull_request' && success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: links
+          message: |
+            ## Link Check Passed
+
+            All links in documentation are valid!

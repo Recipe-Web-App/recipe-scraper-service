@@ -19,9 +19,16 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
 
 # Installer logs
 pip-log.txt
@@ -39,9 +46,33 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
-
-# Pytest cache
 .pytest_cache/
+cover/
+junit.xml
+
+# Translations
+*.mo
+*.pot
+
+# Environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
 
 # mypy
 .mypy_cache/
@@ -54,60 +85,87 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
-# ruff
+# Cython debug symbols
+cython_debug/
+
+# Ruff
 .ruff_cache/
 
-# env files
-.env
-.env.*
-!.env.example
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
 
-# Docker
-docker-compose.override.yml
-*.log
-*.pid
-*.seed
-*.pid.lock
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
 logs/
 *.log
 
-# Allure reports (if generated)
-allure-report/
-allure-results/
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# Kubernetes manifests (if you don't want to version control generated ones)
-# But your k8s YAML files seem intentional, so probably exclude only generated ones
-# Example:
-# *.kube.yaml
+# Docker
+docker-compose.override.yml
 
-# Ignore Python virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.python-version
+# Secrets
+*.pem
+*.key
+.secrets
+secrets/
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
-
-# MacOS files
-.DS_Store
-
-# Python profiler files
-.prof
-
-# Caches for editors or other tools
-.cache/
-
-# Coverage reports from coverage.py
-.coverage
-
-# Other system files
-*.swp
-*~
-
-# Tmp folder
+# Local development
+.tmp/
 tmp/
+.temp/
+temp/
+
+# Alembic
+alembic/versions/*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Profiling
+*.prof
+*.lprof
+
+# Benchmarks
+.benchmarks/
+
+# Documentation builds
+docs/_build/
+!docs/api/recipe-scraper-openapi.yaml
+
+# Generated files
+*.generated.*
+openapi.json
+openapi.yaml
+
+# Serena
+.serena/
+
+# Beads
+.bv/

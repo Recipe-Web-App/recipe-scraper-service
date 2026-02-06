@@ -1,0 +1,76 @@
+# ==============================================================================
+# LLM Configuration
+# ==============================================================================
+# Configures LLM providers for text generation with structured output.
+#
+# Primary: Ollama (local) - runs on host machine, shares GPU with display server
+# Fallback: Groq (cloud) - used when Ollama is unavailable
+#
+# Environment variables:
+#   LLM__ENABLED: Enable/disable LLM features
+#   LLM__OLLAMA__URL: Ollama service URL
+#   LLM__OLLAMA__MODEL: Model to use for inference
+#   LLM__FALLBACK__ENABLED: Enable fallback to cloud provider
+#   GROQ_API_KEY: API key for Groq (set in .env, not YAML)
+# ==============================================================================
+
+llm:
+  # Master switch for LLM-powered features
+  enabled: true
+
+  # Primary LLM provider
+  provider: groq
+
+  # -----------------------------------------------------------------------------
+  # Ollama (Primary - Local)
+  # -----------------------------------------------------------------------------
+  ollama:
+    # Ollama API endpoint
+    # Default assumes local development; override in environment configs
+    url: http://localhost:11434
+
+    # Model to use for structured output tasks
+    # Recommended: mistral:7b (good balance of quality and speed)
+    # Alternatives: llama3.2:3b (faster), llama3.1:8b (higher quality)
+    model: mistral:7b
+
+    # Request timeout in seconds
+    # LLM inference can take 10-30s depending on prompt length
+    timeout: 60.0
+
+    # Number of retries for transient failures
+    max_retries: 2
+
+  # -----------------------------------------------------------------------------
+  # Groq (Fallback - Cloud)
+  # -----------------------------------------------------------------------------
+  # Groq provides fast cloud inference with OpenAI-compatible API.
+  # Free tier: 14,400 requests/day for llama-3.1-8b-instant
+  # Get API key: https://console.groq.com
+  groq:
+    url: https://api.groq.com/openai/v1
+    model: llama-3.1-8b-instant
+    timeout: 30.0
+    max_retries: 2
+    requests_per_minute: 10.0 # Conservative rate to avoid burst limits
+
+  # -----------------------------------------------------------------------------
+  # Fallback Configuration
+  # -----------------------------------------------------------------------------
+  # When primary (Ollama) is unavailable, automatically retry with secondary.
+  # Triggers: connection errors, timeouts
+  # Does NOT trigger on: validation errors, rate limits, HTTP errors
+  fallback:
+    enabled: false
+    secondary_provider: groq
+
+  # -----------------------------------------------------------------------------
+  # Response Caching
+  # -----------------------------------------------------------------------------
+  cache:
+    # Enable caching of LLM responses in Redis
+    enabled: false # TEMP: disabled to clear stale cache
+
+    # Cache TTL in seconds (1 hour default)
+    # Cached responses reduce GPU load and latency for repeated queries
+    ttl: 3600

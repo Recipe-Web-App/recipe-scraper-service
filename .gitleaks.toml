@@ -1,0 +1,12 @@
+# Gitleaks configuration
+# https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted files and paths"
+paths = [
+  '''docs/.*\.md$''',    # Documentation examples contain placeholder secrets
+  '''\.env\.example$''', # Example env files contain placeholder values
+]

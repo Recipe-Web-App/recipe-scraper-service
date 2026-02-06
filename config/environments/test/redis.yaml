@@ -1,0 +1,4 @@
+redis:
+  cache_db: 10
+  queue_db: 11
+  rate_limit_db: 12

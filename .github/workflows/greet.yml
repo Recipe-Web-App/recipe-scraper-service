@@ -1,4 +1,4 @@
-name: Greet
+name: Greet Contributors
 
 on:
   issues:
@@ -11,44 +11,75 @@ permissions:
   pull-requests: write
 
 jobs:
-  greet-first-time-contributor:
+  greet:
     name: Greet First-Time Contributors
     runs-on: ubuntu-latest
 
     steps:
-      - name: Greet on first issue
-        uses: actions/first-interaction@v3
+      - name: Greet first-time issue creator
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: |
-            👋 Thanks for opening your first issue in the Recipe Scraper Service! 🎉
+          script: |
+            const creator = context.payload.issue.user.login;
 
-            We appreciate you taking the time to report this. A maintainer will review your
-            issue and respond as soon as possible.
+            // Check if this is the user's first issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              creator: creator,
+              state: 'all'
+            });
 
-            While you wait, you might want to:
-            - 📖 Check our [documentation](https://github.com/Recipe-Web-App/recipe-scraper-service/blob/main/README.md)
-            - 💬 Join the [discussion forum](https://github.com/Recipe-Web-App/recipe-scraper-service/discussions)
-            - 🤝 Review our [contributing guidelines](https://github.com/Recipe-Web-App/recipe-scraper-service/blob/main/.github/CONTRIBUTING.md)
+            if (issues.data.length === 1) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                body: `Hello @${creator}!\n\n` +
+                      `Thank you for opening your first issue in this repository! ` +
+                      `We appreciate you taking the time to contribute.\n\n` +
+                      `A maintainer will review your issue and respond as soon as possible.\n\n` +
+                      `In the meantime, please make sure you've:\n` +
+                      `- [ ] Provided all the requested information\n` +
+                      `- [ ] Searched for similar existing issues\n` +
+                      `- [ ] Read our [Contributing Guidelines](.github/CONTRIBUTING.md)\n\n` +
+                      `Welcome to the community!`
+              });
+            }
 
-            Thanks for being part of our community!
+      - name: Greet first-time PR creator
+        if: github.event_name == 'pull_request_target'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const creator = context.payload.pull_request.user.login;
 
-          pr-message: |
-            🎉 Thanks for opening your first pull request in the Recipe Scraper Service! 👏
+            // Check if this is the user's first PR
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              creator: creator
+            });
 
-            We're excited to review your contribution. Here's what happens next:
-
-            1. 🤖 Automated checks will run to ensure code quality
-            2. 👀 A maintainer will review your changes
-            3. 💬 We may ask for changes or clarifications
-            4. ✅ Once approved, we'll merge your PR!
-
-            While you wait, please ensure:
-            - [ ] All tests pass
-            - [ ] Code follows our style guidelines
-            - [ ] Documentation is updated if needed
-            - [ ] Commits follow conventional commit format
-
-            Check out our [contributing guide](https://github.com/Recipe-Web-App/recipe-scraper-service/blob/main/.github/CONTRIBUTING.md) for more details.
-
-            Thanks for your contribution! 🙌
+            if (prs.data.length === 1) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: `Congratulations @${creator} on opening your first pull request!\n\n` +
+                      `Thank you for taking the time to contribute to this project! ` +
+                      `We're excited to review your changes.\n\n` +
+                      `**What happens next?**\n` +
+                      `- Automated checks will run on your PR\n` +
+                      `- A maintainer will review your code and provide feedback\n` +
+                      `- Please address any comments or suggestions\n` +
+                      `- Once approved, a maintainer will merge your PR\n\n` +
+                      `**Helpful resources:**\n` +
+                      `- [Contributing Guidelines](.github/CONTRIBUTING.md)\n` +
+                      `- [Code of Conduct](.github/CODE_OF_CONDUCT.md)\n` +
+                      `- [Pull Request Template](.github/pull_request_template.md)\n\n` +
+                      `Thank you for being part of our community!`
+              });
+            }

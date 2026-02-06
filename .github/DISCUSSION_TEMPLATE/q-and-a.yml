@@ -1,41 +1,24 @@
-labels: [question]
-
+---
+title: "[Q&A] "
+labels:
+  - question
 body:
   - type: markdown
     attributes:
       value: |
-        Ask questions about using the Recipe Scraper Service!
+        Welcome! This is a place to ask questions about the Recipe Scraper Service.
 
-        Before asking, please:
+        **Before asking:**
         - Search existing discussions and issues
-        - Check the documentation (README.md, API.md, SUPPORT.md)
-        - Review the FAQ in SUPPORT.md
-
-  - type: dropdown
-    id: topic
-    attributes:
-      label: Topic Area
-      description: What is your question about?
-      options:
-        - Setup and Installation
-        - API Usage
-        - Recipe Scraping
-        - Nutritional Analysis
-        - Spoonacular Integration
-        - Database Configuration
-        - Deployment
-        - Performance
-        - Troubleshooting
-        - Other
-    validations:
-      required: true
+        - Check the [README.md](../README.md) and [CLAUDE.md](../CLAUDE.md)
+        - Review the [API documentation](../README.md#api-documentation)
 
   - type: textarea
     id: question
     attributes:
-      label: Question
+      label: Your Question
       description: What would you like to know?
-      placeholder: How do I...
+      placeholder: Ask your question here...
     validations:
       required: true
 
@@ -43,15 +26,12 @@ body:
     id: context
     attributes:
       label: Context
-      description: Provide context about what you're trying to accomplish
-      placeholder: I'm trying to... but I'm getting...
+      description: What are you trying to accomplish?
+      placeholder: Provide context about your use case
 
   - type: textarea
-    id: config
+    id: tried
     attributes:
-      label: Relevant Configuration
-      description: Share relevant configuration (redact secrets!)
-      placeholder: |
-        Python version: 3.13
-        Deployment: Docker
-        etc.
+      label: What Have You Tried?
+      description: What have you already attempted?
+      placeholder: Describe what you've already tried

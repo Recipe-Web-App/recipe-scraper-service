@@ -1,1 +1,1 @@
-"""Package initializer for core unit tests."""
+"""Core unit tests."""

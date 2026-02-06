@@ -1,0 +1,125 @@
+# ==============================================================================
+# Kustomization - Production Environment
+# ==============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: recipe-scraper-service-production
+
+# Reference base configuration
+resources:
+  - ../../base
+  - namespace.yaml
+
+# Namespace for this environment
+namespace: recipe-scraper-prod
+
+# Common labels for this environment
+labels:
+  - pairs:
+      environment: production
+    includeSelectors: true
+
+# Image configuration - use specific version tags in production
+images:
+  - name: ghcr.io/recipe-web-app/recipe-scraper-service
+    newTag: v1.0.0
+
+# Patches for production-specific changes
+patches:
+  # Higher replicas for production
+  - target:
+      kind: Deployment
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+  # More worker replicas for production
+  - target:
+      kind: Deployment
+      name: recipe-scraper-worker
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+  # Higher resource limits for production
+  - target:
+      kind: Deployment
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+
+  # Production HPA settings
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 20
+
+  # Production PDB - higher availability
+  - target:
+      kind: PodDisruptionBudget
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 2
+
+  # Update ingress host for production
+  - target:
+      kind: Ingress
+      name: recipe-scraper-service
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.recipe-scraper.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api.recipe-scraper.com
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: recipe-scraper-prod-tls
+
+  # Add pod anti-affinity for production
+  - target:
+      kind: Deployment
+      name: recipe-scraper-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/affinity
+        value:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: recipe-scraper-service
+                      app.kubernetes.io/component: api
+                  topologyKey: kubernetes.io/hostname
+
+# Secrets from .env symlink (-> ../../.env.production)
+secretGenerator:
+  - name: recipe-scraper-secrets
+    envs:
+      - .env
+
+generatorOptions:
+  disableNameSuffixHash: true

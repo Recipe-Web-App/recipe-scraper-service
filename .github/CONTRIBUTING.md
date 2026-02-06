@@ -1,7 +1,7 @@
 # Contributing to Recipe Scraper Service
 
-Thank you for your interest in contributing to the Recipe Scraper Service! This
-document provides guidelines and instructions for contributing to this project.
+Thank you for your interest in contributing! This document provides guidelines and instructions for contributing
+to this project.
 
 ## Table of Contents
 
@@ -14,35 +14,23 @@ document provides guidelines and instructions for contributing to this project.
 - [Commit Guidelines](#commit-guidelines)
 - [Pull Request Process](#pull-request-process)
 - [Security](#security)
-- [Questions](#questions)
 
 ## Code of Conduct
 
-This project adheres to a code of conduct. By participating, you are expected
-to uphold this standard. Please refer to
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
+This project adheres to a Code of Conduct. By participating, you are expected to uphold this code. Please report
+unacceptable behavior through the project's issue tracker.
 
 ## Getting Started
 
-### Prerequisites
-
-- **Python 3.13+** (strict requirement for compatibility)
-- **Poetry** for dependency management
-- **PostgreSQL** for database
-- **Redis** (optional, for caching)
-- **Git** for version control
-
-### Fork and Clone
-
-1. Fork the repository on GitHub
-2. Clone your fork locally:
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
 
    ```bash
    git clone https://github.com/YOUR_USERNAME/recipe-scraper-service.git
    cd recipe-scraper-service
    ```
 
-3. Add the upstream repository:
+3. **Add upstream remote**:
 
    ```bash
    git remote add upstream https://github.com/Recipe-Web-App/recipe-scraper-service.git
@@ -50,387 +38,285 @@ to uphold this standard. Please refer to
 
 ## Development Setup
 
-### Install Dependencies
+### Prerequisites
 
-```bash
-# Install Poetry if you haven't already
-curl -sSL https://install.python-poetry.org | python3 -
+- Python 3.14 or higher
+- uv package manager
+- Docker and Docker Compose
+- Redis 7+ (for local development)
+- Make (optional)
 
-# Install project dependencies
-poetry install
+### Initial Setup
 
-# Activate the virtual environment
-poetry shell
-```
+1. **Install uv** (if not already installed):
 
-### Environment Configuration
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
 
-1. Copy the example environment file:
+2. **Install dependencies**:
+
+   ```bash
+   uv sync --all-extras --dev
+   ```
+
+3. **Set up environment**:
 
    ```bash
    cp .env.example .env
+   # Edit .env with your local configuration
    ```
 
-2. Update `.env` with your local configuration:
-   - Database credentials
-   - API keys (Spoonacular API, etc.)
-   - Redis connection string (if using caching)
+4. **Start development environment**:
 
-### Database Setup
+   ```bash
+   docker-compose up -d redis
+   ```
 
-```bash
-# Ensure PostgreSQL is running
-# Create the database (update credentials in .env first)
-# Run any necessary migrations
-```
+5. **Run the service**:
 
-### Verify Setup
-
-```bash
-# Run tests to verify everything is working
-poetry run pytest
-
-# Start the development server
-poetry run dev
-# Or: uvicorn app.main:app --reload
-
-# Visit http://localhost:8000/docs for API documentation
-```
+   ```bash
+   uv run uvicorn src.app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
 
 ## Development Workflow
 
-### Branching Strategy
+1. **Create a feature branch**:
 
-- `main` - Production-ready code
-- `develop` - Integration branch for features
-- `feature/your-feature-name` - Feature branches
-- `fix/your-bug-fix` - Bug fix branches
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
-### Creating a Feature Branch
+2. **Make your changes** following the code style guidelines
 
-```bash
-# Update your local main branch
-git checkout main
-git pull upstream main
+3. **Run tests frequently**:
 
-# Create and switch to a new feature branch
-git checkout -b feature/your-feature-name
-```
+   ```bash
+   uv run pytest
+   ```
 
-### Making Changes
+4. **Commit your changes** following commit guidelines
 
-1. Make your changes in logical, focused commits
-2. Write or update tests for your changes
-3. Update documentation as needed
-4. Run tests and linters before committing
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all tests with coverage
-pytest --cov=app tests/
-
-# Run unit tests only
-poetry run test-unit
-# Or: pytest tests/unit/
-
-# Run specific test file
-pytest tests/unit/services/recipe_scraper_service_test.py
-
-# Run with verbose output
-pytest -v
-```
-
-### Test Coverage Requirements
-
-- Minimum coverage: **80%**
-- Coverage must not decrease with new changes
-- All new features must include tests
-- Bug fixes should include regression tests
-
-### Test Organization
-
-- Unit tests: `tests/unit/`
-- Component tests: `tests/component/`
-- Performance tests: `tests/performance/`
-- Follow existing test structure and naming conventions
-
-### Writing Tests
-
-```python
-# Use descriptive test names
-def test_scrape_recipe_returns_valid_recipe_data():
-    # Arrange
-    url = "https://example.com/recipe"
-
-    # Act
-    result = scrape_recipe(url)
-
-    # Assert
-    assert result is not None
-    assert result.title
-    assert result.ingredients
-```
-
-## Code Style
-
-This project follows strict code quality standards enforced by pre-commit hooks.
-
-### Formatting
-
-```bash
-# Format code with Black (88 character line length)
-poetry run black .
-
-# Sort imports with isort
-poetry run isort .
-
-# Or run both via pre-commit
-pre-commit run --all-files
-```
-
-### Linting
-
-```bash
-# Run Ruff linter
-poetry run ruff check .
-
-# Auto-fix issues where possible
-poetry run ruff check . --fix
-```
-
-### Type Checking
-
-```bash
-# Run MyPy for static type checking
-poetry run mypy app/
-```
-
-### Documentation Linting
-
-```bash
-# Check docstring quality
-poetry run pydoclint app/
-```
-
-### Security Scanning
-
-```bash
-# Run Bandit security scanner
-poetry run bandit app/
-
-# Check for known vulnerabilities in dependencies
-poetry run safety check
-```
-
-### Code Complexity
-
-```bash
-# Check cyclomatic complexity
-poetry run radon cc --min B app/
-
-# Check maintainability index
-poetry run radon mi --min B app/
-```
-
-### Pre-commit Hooks
-
-This project uses pre-commit hooks to enforce code quality:
-
-```bash
-# Install pre-commit hooks
-pre-commit install
-
-# Run all hooks manually
-pre-commit run --all-files
-```
-
-Hooks will automatically run on `git commit` and include:
-
-- Black formatting
-- isort import sorting
-- Ruff linting
-- MyPy type checking
-- Bandit security scanning
-- Conventional commit message validation
-
-## Commit Guidelines
-
-This project strictly enforces **Conventional Commits** for automated
-changelog generation and semantic versioning.
-
-### Commit Message Format
-
-```text
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-### Commit Types
-
-- `feat`: New feature (minor version bump)
-- `fix`: Bug fix (patch version bump)
-- `security`: Security improvement (patch version bump)
-- `docs`: Documentation changes (no version bump)
-- `style`: Code style/formatting (no version bump)
-- `refactor`: Code refactoring (no version bump)
-- `perf`: Performance improvement (no version bump)
-- `test`: Adding or updating tests (no version bump)
-- `chore`: Maintenance tasks (no version bump)
-- `ci`: CI/CD changes (no version bump)
-- `deps`: Dependency updates (no version bump)
-
-### Scope Examples
-
-- `api`: API changes
-- `scraper`: Recipe scraping functionality
-- `nutritional`: Nutritional analysis
-- `cache`: Caching functionality
-- `db`: Database changes
-
-### Commit Examples
-
-```bash
-# Good commits
-feat(api): add ingredient substitution endpoint
-fix(scraper): handle missing recipe images gracefully
-security(auth): implement rate limiting on auth endpoints
-docs: update API documentation with new endpoints
-refactor(cache): improve Redis connection handling
-test(scraper): add tests for popular recipe websites
-
-# Breaking changes (adds BREAKING CHANGE to footer)
-feat(api)!: redesign recipe response schema
-
-BREAKING CHANGE: Recipe response now includes nutritional_info as nested object
-```
-
-### Set Up Commit Template
-
-```bash
-git config commit.template .gitmessage
-```
-
-## Pull Request Process
-
-### Before Submitting
-
-1. **Update your branch** with the latest upstream changes:
+5. **Keep your branch updated**:
 
    ```bash
    git fetch upstream
    git rebase upstream/main
    ```
 
-2. **Run all quality checks**:
-
-   ```bash
-   # Format code
-   poetry run black .
-   poetry run isort .
-
-   # Lint code
-   poetry run ruff check .
-
-   # Type check
-   poetry run mypy app/
-
-   # Run tests
-   pytest --cov=app tests/
-
-   # Security scan
-   poetry run bandit app/
-
-   # Or run pre-commit hooks
-   pre-commit run --all-files
-   ```
-
-3. **Ensure tests pass** and coverage meets requirements (80% minimum)
-
-4. **Update documentation** if you've changed APIs or added features
-
-### Creating a Pull Request
-
-1. Push your branch to your fork:
+6. **Push to your fork**:
 
    ```bash
    git push origin feature/your-feature-name
    ```
 
-2. Go to the repository on GitHub and click "New Pull Request"
+## Testing
 
-3. Fill out the pull request template completely:
-   - Clear description of changes
-   - Link to related issues
-   - Type of change
-   - Testing performed
-   - Screenshots/logs if applicable
+### Running Tests
 
-4. Ensure all automated checks pass:
-   - CI pipeline
-   - Test coverage
-   - Code quality checks
-   - Security scans
+```bash
+# All tests
+uv run pytest
 
-### Review Process
+# With coverage
+uv run pytest --cov=src --cov-report=term-missing
 
-- A maintainer will review your PR
-- Address any feedback or requested changes
-- Keep your PR updated with the base branch
-- Once approved, a maintainer will merge your PR
+# Specific test file
+uv run pytest tests/test_specific.py
+
+# Verbose output
+uv run pytest -v
+```
+
+### Writing Tests
+
+- Write unit tests for all new functionality
+- Integration tests for API endpoints and Redis interactions
+- Use pytest fixtures for test setup
+- Aim for >80% code coverage
+- Test edge cases and error conditions
+
+### Test Guidelines
+
+- Use descriptive test names: `test_function_name_scenario_expected_behavior`
+- Use pytest fixtures for common setup
+- Mock external dependencies
+- Clean up resources in test teardown
+
+## Code Style
+
+### Python Code Standards
+
+```bash
+# Format code
+uv run ruff format .
+
+# Run linter
+uv run ruff check .
+
+# Fix auto-fixable issues
+uv run ruff check --fix .
+
+# Run type checker
+uv run mypy src
+
+# Run security checks
+uv run bandit -r src
+
+# Run all checks with pre-commit
+prek run --all-files
+```
+
+### Style Guidelines
+
+- Follow PEP 8 and PEP 484 (type hints)
+- Use meaningful variable and function names
+- Keep functions small and focused
+- Document public functions with docstrings
+- Add comments for complex logic
+- Use type hints for all function signatures
+
+### Package Organization
+
+- `src/app/` - Main application code
+- `src/app/api/` - API routes and endpoints
+- `src/app/core/` - Core functionality (config, security, etc.)
+- `src/app/auth/` - Authentication and authorization
+- `src/app/worker/` - Background job processing
+- `src/app/observability/` - Metrics and tracing
+- `tests/` - Test files
+
+## Commit Guidelines
+
+### Commit Message Format
+
+```text
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Types
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Test additions or changes
+- `chore`: Build process or auxiliary tool changes
+- `security`: Security fixes
+- `deps`: Dependency updates
+
+### Examples
+
+```text
+feat(api): add recipe URL validation endpoint
+
+Implements URL validation before scraping to prevent
+invalid URLs from being processed.
+
+Fixes #123
+```
+
+```text
+fix(cache): prevent race condition in Redis cache
+
+Added proper locking mechanism to prevent concurrent
+cache updates from causing data inconsistency.
+
+Fixes #456
+```
+
+## Pull Request Process
+
+### Before Submitting
+
+1. **Run all checks**:
+
+   ```bash
+   prek run --all-files
+   uv run pytest
+   ```
+
+2. **Update documentation** if needed:
+
+   - README.md
+   - CLAUDE.md
+   - API documentation
+   - Code comments
+
+3. **Ensure no secrets** are committed:
+   - Check for API keys, tokens, passwords
+   - Review `.env` files
+   - Use `.gitignore` appropriately
 
 ### PR Requirements
 
-- [ ] All tests pass
-- [ ] Code coverage meets 80% minimum
-- [ ] No security vulnerabilities introduced
-- [ ] Code follows style guidelines
-- [ ] Commit messages follow conventional commits
-- [ ] Documentation updated if needed
-- [ ] PR template filled out completely
+- [ ] Clear description of changes
+- [ ] Related issue linked
+- [ ] Tests added/updated
+- [ ] Documentation updated
+- [ ] All CI checks passing
+- [ ] No merge conflicts
+- [ ] Commits follow convention
+- [ ] No sensitive data committed
+
+### PR Template
+
+The project uses a PR template. Fill it out completely:
+
+- Description of changes
+- Type of change
+- Security implications
+- Breaking changes
+- Testing performed
+- Configuration changes
+
+### Review Process
+
+1. Maintainers will review your PR
+2. Address feedback and requested changes
+3. Keep PR updated with main branch
+4. Once approved, maintainer will merge
+
+### CI/CD Pipeline
+
+PRs must pass:
+
+- Python build (uv sync)
+- Unit tests (pytest)
+- Linting (ruff)
+- Type checking (mypy)
+- Security scanning (bandit)
+- Code formatting checks (ruff format)
 
 ## Security
 
 ### Reporting Vulnerabilities
 
-**DO NOT** create public issues for security vulnerabilities.
+**DO NOT** open public issues for security vulnerabilities.
 
-Instead, please report security issues via:
+Use [GitHub Security Advisories](https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new) to
+report security issues privately.
 
-- **GitHub Security Advisories**: <https://github.com/Recipe-Web-App/recipe-scraper-service/security/advisories/new>
+### Security Guidelines
 
-For more information, see [SECURITY.md](SECURITY.md).
+- Never commit secrets or credentials
+- Validate all inputs
+- Use parameterized queries
+- Implement proper rate limiting
+- Follow OAuth2/JWT security best practices
+- Keep dependencies updated
 
-### Security Best Practices
+## Questions?
 
-- Never commit secrets, API keys, or credentials
-- Use environment variables for sensitive configuration
-- Run security scans before submitting PRs (`bandit`, `safety check`)
-- Follow OWASP guidelines for web security
-- Validate and sanitize all user input
-- Use parameterized queries to prevent SQL injection
+- Check the [README](../README.md)
+- Review existing [issues](https://github.com/Recipe-Web-App/recipe-scraper-service/issues)
+- Start a [discussion](https://github.com/Recipe-Web-App/recipe-scraper-service/discussions)
+- See [SUPPORT.md](SUPPORT.md) for help resources
 
-## Questions
-
-If you have questions about contributing:
-
-1. Check the [README.md](../README.md) for general information
-2. Review [SUPPORT.md](SUPPORT.md) for help resources
-3. Search [existing issues](https://github.com/Recipe-Web-App/recipe-scraper-service/issues)
-4. Ask in [GitHub Discussions](https://github.com/Recipe-Web-App/recipe-scraper-service/discussions)
-5. Check the [API documentation](../API.md)
-
-## Additional Resources
-
-- [README.md](../README.md) - Project overview and setup
-- [API.md](../API.md) - API documentation
-- [DEPLOYMENT.md](../DEPLOYMENT.md) - Deployment guides
-- [SECURITY.md](SECURITY.md) - Security policies
-- [CLAUDE.md](../CLAUDE.md) - Development commands and architecture
-
-Thank you for contributing to the Recipe Scraper Service!
+Thank you for contributing!

@@ -1,1 +1,1 @@
-"""_Initializer for dev utility script package."""
+"""Python scripts package for test runners and utilities."""

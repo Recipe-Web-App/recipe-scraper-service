@@ -1,0 +1,26 @@
+# ==============================================================================
+# ARQ Worker Configuration
+# ==============================================================================
+# Configures the ARQ background job worker settings.
+#
+# Job IDs are centralized here for visibility and consistency.
+# Queue settings define Redis key patterns (must match Redis ACL).
+# ==============================================================================
+
+arq:
+  # ---------------------------------------------------------------------------
+  # Job IDs
+  # ---------------------------------------------------------------------------
+  # Centralized job identifiers for deduplication and tracking.
+  # Using fixed IDs prevents duplicate jobs when multiple requests
+  # try to enqueue the same task simultaneously.
+  job_ids:
+    popular_recipes_refresh: "popular_recipes_refresh"
+
+  # ---------------------------------------------------------------------------
+  # Queue Settings
+  # ---------------------------------------------------------------------------
+  # Redis key patterns for ARQ queues.
+  # Must match Redis ACL permissions (scraper:* pattern).
+  queue_name: "scraper:queue:jobs"
+  health_check_key: "scraper:queue:health-check"
