@@ -22,6 +22,9 @@ def _create_mock_settings(
     password: str | None = None,
     llm_enabled: bool = False,
     groq_api_key: str | None = None,
+    llm_provider: str = "ollama",
+    fallback_enabled: bool = False,
+    fallback_secondary_provider: str = "groq",
 ) -> MagicMock:
     """Create mock settings with nested structure."""
     mock_settings = MagicMock()
@@ -35,6 +38,17 @@ def _create_mock_settings(
     mock_settings.APP_ENV = "test"
     mock_settings.redis_cache_url = "redis://localhost:6379/0"
     mock_settings.llm.enabled = llm_enabled
+    mock_settings.llm.provider = llm_provider
+    mock_settings.llm.groq.model = "llama3-70b-8192"
+    mock_settings.llm.groq.timeout = 30
+    mock_settings.llm.groq.max_retries = 3
+    mock_settings.llm.groq.requests_per_minute = 30
+    mock_settings.llm.ollama.url = "http://localhost:11434"
+    mock_settings.llm.ollama.model = "llama2"
+    mock_settings.llm.ollama.timeout = 60
+    mock_settings.llm.ollama.max_retries = 2
+    mock_settings.llm.fallback.enabled = fallback_enabled
+    mock_settings.llm.fallback.secondary_provider = fallback_secondary_provider
     mock_settings.GROQ_API_KEY = groq_api_key
     return mock_settings
 
@@ -147,6 +161,151 @@ class TestStartup:
 
             assert ctx["llm_client"] is None
 
+    @pytest.mark.asyncio
+    async def test_llm_client_none_when_groq_without_api_key(self) -> None:
+        """Should set llm_client to None when Groq selected but API key not set."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="groq",
+            groq_api_key=None,
+        )
+        mock_redis = AsyncMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+        ):
+            await startup(ctx)
+
+            assert ctx["llm_client"] is None
+
+    @pytest.mark.asyncio
+    async def test_initializes_groq_primary_client(self) -> None:
+        """Should initialize Groq as primary client when provider is groq."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="groq",
+            groq_api_key="test-groq-key",
+        )
+        mock_redis = AsyncMock()
+        mock_groq_client = AsyncMock()
+        mock_fallback_client = MagicMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+            patch("app.workers.arq.GroqClient", return_value=mock_groq_client),
+            patch(
+                "app.workers.arq.FallbackLLMClient", return_value=mock_fallback_client
+            ),
+        ):
+            await startup(ctx)
+
+            mock_groq_client.initialize.assert_called_once()
+            assert ctx["llm_client"] is mock_fallback_client
+
+    @pytest.mark.asyncio
+    async def test_initializes_ollama_primary_client(self) -> None:
+        """Should initialize Ollama as primary client when provider is ollama."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="ollama",
+        )
+        mock_redis = AsyncMock()
+        mock_ollama_client = AsyncMock()
+        mock_fallback_client = MagicMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+            patch("app.workers.arq.OllamaClient", return_value=mock_ollama_client),
+            patch(
+                "app.workers.arq.FallbackLLMClient", return_value=mock_fallback_client
+            ),
+        ):
+            await startup(ctx)
+
+            mock_ollama_client.initialize.assert_called_once()
+            assert ctx["llm_client"] is mock_fallback_client
+
+    @pytest.mark.asyncio
+    async def test_initializes_groq_fallback_when_enabled(self) -> None:
+        """Should initialize Groq fallback when enabled with Ollama primary."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="ollama",
+            groq_api_key="test-groq-key",
+            fallback_enabled=True,
+            fallback_secondary_provider="groq",
+        )
+        mock_redis = AsyncMock()
+        mock_ollama_client = AsyncMock()
+        mock_groq_client = AsyncMock()
+        mock_fallback_client = MagicMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+            patch("app.workers.arq.OllamaClient", return_value=mock_ollama_client),
+            patch("app.workers.arq.GroqClient", return_value=mock_groq_client),
+            patch(
+                "app.workers.arq.FallbackLLMClient", return_value=mock_fallback_client
+            ) as mock_fallback_class,
+        ):
+            await startup(ctx)
+
+            # Both clients should be initialized
+            mock_ollama_client.initialize.assert_called_once()
+            mock_groq_client.initialize.assert_called_once()
+
+            # FallbackLLMClient should be created with both clients
+            mock_fallback_class.assert_called_once_with(
+                primary=mock_ollama_client,
+                secondary=mock_groq_client,
+                fallback_enabled=True,
+            )
+
+    @pytest.mark.asyncio
+    async def test_no_fallback_when_same_provider(self) -> None:
+        """Should not create fallback when primary and secondary are same provider."""
+        ctx: dict[str, MagicMock] = {}
+        mock_settings = _create_mock_settings(
+            llm_enabled=True,
+            llm_provider="groq",
+            groq_api_key="test-groq-key",
+            fallback_enabled=True,
+            fallback_secondary_provider="groq",
+        )
+        mock_redis = AsyncMock()
+        mock_groq_client = AsyncMock()
+        mock_fallback_client = MagicMock()
+
+        with (
+            patch("app.workers.arq.get_settings", return_value=mock_settings),
+            patch("app.workers.arq.setup_logging"),
+            patch("app.workers.arq.Redis.from_url", return_value=mock_redis),
+            patch("app.workers.arq.GroqClient", return_value=mock_groq_client),
+            patch(
+                "app.workers.arq.FallbackLLMClient", return_value=mock_fallback_client
+            ) as mock_fallback_class,
+        ):
+            await startup(ctx)
+
+            # FallbackLLMClient should be created with secondary=None
+            mock_fallback_class.assert_called_once_with(
+                primary=mock_groq_client,
+                secondary=None,
+                fallback_enabled=True,
+            )
+
 
 class TestShutdown:
     """Tests for shutdown handler."""
@@ -160,6 +319,49 @@ class TestShutdown:
             await shutdown(ctx)
 
             mock_logger.info.assert_called_once_with("ARQ worker shutting down")
+
+    @pytest.mark.asyncio
+    async def test_closes_cache_client_when_present(self) -> None:
+        """Should close cache client if it exists in context."""
+        mock_cache_client = AsyncMock()
+        ctx: dict[str, AsyncMock] = {"cache_client": mock_cache_client}
+
+        await shutdown(ctx)
+
+        mock_cache_client.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_closes_llm_client_when_present(self) -> None:
+        """Should close LLM client if it exists in context."""
+        mock_llm_client = AsyncMock()
+        ctx: dict[str, AsyncMock] = {"llm_client": mock_llm_client}
+
+        await shutdown(ctx)
+
+        mock_llm_client.shutdown.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_closes_both_clients_when_present(self) -> None:
+        """Should close both cache and LLM clients when present."""
+        mock_cache_client = AsyncMock()
+        mock_llm_client = AsyncMock()
+        ctx: dict[str, AsyncMock] = {
+            "cache_client": mock_cache_client,
+            "llm_client": mock_llm_client,
+        }
+
+        await shutdown(ctx)
+
+        mock_cache_client.close.assert_called_once()
+        mock_llm_client.shutdown.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handles_empty_context(self) -> None:
+        """Should handle empty context without errors."""
+        ctx: dict[str, MagicMock] = {}
+
+        # Should not raise
+        await shutdown(ctx)
 
 
 class TestWorkerSettings:

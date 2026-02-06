@@ -304,3 +304,84 @@ class TestGetIngredientDetails:
         assert result.ingredient_id == 456
         assert result.name == "mystery ingredient"
         assert result.food_group is None
+
+    async def test_handles_missing_table_gracefully(
+        self,
+        repository: PricingRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Test graceful handling when ingredients table doesn't exist."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.fetchrow.side_effect = Exception(
+            'relation "recipe_manager.ingredients" does not exist'
+        )
+
+        result = await repository.get_ingredient_details(123)
+
+        assert result is None
+
+    async def test_reraises_unexpected_exceptions(
+        self,
+        repository: PricingRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Test that unexpected exceptions are re-raised."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.fetchrow.side_effect = Exception("Connection timeout")
+
+        with pytest.raises(Exception, match="Connection timeout"):
+            await repository.get_ingredient_details(123)
+
+
+class TestGetPriceByIngredientIdErrorHandling:
+    """Additional tests for error handling in Tier 1 pricing lookup."""
+
+    async def test_reraises_unexpected_exceptions(
+        self,
+        repository: PricingRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Test that unexpected exceptions are re-raised."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.fetchrow.side_effect = Exception("Connection pool exhausted")
+
+        with pytest.raises(Exception, match="Connection pool exhausted"):
+            await repository.get_price_by_ingredient_id(123)
+
+
+class TestGetPriceByFoodGroupErrorHandling:
+    """Additional tests for error handling in Tier 2 pricing lookup."""
+
+    async def test_reraises_unexpected_exceptions(
+        self,
+        repository: PricingRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Test that unexpected exceptions are re-raised."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.fetchrow.side_effect = Exception("Database connection lost")
+
+        with pytest.raises(Exception, match="Database connection lost"):
+            await repository.get_price_by_food_group("VEGETABLES")
+
+
+class TestPricingRepositoryPool:
+    """Tests for pool property fallback behavior."""
+
+    def test_uses_provided_pool(self, mock_pool: MagicMock) -> None:
+        """Test that provided pool is used."""
+        repo = PricingRepository(pool=mock_pool)
+        assert repo.pool is mock_pool
+
+    def test_falls_back_to_global_pool(self) -> None:
+        """Test that pool property falls back to get_database_pool()."""
+        from unittest.mock import patch
+
+        mock_global_pool = MagicMock()
+
+        with patch(
+            "app.database.repositories.shopping.get_database_pool",
+            return_value=mock_global_pool,
+        ):
+            repo = PricingRepository()  # No pool provided
+            assert repo.pool is mock_global_pool

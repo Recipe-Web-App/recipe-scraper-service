@@ -219,6 +219,39 @@ class TestGetByIngredientNameFuzzy:
 
         assert result == []
 
+    async def test_returns_fuzzy_match_results(
+        self,
+        repository: AllergenRepository,
+        mock_pool: MagicMock,
+        sample_row: dict[str, object],
+    ) -> None:
+        """Should return allergen data for fuzzy matched ingredient."""
+        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn.fetchrow.return_value = sample_row
+        conn.fetch.return_value = [sample_row]
+
+        result = await repository.get_by_ingredient_name_fuzzy("flor")  # Misspelled
+
+        assert len(result) == 1
+        assert result[0].allergen_type == "GLUTEN"
+
+    async def test_logs_fuzzy_match_when_different_name(
+        self,
+        repository: AllergenRepository,
+        mock_pool: MagicMock,
+        sample_row: dict[str, object],
+    ) -> None:
+        """Should log debug message when fuzzy match differs from query."""
+        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn.fetchrow.return_value = sample_row
+        conn.fetch.return_value = [sample_row]
+
+        result = await repository.get_by_ingredient_name_fuzzy("flor")  # Misspelled
+
+        # Result should be returned
+        assert len(result) == 1
+        assert result[0].ingredient_name == "flour"
+
     async def test_handles_pg_trgm_not_available(
         self,
         repository: AllergenRepository,
@@ -245,3 +278,69 @@ class TestGetByIngredientNameFuzzy:
 
         with pytest.raises(Exception, match="Connection error"):
             await repository.get_by_ingredient_name_fuzzy("flour")
+
+
+class TestPoolProperty:
+    """Tests for pool property."""
+
+    async def test_pool_returns_injected_pool(
+        self,
+        repository: AllergenRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return injected pool."""
+        assert repository.pool is mock_pool
+
+    async def test_pool_gets_global_pool_when_none(self) -> None:
+        """Should get global pool when none injected."""
+        from unittest.mock import patch
+
+        repository = AllergenRepository(pool=None)
+        mock_global_pool = MagicMock()
+
+        with patch(
+            "app.database.repositories.allergen.get_database_pool",
+            return_value=mock_global_pool,
+        ):
+            result = repository.pool
+
+        assert result is mock_global_pool
+
+
+class TestBatchLookupEdgeCases:
+    """Tests for batch lookup edge cases."""
+
+    async def test_filters_null_allergen_types_in_batch(
+        self,
+        repository: AllergenRepository,
+        mock_pool: MagicMock,
+        sample_row: dict[str, object],
+    ) -> None:
+        """Should filter null allergen types in batch lookup."""
+        null_row = dict(sample_row)
+        null_row["allergen_type"] = None
+
+        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn.fetch.return_value = [sample_row, null_row]
+
+        result = await repository.get_by_ingredient_names(["flour"])
+
+        # Should only have one allergen (null filtered out)
+        assert len(result.get("flour", [])) == 1
+
+    async def test_groups_multiple_allergens_per_ingredient(
+        self,
+        repository: AllergenRepository,
+        mock_pool: MagicMock,
+        sample_row: dict[str, object],
+    ) -> None:
+        """Should group multiple allergens under same ingredient name."""
+        wheat_row = dict(sample_row)
+        wheat_row["allergen_type"] = "WHEAT"
+
+        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn.fetch.return_value = [sample_row, wheat_row]
+
+        result = await repository.get_by_ingredient_names(["flour"])
+
+        assert len(result.get("flour", [])) == 2

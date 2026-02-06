@@ -664,3 +664,104 @@ class TestGetByIngredientNamesFuzzy:
         )
 
         assert result == {}
+
+
+class TestGetByIngredientNameFuzzyErrors:
+    """Tests for error handling in get_by_ingredient_name_fuzzy."""
+
+    @pytest.mark.asyncio
+    async def test_raises_non_pg_trgm_errors(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should re-raise non-pg_trgm database errors."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(side_effect=Exception("Connection refused"))
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        with pytest.raises(Exception, match="Connection refused"):
+            await repository.get_by_ingredient_name_fuzzy("butter")
+
+
+class TestGetPortionWeight:
+    """Tests for get_portion_weight method."""
+
+    @pytest.mark.asyncio
+    async def test_returns_weight_with_modifier(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return gram weight when found with modifier."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value={"gram_weight": Decimal("150.00")})
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_portion_weight("onion", "PIECE", "medium")
+
+        assert result == Decimal("150.00")
+
+    @pytest.mark.asyncio
+    async def test_returns_weight_without_modifier(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return gram weight when found without modifier."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value={"gram_weight": Decimal("240.00")})
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_portion_weight("milk", "CUP")
+
+        assert result == Decimal("240.00")
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_not_found(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return None when portion not found."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=None)
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_portion_weight("unicorn", "PIECE")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_handles_missing_portions_table(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return None when ingredient_portions table doesn't exist."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(
+            side_effect=Exception(
+                'relation "recipe_manager.ingredient_portions" does not exist'
+            )
+        )
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_portion_weight("flour", "CUP")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_handles_other_database_errors(
+        self,
+        repository: NutritionRepository,
+        mock_pool: MagicMock,
+    ) -> None:
+        """Should return None and log warning for other database errors."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(side_effect=Exception("Connection timeout"))
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+
+        result = await repository.get_portion_weight("flour", "CUP")
+
+        assert result is None

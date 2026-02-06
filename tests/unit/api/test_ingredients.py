@@ -3,6 +3,8 @@
 Tests cover:
 - Get nutritional info endpoint
 - Get allergen info endpoint
+- Get shopping info endpoint
+- Get substitutions endpoint
 - Query parameter validation
 - Error handling for various failure scenarios
 """
@@ -14,10 +16,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.api.dependencies import get_allergen_service, get_nutrition_service
+from app.api.dependencies import (
+    get_allergen_service,
+    get_nutrition_service,
+    get_shopping_service,
+    get_substitution_service,
+)
 from app.api.v1.endpoints.ingredients import (
     get_ingredient_allergens,
     get_ingredient_nutritional_info,
+    get_ingredient_shopping_info,
+    get_ingredient_substitutions,
 )
 from app.schemas.allergen import (
     AllergenDataSource,
@@ -25,7 +34,7 @@ from app.schemas.allergen import (
     IngredientAllergenResponse,
 )
 from app.schemas.enums import Allergen, IngredientUnit, NutrientUnit
-from app.schemas.ingredient import Quantity
+from app.schemas.ingredient import Ingredient, Quantity
 from app.schemas.nutrition import (
     Fats,
     IngredientNutritionalInfoResponse,
@@ -34,7 +43,15 @@ from app.schemas.nutrition import (
     NutrientValue,
     Vitamins,
 )
+from app.schemas.recommendations import (
+    ConversionRatio,
+    IngredientSubstitution,
+    RecommendedSubstitutionsResponse,
+)
+from app.schemas.shopping import IngredientShoppingInfoResponse
 from app.services.nutrition.exceptions import ConversionError
+from app.services.shopping.exceptions import IngredientNotFoundError
+from app.services.substitution.exceptions import LLMGenerationError
 
 
 pytestmark = pytest.mark.unit
@@ -446,3 +463,589 @@ class TestGetAllergenServiceDependency:
 
         assert exc_info.value.status_code == 503
         assert "Allergen service not available" in exc_info.value.detail
+
+
+class TestGetIngredientShoppingInfo:
+    """Tests for get_ingredient_shopping_info endpoint."""
+
+    @pytest.fixture
+    def mock_user(self) -> MagicMock:
+        """Create a mock authenticated user."""
+        user = MagicMock()
+        user.id = "user-123"
+        return user
+
+    @pytest.fixture
+    def mock_shopping_service(self) -> MagicMock:
+        """Create a mock shopping service."""
+        return MagicMock()
+
+    @pytest.fixture
+    def sample_shopping_response(self) -> IngredientShoppingInfoResponse:
+        """Create sample shopping response."""
+        return IngredientShoppingInfoResponse(
+            ingredient_name="flour",
+            quantity=Quantity(amount=100.0, measurement=IngredientUnit.G),
+            estimated_price="$2.50",
+            price_confidence=0.85,
+            data_source="USDA_FVP",
+            currency="USD",
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_shopping_info_with_default_quantity(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+        sample_shopping_response: IngredientShoppingInfoResponse,
+    ) -> None:
+        """Should return shopping info without quantity parameters."""
+        mock_shopping_service.get_ingredient_shopping_info = AsyncMock(
+            return_value=sample_shopping_response
+        )
+
+        result = await get_ingredient_shopping_info(
+            ingredient_id=123,
+            user=mock_user,
+            shopping_service=mock_shopping_service,
+            amount=None,
+            measurement=None,
+        )
+
+        assert result == sample_shopping_response
+        mock_shopping_service.get_ingredient_shopping_info.assert_called_once()
+        call_args = mock_shopping_service.get_ingredient_shopping_info.call_args
+        assert call_args.kwargs["ingredient_id"] == 123
+        assert call_args.kwargs["quantity"] is None
+
+    @pytest.mark.asyncio
+    async def test_returns_shopping_info_with_custom_quantity(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+        sample_shopping_response: IngredientShoppingInfoResponse,
+    ) -> None:
+        """Should return shopping info scaled to custom quantity."""
+        mock_shopping_service.get_ingredient_shopping_info = AsyncMock(
+            return_value=sample_shopping_response
+        )
+
+        result = await get_ingredient_shopping_info(
+            ingredient_id=123,
+            user=mock_user,
+            shopping_service=mock_shopping_service,
+            amount=250.0,
+            measurement=IngredientUnit.G,
+        )
+
+        assert result == sample_shopping_response
+        call_args = mock_shopping_service.get_ingredient_shopping_info.call_args
+        assert call_args.kwargs["quantity"].amount == 250.0
+        assert call_args.kwargs["quantity"].measurement == IngredientUnit.G
+
+    @pytest.mark.asyncio
+    async def test_accepts_volume_measurement(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+        sample_shopping_response: IngredientShoppingInfoResponse,
+    ) -> None:
+        """Should accept volume-based measurements."""
+        mock_shopping_service.get_ingredient_shopping_info = AsyncMock(
+            return_value=sample_shopping_response
+        )
+
+        result = await get_ingredient_shopping_info(
+            ingredient_id=456,
+            user=mock_user,
+            shopping_service=mock_shopping_service,
+            amount=2.0,
+            measurement=IngredientUnit.CUP,
+        )
+
+        assert result == sample_shopping_response
+        call_args = mock_shopping_service.get_ingredient_shopping_info.call_args
+        assert call_args.kwargs["quantity"].amount == 2.0
+        assert call_args.kwargs["quantity"].measurement == IngredientUnit.CUP
+
+    @pytest.mark.asyncio
+    async def test_raises_400_when_only_amount_provided(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+    ) -> None:
+        """Should raise 400 when only amount is provided."""
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_shopping_info(
+                ingredient_id=123,
+                user=mock_user,
+                shopping_service=mock_shopping_service,
+                amount=100.0,
+                measurement=None,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["error"] == "INVALID_QUANTITY_PARAMS"
+        assert "Both 'amount' and 'measurement'" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_raises_400_when_only_measurement_provided(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+    ) -> None:
+        """Should raise 400 when only measurement is provided."""
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_shopping_info(
+                ingredient_id=123,
+                user=mock_user,
+                shopping_service=mock_shopping_service,
+                amount=None,
+                measurement=IngredientUnit.CUP,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["error"] == "INVALID_QUANTITY_PARAMS"
+
+    @pytest.mark.asyncio
+    async def test_raises_404_when_ingredient_not_found(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+    ) -> None:
+        """Should raise 404 when ingredient not found."""
+        mock_shopping_service.get_ingredient_shopping_info = AsyncMock(
+            side_effect=IngredientNotFoundError("Not found", ingredient_id=999)
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_shopping_info(
+                ingredient_id=999,
+                user=mock_user,
+                shopping_service=mock_shopping_service,
+                amount=None,
+                measurement=None,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail["error"] == "INGREDIENT_NOT_FOUND"
+        assert "999" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_raises_422_when_conversion_fails(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+    ) -> None:
+        """Should raise 422 when unit conversion fails."""
+        mock_shopping_service.get_ingredient_shopping_info = AsyncMock(
+            side_effect=ConversionError("Cannot convert PIECE to grams")
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_shopping_info(
+                ingredient_id=123,
+                user=mock_user,
+                shopping_service=mock_shopping_service,
+                amount=1.0,
+                measurement=IngredientUnit.PIECE,
+            )
+
+        assert exc_info.value.status_code == 422
+        assert exc_info.value.detail["error"] == "CONVERSION_ERROR"
+        assert "Unable to convert quantity" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_returns_response_with_null_price(
+        self,
+        mock_user: MagicMock,
+        mock_shopping_service: MagicMock,
+    ) -> None:
+        """Should return response when price data is unavailable."""
+        response = IngredientShoppingInfoResponse(
+            ingredient_name="exotic spice",
+            quantity=Quantity(amount=100.0, measurement=IngredientUnit.G),
+            estimated_price=None,
+            price_confidence=None,
+            data_source=None,
+            currency="USD",
+        )
+        mock_shopping_service.get_ingredient_shopping_info = AsyncMock(
+            return_value=response
+        )
+
+        result = await get_ingredient_shopping_info(
+            ingredient_id=789,
+            user=mock_user,
+            shopping_service=mock_shopping_service,
+            amount=None,
+            measurement=None,
+        )
+
+        assert result.ingredient_name == "exotic spice"
+        assert result.estimated_price is None
+        assert result.price_confidence is None
+        assert result.data_source is None
+
+
+class TestGetShoppingServiceDependency:
+    """Tests for shopping service dependency."""
+
+    @pytest.mark.asyncio
+    async def test_returns_service_from_app_state(self) -> None:
+        """Should return service from app state."""
+        mock_request = MagicMock()
+        mock_service = MagicMock()
+        mock_request.app.state.shopping_service = mock_service
+
+        result = await get_shopping_service(mock_request)
+
+        assert result is mock_service
+
+    @pytest.mark.asyncio
+    async def test_raises_503_when_service_not_available(self) -> None:
+        """Should raise 503 when shopping service not in app state."""
+        mock_request = MagicMock()
+        mock_request.app.state.shopping_service = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_shopping_service(mock_request)
+
+        assert exc_info.value.status_code == 503
+        assert "Shopping service not available" in exc_info.value.detail
+
+
+class TestGetIngredientSubstitutions:
+    """Tests for get_ingredient_substitutions endpoint."""
+
+    @pytest.fixture
+    def mock_user(self) -> MagicMock:
+        """Create a mock authenticated user."""
+        user = MagicMock()
+        user.id = "user-123"
+        return user
+
+    @pytest.fixture
+    def mock_substitution_service(self) -> MagicMock:
+        """Create a mock substitution service."""
+        return MagicMock()
+
+    @pytest.fixture
+    def sample_substitution_response(self) -> RecommendedSubstitutionsResponse:
+        """Create sample substitution response."""
+        return RecommendedSubstitutionsResponse(
+            ingredient=Ingredient(ingredient_id=1, name="butter"),
+            recommended_substitutions=[
+                IngredientSubstitution(
+                    ingredient="coconut oil",
+                    quantity=Quantity(amount=1.0, measurement=IngredientUnit.CUP),
+                    conversion_ratio=ConversionRatio(
+                        ratio=1.0, measurement=IngredientUnit.CUP
+                    ),
+                ),
+                IngredientSubstitution(
+                    ingredient="olive oil",
+                    quantity=Quantity(amount=0.75, measurement=IngredientUnit.CUP),
+                    conversion_ratio=ConversionRatio(
+                        ratio=0.75, measurement=IngredientUnit.CUP
+                    ),
+                ),
+            ],
+            limit=50,
+            offset=0,
+            count=2,
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_substitutions_with_defaults(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+        sample_substitution_response: RecommendedSubstitutionsResponse,
+    ) -> None:
+        """Should return substitutions with default parameters."""
+        mock_substitution_service.get_substitutions = AsyncMock(
+            return_value=sample_substitution_response
+        )
+
+        result = await get_ingredient_substitutions(
+            ingredient_id="butter",
+            user=mock_user,
+            substitution_service=mock_substitution_service,
+            limit=50,
+            offset=0,
+            count_only=False,
+            amount=None,
+            measurement=None,
+        )
+
+        assert result == sample_substitution_response
+        mock_substitution_service.get_substitutions.assert_called_once()
+        call_args = mock_substitution_service.get_substitutions.call_args
+        assert call_args.kwargs["ingredient_id"] == "butter"
+        assert call_args.kwargs["quantity"] is None
+        assert call_args.kwargs["limit"] == 50
+        assert call_args.kwargs["offset"] == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_substitutions_with_custom_quantity(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+        sample_substitution_response: RecommendedSubstitutionsResponse,
+    ) -> None:
+        """Should return substitutions with custom quantity context."""
+        mock_substitution_service.get_substitutions = AsyncMock(
+            return_value=sample_substitution_response
+        )
+
+        result = await get_ingredient_substitutions(
+            ingredient_id="butter",
+            user=mock_user,
+            substitution_service=mock_substitution_service,
+            limit=50,
+            offset=0,
+            count_only=False,
+            amount=2.0,
+            measurement=IngredientUnit.TBSP,
+        )
+
+        assert result == sample_substitution_response
+        call_args = mock_substitution_service.get_substitutions.call_args
+        assert call_args.kwargs["quantity"].amount == 2.0
+        assert call_args.kwargs["quantity"].measurement == IngredientUnit.TBSP
+
+    @pytest.mark.asyncio
+    async def test_returns_substitutions_with_pagination(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+        sample_substitution_response: RecommendedSubstitutionsResponse,
+    ) -> None:
+        """Should pass pagination parameters correctly."""
+        mock_substitution_service.get_substitutions = AsyncMock(
+            return_value=sample_substitution_response
+        )
+
+        await get_ingredient_substitutions(
+            ingredient_id="butter",
+            user=mock_user,
+            substitution_service=mock_substitution_service,
+            limit=10,
+            offset=20,
+            count_only=False,
+            amount=None,
+            measurement=None,
+        )
+
+        call_args = mock_substitution_service.get_substitutions.call_args
+        assert call_args.kwargs["limit"] == 10
+        assert call_args.kwargs["offset"] == 20
+
+    @pytest.mark.asyncio
+    async def test_returns_count_only(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+        sample_substitution_response: RecommendedSubstitutionsResponse,
+    ) -> None:
+        """Should return only count when count_only is True."""
+        mock_substitution_service.get_substitutions = AsyncMock(
+            return_value=sample_substitution_response
+        )
+
+        result = await get_ingredient_substitutions(
+            ingredient_id="butter",
+            user=mock_user,
+            substitution_service=mock_substitution_service,
+            limit=50,
+            offset=0,
+            count_only=True,
+            amount=None,
+            measurement=None,
+        )
+
+        assert result.count == 2
+        assert result.recommended_substitutions == []
+
+    @pytest.mark.asyncio
+    async def test_raises_400_when_only_amount_provided(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+    ) -> None:
+        """Should raise 400 when only amount is provided."""
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_substitutions(
+                ingredient_id="butter",
+                user=mock_user,
+                substitution_service=mock_substitution_service,
+                limit=50,
+                offset=0,
+                count_only=False,
+                amount=100.0,
+                measurement=None,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["error"] == "INVALID_QUANTITY_PARAMS"
+        assert "Both 'amount' and 'measurement'" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_raises_400_when_only_measurement_provided(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+    ) -> None:
+        """Should raise 400 when only measurement is provided."""
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_substitutions(
+                ingredient_id="butter",
+                user=mock_user,
+                substitution_service=mock_substitution_service,
+                limit=50,
+                offset=0,
+                count_only=False,
+                amount=None,
+                measurement=IngredientUnit.TBSP,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["error"] == "INVALID_QUANTITY_PARAMS"
+
+    @pytest.mark.asyncio
+    async def test_raises_404_when_ingredient_not_found(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+    ) -> None:
+        """Should raise 404 when ingredient not found."""
+        mock_substitution_service.get_substitutions = AsyncMock(return_value=None)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_substitutions(
+                ingredient_id="unknown_ingredient",
+                user=mock_user,
+                substitution_service=mock_substitution_service,
+                limit=50,
+                offset=0,
+                count_only=False,
+                amount=None,
+                measurement=None,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail["error"] == "INGREDIENT_NOT_FOUND"
+        assert "unknown_ingredient" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_raises_503_when_llm_unavailable(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+    ) -> None:
+        """Should raise 503 when LLM service fails."""
+        mock_substitution_service.get_substitutions = AsyncMock(
+            side_effect=LLMGenerationError("LLM timeout", ingredient="butter")
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_ingredient_substitutions(
+                ingredient_id="butter",
+                user=mock_user,
+                substitution_service=mock_substitution_service,
+                limit=50,
+                offset=0,
+                count_only=False,
+                amount=None,
+                measurement=None,
+            )
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.detail["error"] == "LLM_UNAVAILABLE"
+        assert "temporarily unavailable" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_handles_ingredient_id_with_spaces(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+        sample_substitution_response: RecommendedSubstitutionsResponse,
+    ) -> None:
+        """Should handle ingredient IDs with spaces."""
+        mock_substitution_service.get_substitutions = AsyncMock(
+            return_value=sample_substitution_response
+        )
+
+        result = await get_ingredient_substitutions(
+            ingredient_id="unsalted butter",
+            user=mock_user,
+            substitution_service=mock_substitution_service,
+            limit=50,
+            offset=0,
+            count_only=False,
+            amount=None,
+            measurement=None,
+        )
+
+        assert result == sample_substitution_response
+        call_args = mock_substitution_service.get_substitutions.call_args
+        assert call_args.kwargs["ingredient_id"] == "unsalted butter"
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_substitutions_list(
+        self,
+        mock_user: MagicMock,
+        mock_substitution_service: MagicMock,
+    ) -> None:
+        """Should return response when no substitutions found."""
+        response = RecommendedSubstitutionsResponse(
+            ingredient=Ingredient(ingredient_id=1, name="rare spice"),
+            recommended_substitutions=[],
+            limit=50,
+            offset=0,
+            count=0,
+        )
+        mock_substitution_service.get_substitutions = AsyncMock(return_value=response)
+
+        result = await get_ingredient_substitutions(
+            ingredient_id="rare spice",
+            user=mock_user,
+            substitution_service=mock_substitution_service,
+            limit=50,
+            offset=0,
+            count_only=False,
+            amount=None,
+            measurement=None,
+        )
+
+        assert result.ingredient.name == "rare spice"
+        assert len(result.recommended_substitutions) == 0
+        assert result.count == 0
+
+
+class TestGetSubstitutionServiceDependency:
+    """Tests for substitution service dependency."""
+
+    @pytest.mark.asyncio
+    async def test_returns_service_from_app_state(self) -> None:
+        """Should return service from app state."""
+        mock_request = MagicMock()
+        mock_service = MagicMock()
+        mock_request.app.state.substitution_service = mock_service
+
+        result = await get_substitution_service(mock_request)
+
+        assert result is mock_service
+
+    @pytest.mark.asyncio
+    async def test_raises_503_when_service_not_available(self) -> None:
+        """Should raise 503 when substitution service not in app state."""
+        mock_request = MagicMock()
+        mock_request.app.state.substitution_service = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_substitution_service(mock_request)
+
+        assert exc_info.value.status_code == 503
+        assert "Substitution service not available" in exc_info.value.detail

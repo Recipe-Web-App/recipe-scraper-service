@@ -779,3 +779,463 @@ class TestGetLLMClient:
 
         with pytest.raises(RuntimeError, match="LLM client not initialized"):
             get_llm_client()
+
+
+# =============================================================================
+# Service Initialization Failure Tests
+# =============================================================================
+
+
+class TestServiceInitializationFailures:
+    """Tests for service initialization failure handling."""
+
+    @pytest.mark.asyncio
+    async def test_nutrition_service_failure_continues(self) -> None:
+        """Should continue startup when NutritionService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.NutritionService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.nutrition_service is None
+
+    @pytest.mark.asyncio
+    async def test_allergen_service_failure_continues(self) -> None:
+        """Should continue startup when AllergenService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch(
+                "app.core.events.lifespan.AllergenService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.allergen_service is None
+
+    @pytest.mark.asyncio
+    async def test_shopping_service_failure_continues(self) -> None:
+        """Should continue startup when ShoppingService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch(
+                "app.core.events.lifespan.ShoppingService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.shopping_service is None
+
+    @pytest.mark.asyncio
+    async def test_substitution_service_failure_continues(self) -> None:
+        """Should continue startup when SubstitutionService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+        mock_llm_client = MagicMock()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch(
+                "app.core.events.lifespan.get_llm_client", return_value=mock_llm_client
+            ),
+            patch(
+                "app.core.events.lifespan.SubstitutionService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.substitution_service is None
+
+    @pytest.mark.asyncio
+    async def test_pairings_service_failure_continues(self) -> None:
+        """Should continue startup when PairingsService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+        mock_llm_client = MagicMock()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch("app.core.events.lifespan.SubstitutionService"),
+            patch(
+                "app.core.events.lifespan.get_llm_client", return_value=mock_llm_client
+            ),
+            patch(
+                "app.core.events.lifespan.PairingsService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.pairings_service is None
+
+    @pytest.mark.asyncio
+    async def test_scraper_service_failure_continues(self) -> None:
+        """Should continue startup when RecipeScraperService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch("app.core.events.lifespan.SubstitutionService"),
+            patch("app.core.events.lifespan.PairingsService"),
+            patch(
+                "app.core.events.lifespan.RecipeScraperService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.scraper_service is None
+
+    @pytest.mark.asyncio
+    async def test_recipe_management_client_failure_continues(self) -> None:
+        """Should continue startup when RecipeManagementClient fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch("app.core.events.lifespan.SubstitutionService"),
+            patch("app.core.events.lifespan.PairingsService"),
+            patch("app.core.events.lifespan.RecipeScraperService"),
+            patch("app.core.events.lifespan.PopularRecipesService"),
+            patch(
+                "app.core.events.lifespan.RecipeManagementClient",
+                side_effect=Exception("Client init failed"),
+            ),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.recipe_management_client is None
+
+
+# =============================================================================
+# Popular Recipes Service Initialization Tests
+# =============================================================================
+
+
+class TestPopularRecipesServiceInitialization:
+    """Tests for PopularRecipesService initialization."""
+
+    @pytest.mark.asyncio
+    async def test_popular_recipes_disabled_by_config(self) -> None:
+        """Should skip initialization when popular recipes is disabled."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+        mock_settings.scraping.popular_recipes.enabled = False
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch("app.core.events.lifespan.SubstitutionService"),
+            patch("app.core.events.lifespan.PairingsService"),
+            patch("app.core.events.lifespan.RecipeScraperService"),
+            patch(
+                "app.core.events.lifespan.PopularRecipesService"
+            ) as mock_popular_service,
+            patch("app.core.events.lifespan.RecipeManagementClient"),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                # Service should not be created
+                mock_popular_service.assert_not_called()
+                assert mock_app.state.popular_recipes_service is None
+
+    @pytest.mark.asyncio
+    async def test_popular_recipes_service_failure_continues(self) -> None:
+        """Should continue startup when PopularRecipesService fails to initialize."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+        mock_settings.scraping.popular_recipes.enabled = True
+        mock_settings.scraping.popular_recipes.use_llm_extraction = False
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch("app.core.events.lifespan.SubstitutionService"),
+            patch("app.core.events.lifespan.PairingsService"),
+            patch("app.core.events.lifespan.RecipeScraperService"),
+            patch(
+                "app.core.events.lifespan.PopularRecipesService",
+                side_effect=Exception("Service init failed"),
+            ),
+            patch("app.core.events.lifespan.RecipeManagementClient"),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                assert mock_app.state.popular_recipes_service is None
+
+
+# =============================================================================
+# Service Shutdown Tests
+# =============================================================================
+
+
+class TestServiceShutdown:
+    """Tests for service shutdown."""
+
+    @pytest.mark.asyncio
+    async def test_shutdown_substitution_service(self) -> None:
+        """Should shutdown substitution service when it exists."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        # Create mock substitution service that will be set during startup
+        mock_substitution_service = MagicMock()
+        mock_substitution_service.initialize = AsyncMock()
+        mock_substitution_service.shutdown = AsyncMock()
+
+        mock_llm_client = MagicMock()
+
+        def mock_substitution_service_factory(*args, **kwargs):
+            return mock_substitution_service
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch(
+                "app.core.events.lifespan.get_llm_client", return_value=mock_llm_client
+            ),
+            patch(
+                "app.core.events.lifespan.SubstitutionService",
+                side_effect=mock_substitution_service_factory,
+            ),
+            patch("app.core.events.lifespan.PairingsService"),
+            patch("app.core.events.lifespan.RecipeScraperService"),
+            patch("app.core.events.lifespan.PopularRecipesService"),
+            patch("app.core.events.lifespan.RecipeManagementClient"),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                pass
+
+            mock_substitution_service.shutdown.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_pairings_service(self) -> None:
+        """Should shutdown pairings service when it exists."""
+        mock_app = MagicMock()
+        mock_settings = _create_mock_settings()
+
+        # Create mock pairings service that will be set during startup
+        mock_pairings_service = MagicMock()
+        mock_pairings_service.initialize = AsyncMock()
+        mock_pairings_service.shutdown = AsyncMock()
+
+        mock_llm_client = MagicMock()
+
+        def mock_pairings_service_factory(*args, **kwargs):
+            return mock_pairings_service
+
+        with (
+            patch("app.core.events.lifespan.get_settings", return_value=mock_settings),
+            patch("app.core.events.lifespan.setup_logging"),
+            patch("app.core.events.lifespan.init_redis_pools", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.get_cache_client", new_callable=AsyncMock),
+            patch(
+                "app.core.events.lifespan.initialize_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.events.lifespan.shutdown_auth_provider",
+                new_callable=AsyncMock,
+            ),
+            patch("app.core.events.lifespan.NutritionService"),
+            patch("app.core.events.lifespan.AllergenService"),
+            patch("app.core.events.lifespan.ShoppingService"),
+            patch("app.core.events.lifespan.SubstitutionService"),
+            patch(
+                "app.core.events.lifespan.get_llm_client", return_value=mock_llm_client
+            ),
+            patch(
+                "app.core.events.lifespan.PairingsService",
+                side_effect=mock_pairings_service_factory,
+            ),
+            patch("app.core.events.lifespan.RecipeScraperService"),
+            patch("app.core.events.lifespan.PopularRecipesService"),
+            patch("app.core.events.lifespan.RecipeManagementClient"),
+            patch("app.core.events.lifespan.shutdown_tracing"),
+            patch("app.core.events.lifespan.close_arq_pool", new_callable=AsyncMock),
+            patch("app.core.events.lifespan.close_redis_pools", new_callable=AsyncMock),
+        ):
+            async with lifespan(mock_app):
+                pass
+
+            mock_pairings_service.shutdown.assert_called_once()

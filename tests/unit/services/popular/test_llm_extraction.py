@@ -590,6 +590,20 @@ class TestRecipeLinkExtractionPrompt:
 
         assert "https://recipes.example.com" in result
 
+    def test_format_raises_on_missing_html_content(self) -> None:
+        """Should raise ValueError when html_content is missing."""
+        prompt = RecipeLinkExtractionPrompt()
+
+        with pytest.raises(ValueError, match="Missing required 'html_content'"):
+            prompt.format(base_url="https://example.com")
+
+    def test_format_raises_on_missing_base_url(self) -> None:
+        """Should raise ValueError when base_url is missing."""
+        prompt = RecipeLinkExtractionPrompt()
+
+        with pytest.raises(ValueError, match="Missing required 'base_url'"):
+            prompt.format(html_content="<html></html>")
+
     def test_output_schema_is_extracted_recipe_link_list(self) -> None:
         """Should use ExtractedRecipeLinkList as output schema."""
         prompt = RecipeLinkExtractionPrompt()
@@ -736,3 +750,400 @@ class TestCleanLinkText:
         """Should match rating/review patterns case-insensitively."""
         result = extractor._clean_link_text("Taco Soup500RATINGS")
         assert result == "Taco Soup"
+
+
+# =============================================================================
+# Additional Helper Method Tests
+# =============================================================================
+
+
+class TestChunkLinks:
+    """Tests for _chunk_links method."""
+
+    def test_creates_multiple_chunks(self, mock_llm_client: MagicMock) -> None:
+        """Should split links into multiple chunks based on chunk_size."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            max_html_chars=10000,
+            min_confidence=0.5,
+            chunk_size=3,
+        )
+
+        links = [f'<a href="/recipe/{i}">Recipe {i}</a>' for i in range(10)]
+        chunks = extractor._chunk_links(links)
+
+        # 10 links with chunk_size=3 should yield 4 chunks (3,3,3,1)
+        assert len(chunks) == 4
+
+    def test_truncates_chunks_exceeding_max_chars(
+        self, mock_llm_client: MagicMock
+    ) -> None:
+        """Should truncate chunks that exceed max_html_chars."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            max_html_chars=50,
+            min_confidence=0.5,
+            chunk_size=50,
+        )
+
+        links = [
+            '<a href="/recipe/long-url">Very Long Recipe Name</a>' for _ in range(10)
+        ]
+        chunks = extractor._chunk_links(links)
+
+        # Each chunk should be truncated
+        for chunk in chunks:
+            assert len(chunk) <= 50 + len("\n<!-- truncated -->")
+            if len(chunk) > 50:
+                assert "<!-- truncated -->" in chunk
+
+    def test_handles_empty_list(self, extractor: RecipeLinkExtractor) -> None:
+        """Should return empty list for empty input."""
+        chunks = extractor._chunk_links([])
+
+        assert chunks == []
+
+    def test_respects_chunk_size(self, mock_llm_client: MagicMock) -> None:
+        """Should respect the chunk_size parameter."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            max_html_chars=10000,
+            min_confidence=0.5,
+            chunk_size=5,
+        )
+
+        links = [f'<a href="/r/{i}">R{i}</a>' for i in range(5)]
+        chunks = extractor._chunk_links(links)
+
+        # 5 links with chunk_size=5 should yield exactly 1 chunk
+        assert len(chunks) == 1
+
+
+class TestIsCategoryUrl:
+    """Tests for _is_category_url method."""
+
+    def test_matches_everyday_cooking_pattern(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should identify everyday-cooking URLs as category pages."""
+        assert (
+            extractor._is_category_url(
+                "https://example.com/everyday-cooking/weeknight-dinners/"
+            )
+            is True
+        )
+
+    def test_matches_holidays_and_events_pattern(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should identify holidays-and-events URLs as category pages."""
+        assert (
+            extractor._is_category_url(
+                "https://example.com/holidays-and-events/christmas/"
+            )
+            is True
+        )
+
+    def test_matches_family_friendly_pattern(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should identify family-friendly URLs as category pages."""
+        assert (
+            extractor._is_category_url("https://example.com/family-friendly/") is True
+        )
+
+    def test_returns_false_for_recipe_url(self, extractor: RecipeLinkExtractor) -> None:
+        """Should return False for individual recipe URLs."""
+        assert (
+            extractor._is_category_url("https://example.com/recipes/chocolate-cake")
+            is False
+        )
+
+    def test_case_insensitive(self, extractor: RecipeLinkExtractor) -> None:
+        """Should match patterns case-insensitively."""
+        assert (
+            extractor._is_category_url("https://example.com/EVERYDAY-COOKING/recipes/")
+            is True
+        )
+
+
+class TestExtractNameFromUrl:
+    """Tests for _extract_name_from_url method."""
+
+    def test_extracts_from_slug(self, extractor: RecipeLinkExtractor) -> None:
+        """Should extract recipe name from URL slug."""
+        result = extractor._extract_name_from_url(
+            "https://example.com/recipes/creamy-white-chili/"
+        )
+        assert result == "Creamy White Chili"
+
+    def test_converts_hyphens_to_spaces(self, extractor: RecipeLinkExtractor) -> None:
+        """Should convert hyphens to spaces."""
+        result = extractor._extract_name_from_url(
+            "https://example.com/recipes/chicken-noodle-soup"
+        )
+        assert result == "Chicken Noodle Soup"
+
+    def test_converts_underscores_to_spaces(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should convert underscores to spaces."""
+        result = extractor._extract_name_from_url(
+            "https://example.com/recipes/best_chocolate_cake"
+        )
+        assert result == "Best Chocolate Cake"
+
+    def test_returns_empty_for_no_path(self, extractor: RecipeLinkExtractor) -> None:
+        """Should return empty string when URL has no path."""
+        result = extractor._extract_name_from_url("https://example.com/")
+        assert result == ""
+
+    def test_returns_empty_for_no_slug(self, extractor: RecipeLinkExtractor) -> None:
+        """Should return empty string when path has no slug."""
+        result = extractor._extract_name_from_url("https://example.com")
+        assert result == ""
+
+
+class TestFilterResultsFromListAdvanced:
+    """Advanced tests for _filter_results_from_list method."""
+
+    def test_filters_category_urls(self, extractor: RecipeLinkExtractor) -> None:
+        """Should filter out category page URLs."""
+        links = [
+            ExtractedRecipeLink(
+                recipe_name="Holiday Recipes",
+                url="/holidays-and-events/christmas/",
+                confidence=1.0,
+            ),
+            ExtractedRecipeLink(
+                recipe_name="Actual Recipe",
+                url="/recipes/chicken-pot-pie",
+                confidence=1.0,
+            ),
+        ]
+
+        result = extractor._filter_results_from_list(links, "https://example.com")
+
+        assert len(result) == 1
+        assert result[0][0] == "Actual Recipe"
+
+    def test_replaces_generic_link_text_with_url_name(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should replace generic text like 'Get Recipe' with URL-derived name."""
+        links = [
+            ExtractedRecipeLink(
+                recipe_name="Get Recipe",
+                url="/recipes/amazing-beef-stew",
+                confidence=1.0,
+            ),
+        ]
+
+        result = extractor._filter_results_from_list(links, "https://example.com")
+
+        assert len(result) == 1
+        assert result[0][0] == "Amazing Beef Stew"
+
+    def test_skips_generic_text_when_no_url_name(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should skip links with generic text and no extractable URL name."""
+        links = [
+            ExtractedRecipeLink(
+                recipe_name="View Recipe",
+                url="https://example.com/",  # No slug to extract
+                confidence=1.0,
+            ),
+        ]
+
+        result = extractor._filter_results_from_list(links, "https://example.com")
+
+        assert len(result) == 0
+
+    def test_skips_links_with_short_names_after_processing(
+        self, extractor: RecipeLinkExtractor
+    ) -> None:
+        """Should skip links where name becomes too short after cleaning."""
+        links = [
+            ExtractedRecipeLink(
+                recipe_name="  AB  ",  # Only 2 chars after strip
+                url="/recipes/test",
+                confidence=1.0,
+            ),
+        ]
+
+        result = extractor._filter_results_from_list(links, "https://example.com")
+
+        assert len(result) == 0
+
+
+class TestProcessChunkDictHandling:
+    """Tests for _process_chunk dict vs Pydantic model handling."""
+
+    @pytest.mark.asyncio
+    async def test_handles_dict_result_from_cache(
+        self, mock_llm_client: MagicMock
+    ) -> None:
+        """Should handle dict result (from cache) and convert to Pydantic."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            use_llm=True,
+            max_html_chars=8000,
+            min_confidence=0.5,
+        )
+
+        # Simulate cached result returned as dict
+        mock_llm_client.generate_structured.return_value = {
+            "recipe_links": [
+                {
+                    "recipe_name": "Cached Recipe",
+                    "url": "/recipes/cached",
+                    "confidence": 0.9,
+                }
+            ]
+        }
+
+        result = await extractor._process_chunk(
+            '<a href="/test">Test</a>',
+            "https://example.com",
+            "test",
+            batch_num=1,
+        )
+
+        assert isinstance(result, ExtractedRecipeLinkList)
+        assert len(result.recipe_links) == 1
+        assert result.recipe_links[0].recipe_name == "Cached Recipe"
+
+    @pytest.mark.asyncio
+    async def test_handles_pydantic_model_result(
+        self, mock_llm_client: MagicMock
+    ) -> None:
+        """Should handle Pydantic model result directly."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            use_llm=True,
+            max_html_chars=8000,
+            min_confidence=0.5,
+        )
+
+        # Fresh result returned as Pydantic model
+        mock_llm_client.generate_structured.return_value = ExtractedRecipeLinkList(
+            recipe_links=[
+                ExtractedRecipeLink(
+                    recipe_name="Fresh Recipe",
+                    url="/recipes/fresh",
+                    confidence=0.95,
+                )
+            ]
+        )
+
+        result = await extractor._process_chunk(
+            '<a href="/test">Test</a>',
+            "https://example.com",
+            "test",
+            batch_num=1,
+        )
+
+        assert isinstance(result, ExtractedRecipeLinkList)
+        assert result.recipe_links[0].recipe_name == "Fresh Recipe"
+
+    @pytest.mark.asyncio
+    async def test_raises_on_llm_client_none(self) -> None:
+        """Should raise when LLM client is None during _process_chunk."""
+        extractor = RecipeLinkExtractor(
+            llm_client=None,
+            use_llm=True,
+            max_html_chars=8000,
+            min_confidence=0.5,
+        )
+
+        with pytest.raises(LLMUnavailableError):
+            await extractor._process_chunk(
+                '<a href="/test">Test</a>',
+                "https://example.com",
+                "test",
+                batch_num=1,
+            )
+
+
+class TestBatchFailureHandling:
+    """Tests for batch failure handling in _extract_with_llm."""
+
+    @pytest.mark.asyncio
+    async def test_returns_partial_results_on_some_batch_failures(
+        self, mock_llm_client: MagicMock
+    ) -> None:
+        """Should return partial results when some batches fail."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            use_llm=True,
+            max_html_chars=8000,
+            min_confidence=0.5,
+            chunk_size=2,
+        )
+
+        # First call succeeds, second fails
+        mock_llm_client.generate_structured.side_effect = [
+            ExtractedRecipeLinkList(
+                recipe_links=[
+                    ExtractedRecipeLink(
+                        recipe_name="Success Recipe",
+                        url="/recipes/success",
+                        confidence=1.0,
+                    )
+                ]
+            ),
+            LLMTimeoutError("Timeout"),
+        ]
+
+        html = """
+        <html>
+        <article class="recipe-card">
+            <a href="/recipes/1">Recipe One Name</a>
+        </article>
+        <article class="recipe-card">
+            <a href="/recipes/2">Recipe Two Name</a>
+        </article>
+        <article class="recipe-card">
+            <a href="/recipes/3">Recipe Three Name</a>
+        </article>
+        </html>
+        """
+
+        links = await extractor.extract(html, "https://example.com", "test")
+
+        # Should get results from successful batch
+        assert len(links) >= 1
+        assert any("Success Recipe" in name for name, _ in links)
+
+    @pytest.mark.asyncio
+    async def test_raises_unavailable_when_all_batches_fail(
+        self, mock_llm_client: MagicMock
+    ) -> None:
+        """Should fall back to regex when all LLM batches fail."""
+        extractor = RecipeLinkExtractor(
+            llm_client=mock_llm_client,
+            use_llm=True,
+            max_html_chars=8000,
+            min_confidence=0.5,
+            chunk_size=2,
+        )
+
+        # All batches fail
+        mock_llm_client.generate_structured.side_effect = LLMTimeoutError(
+            "All batches timeout"
+        )
+
+        html = """
+        <html>
+        <article class="recipe-card">
+            <a href="/recipes/1">Recipe One Name</a>
+        </article>
+        </html>
+        """
+
+        # Should not raise - falls back to regex
+        links = await extractor.extract(html, "https://example.com", "test")
+
+        # Should return list (from regex fallback)
+        assert isinstance(links, list)

@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, MagicMock
 import orjson
 import pytest
 
-from app.llm.exceptions import LLMTimeoutError, LLMUnavailableError, LLMValidationError
+from app.llm.exceptions import (
+    LLMRateLimitError,
+    LLMTimeoutError,
+    LLMUnavailableError,
+    LLMValidationError,
+)
 from app.llm.prompts.pairings import PairingListResult, PairingResult
 from app.services.pairings.constants import PAIRINGS_CACHE_TTL_SECONDS
 from app.services.pairings.exceptions import LLMGenerationError
@@ -105,6 +110,55 @@ class TestPairingsServiceLifecycle:
         await service.initialize()
 
         assert service._initialized is True
+
+        await service.shutdown()
+
+    async def test_initialize_without_cache_client(
+        self,
+        mock_llm_client: MagicMock,
+    ) -> None:
+        """Should try to get cache client if not provided."""
+        from unittest.mock import patch
+
+        mock_cache = MagicMock()
+        service = PairingsService(
+            cache_client=None,  # No cache client
+            llm_client=mock_llm_client,
+        )
+
+        with patch(
+            "app.services.pairings.service.get_cache_client",
+            return_value=mock_cache,
+        ):
+            await service.initialize()
+
+        assert service._initialized is True
+        assert service._cache_client is mock_cache
+
+        await service.shutdown()
+
+    async def test_initialize_cache_unavailable_logs_warning(
+        self,
+        mock_llm_client: MagicMock,
+    ) -> None:
+        """Should log warning when cache unavailable."""
+        from unittest.mock import patch
+
+        service = PairingsService(
+            cache_client=None,
+            llm_client=mock_llm_client,
+        )
+
+        with patch(
+            "app.services.pairings.service.get_cache_client",
+            side_effect=RuntimeError("Redis not available"),
+        ):
+            await service.initialize()
+
+        # Should still initialize
+        assert service._initialized is True
+        # Cache should remain None
+        assert service._cache_client is None
 
         await service.shutdown()
 
@@ -263,9 +317,120 @@ class TestGetPairings:
 
         await service.shutdown()
 
+    async def test_returns_none_when_generation_returns_none(
+        self,
+        service: PairingsService,
+        mock_cache_client: MagicMock,
+        sample_recipe_context: RecipeContext,
+    ) -> None:
+        """Should return None when pairing generation returns None."""
+        from unittest.mock import patch
+
+        await service.initialize()
+
+        mock_cache_client.get.return_value = None
+
+        # Mock _generate_pairings to return None
+        with patch.object(service, "_generate_pairings", return_value=None):
+            result = await service.get_pairings(sample_recipe_context)
+
+        assert result is None
+        await service.shutdown()
+
+
+class TestGeneratePairings:
+    """Tests for _generate_pairings internal method."""
+
+    async def test_returns_none_when_llm_not_available(
+        self,
+        mock_cache_client: MagicMock,
+        sample_recipe_context: RecipeContext,
+    ) -> None:
+        """Should return None if LLM client not available."""
+        service = PairingsService(
+            cache_client=mock_cache_client,
+            llm_client=None,  # No LLM client
+        )
+        await service.initialize()
+
+        result = await service._generate_pairings(sample_recipe_context)
+
+        assert result is None
+        await service.shutdown()
+
+    async def test_handles_dict_result_from_cached_llm(
+        self,
+        service: PairingsService,
+        mock_llm_client: MagicMock,
+        sample_recipe_context: RecipeContext,
+    ) -> None:
+        """Should handle dict result (from LLM cache) and convert to Pydantic."""
+        await service.initialize()
+
+        # LLM returns dict instead of Pydantic model (cached result)
+        dict_result = {
+            "pairings": [
+                {
+                    "recipe_name": "Test Recipe",
+                    "url": "https://example.com/recipe",
+                    "pairing_reason": "Good pairing",
+                    "cuisine_type": "American",
+                    "confidence": 0.9,
+                }
+            ]
+        }
+        mock_llm_client.generate_structured.return_value = dict_result
+
+        result = await service._generate_pairings(sample_recipe_context)
+
+        assert result is not None
+        assert isinstance(result, PairingListResult)
+        assert len(result.pairings) == 1
+        await service.shutdown()
+
 
 class TestErrorHandling:
     """Tests for error handling."""
+
+    async def test_raises_llm_generation_error_on_rate_limit(
+        self,
+        service: PairingsService,
+        mock_cache_client: MagicMock,
+        mock_llm_client: MagicMock,
+        sample_recipe_context: RecipeContext,
+    ) -> None:
+        """Should raise LLMGenerationError on rate limit."""
+        await service.initialize()
+
+        mock_cache_client.get.return_value = None
+        mock_llm_client.generate_structured.side_effect = LLMRateLimitError(
+            "Rate limited"
+        )
+
+        with pytest.raises(LLMGenerationError) as exc_info:
+            await service.get_pairings(sample_recipe_context)
+
+        assert "rate limit" in str(exc_info.value).lower()
+        await service.shutdown()
+
+    async def test_raises_llm_generation_error_on_generic_exception(
+        self,
+        service: PairingsService,
+        mock_cache_client: MagicMock,
+        mock_llm_client: MagicMock,
+        sample_recipe_context: RecipeContext,
+    ) -> None:
+        """Should raise LLMGenerationError on generic exception."""
+        await service.initialize()
+
+        mock_cache_client.get.return_value = None
+        mock_llm_client.generate_structured.side_effect = Exception("Something broke")
+
+        with pytest.raises(LLMGenerationError) as exc_info:
+            await service.get_pairings(sample_recipe_context)
+
+        assert "unexpected" in str(exc_info.value).lower()
+        await service.shutdown()
 
     async def test_raises_llm_generation_error_on_timeout(
         self,
@@ -376,6 +541,38 @@ class TestErrorHandling:
         assert result is not None
 
         await service.shutdown()
+
+
+class TestCacheOperations:
+    """Tests for cache operation edge cases."""
+
+    async def test_get_from_cache_returns_none_when_no_cache_client(
+        self,
+        mock_llm_client: MagicMock,
+    ) -> None:
+        """Should return None when cache client is None."""
+        service = PairingsService(
+            cache_client=None,
+            llm_client=mock_llm_client,
+        )
+
+        result = await service._get_from_cache(123)
+
+        assert result is None
+
+    async def test_save_to_cache_does_nothing_when_no_cache_client(
+        self,
+        mock_llm_client: MagicMock,
+        sample_pairing_result: PairingListResult,
+    ) -> None:
+        """Should not error when cache client is None."""
+        service = PairingsService(
+            cache_client=None,
+            llm_client=mock_llm_client,
+        )
+
+        # Should not raise
+        await service._save_to_cache(123, sample_pairing_result)
 
 
 class TestCacheKeyGeneration:

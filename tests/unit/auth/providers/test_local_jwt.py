@@ -11,6 +11,9 @@ from app.auth.providers.exceptions import TokenExpiredError, TokenInvalidError
 from app.auth.providers.local_jwt import LocalJWTAuthProvider
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestLocalJWTAuthProvider:
     """Tests for LocalJWTAuthProvider."""
 
@@ -232,3 +235,160 @@ class TestLocalJWTAuthProvider:
 
         result = await provider.validate_token(token)
         assert result.roles == []
+
+    @pytest.mark.asyncio
+    async def test_parses_string_audience_from_token(self, secret_key: str) -> None:
+        """Should parse audience as string and convert to list."""
+        # Provider without audience validation - tests the parsing of aud from payload
+        provider = LocalJWTAuthProvider(
+            secret_key=secret_key,
+            algorithm="HS256",
+        )
+
+        now = datetime.now(UTC)
+        payload = {
+            "sub": "test-user",
+            "exp": now + timedelta(hours=1),
+            "iat": now,
+            "type": "access",
+            # No aud - tests the else branch (aud is None, audience_list stays [])
+        }
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
+
+        result = await provider.validate_token(token)
+        assert result.user_id == "test-user"
+        assert result.audience == []
+
+    @pytest.mark.asyncio
+    async def test_handles_single_audience_in_token(self, secret_key: str) -> None:
+        """Should handle single audience string in token payload."""
+        from unittest.mock import patch
+
+        provider = LocalJWTAuthProvider(
+            secret_key=secret_key,
+            algorithm="HS256",
+        )
+
+        now = datetime.now(UTC)
+        # Mock jwt.decode to return a payload with string aud
+        mock_payload = {
+            "sub": "test-user",
+            "exp": int((now + timedelta(hours=1)).timestamp()),
+            "iat": int(now.timestamp()),
+            "type": "access",
+            "aud": "api-service",
+        }
+
+        with patch(
+            "app.auth.providers.local_jwt.jwt.decode", return_value=mock_payload
+        ):
+            result = await provider.validate_token("mock-token")
+
+        assert result.user_id == "test-user"
+        assert result.audience == ["api-service"]
+
+    @pytest.mark.asyncio
+    async def test_handles_list_audience_in_token(self, secret_key: str) -> None:
+        """Should handle list audience in token payload."""
+        from unittest.mock import patch
+
+        provider = LocalJWTAuthProvider(
+            secret_key=secret_key,
+            algorithm="HS256",
+        )
+
+        now = datetime.now(UTC)
+        # Mock jwt.decode to return a payload with list aud
+        mock_payload = {
+            "sub": "test-user",
+            "exp": int((now + timedelta(hours=1)).timestamp()),
+            "iat": int(now.timestamp()),
+            "type": "access",
+            "aud": ["api-service", "web-app"],
+        }
+
+        with patch(
+            "app.auth.providers.local_jwt.jwt.decode", return_value=mock_payload
+        ):
+            result = await provider.validate_token("mock-token")
+
+        assert result.user_id == "test-user"
+        assert result.audience == ["api-service", "web-app"]
+
+    @pytest.mark.asyncio
+    async def test_initialize_raises_without_secret(self) -> None:
+        """Should raise TokenInvalidError when secret key is empty."""
+        provider = LocalJWTAuthProvider(
+            secret_key="",
+            algorithm="HS256",
+        )
+
+        with pytest.raises(TokenInvalidError, match="JWT secret key is not configured"):
+            await provider.initialize()
+
+    @pytest.mark.asyncio
+    async def test_accepts_api_key_token_type(self, secret_key: str) -> None:
+        """Should accept 'api_key' as a valid token type."""
+        provider = LocalJWTAuthProvider(secret_key=secret_key)
+
+        now = datetime.now(UTC)
+        payload = {
+            "sub": "api-client-123",
+            "exp": now + timedelta(hours=1),
+            "iat": now,
+            "type": "api_key",
+        }
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
+
+        result = await provider.validate_token(token)
+        assert result.user_id == "api-client-123"
+        assert result.token_type == "api_key"
+
+    @pytest.mark.asyncio
+    async def test_defaults_to_access_token_type(self, secret_key: str) -> None:
+        """Should default to 'access' token type when not specified."""
+        provider = LocalJWTAuthProvider(secret_key=secret_key)
+
+        now = datetime.now(UTC)
+        payload = {
+            "sub": "test-user",
+            "exp": now + timedelta(hours=1),
+            "iat": now,
+            # No "type" claim
+        }
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
+
+        result = await provider.validate_token(token)
+        assert result.token_type == "access"
+
+    @pytest.mark.asyncio
+    async def test_passes_audience_to_jwt_decode(self, secret_key: str) -> None:
+        """Should pass audience to jwt.decode when configured."""
+        from unittest.mock import patch
+
+        provider = LocalJWTAuthProvider(
+            secret_key=secret_key,
+            algorithm="HS256",
+            audience=["api-service"],
+        )
+
+        now = datetime.now(UTC)
+        mock_payload = {
+            "sub": "test-user",
+            "exp": int((now + timedelta(hours=1)).timestamp()),
+            "iat": int(now.timestamp()),
+            "type": "access",
+            "aud": "api-service",
+        }
+
+        with patch(
+            "app.auth.providers.local_jwt.jwt.decode", return_value=mock_payload
+        ) as mock_decode:
+            result = await provider.validate_token("mock-token")
+
+            # Verify that audience was passed to jwt.decode
+            mock_decode.assert_called_once()
+            call_kwargs = mock_decode.call_args.kwargs
+            assert call_kwargs.get("audience") == ["api-service"]
+
+        assert result.user_id == "test-user"

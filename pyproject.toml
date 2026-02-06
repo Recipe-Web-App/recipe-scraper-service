@@ -207,7 +207,16 @@ fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101", "S105", "S106", "ANN", "ARG", "PLR2004", "SLF001"]
+"tests/**/*" = [
+  "S101",
+  "S105",
+  "S106",
+  "ANN",
+  "ARG",
+  "PLR2004",
+  "SLF001",
+  "PLC0415",
+]
 "scripts/**/*" = ["T20", "S603", "S607"]
 "src/app/core/config/*.py" = [
   "N802", # Pydantic computed fields use UPPER_CASE
@@ -372,7 +381,7 @@ exclude_lines = [
 ]
 fail_under = 90
 show_missing = true
-skip_covered = false
+skip_covered = true
 
 # =============================================================================
 # bandit - Security Linting

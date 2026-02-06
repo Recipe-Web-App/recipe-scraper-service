@@ -42,9 +42,11 @@ def run_all() -> int:
 
 
 def run_coverage() -> int:
-    """Run tests with coverage report."""
+    """Run unit tests with coverage report."""
     return pytest.main(
         [
+            "-m",
+            "unit",
             "--cov=app",
             "--cov-report=term-missing",
             "--cov-report=html",

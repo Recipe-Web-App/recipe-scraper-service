@@ -231,6 +231,94 @@ class TestUnitTypeChecks:
         assert converter.is_count_unit(IngredientUnit.CUP) is False
 
 
+class TestConversionErrors:
+    """Tests for conversion error handling."""
+
+    async def test_unknown_weight_unit_raises_error(
+        self,
+        converter: UnitConverter,
+    ) -> None:
+        """Should raise ConversionError for unknown weight unit."""
+        from unittest.mock import patch
+
+        from app.services.nutrition.exceptions import ConversionError
+
+        # Patch PINT_UNIT_MAP to return None for a weight unit
+        with (
+            patch(
+                "app.services.nutrition.converter.PINT_UNIT_MAP",
+                {IngredientUnit.G: "gram"},  # Missing KG
+            ),
+            patch(
+                "app.services.nutrition.converter.WEIGHT_UNITS",
+                {IngredientUnit.G, IngredientUnit.KG},
+            ),
+        ):
+            quantity = Quantity(amount=1, measurement=IngredientUnit.KG)
+            with pytest.raises(ConversionError, match="Unknown weight unit"):
+                await converter.to_grams(quantity, "flour")
+
+    async def test_pint_weight_conversion_failure(
+        self,
+        converter: UnitConverter,
+    ) -> None:
+        """Should raise ConversionError when Pint fails for weight."""
+        from unittest.mock import patch
+
+        from app.services.nutrition.exceptions import ConversionError
+
+        # Patch _ureg to raise an exception
+        with patch(
+            "app.services.nutrition.converter._ureg",
+            side_effect=Exception("Pint error"),
+        ):
+            quantity = Quantity(amount=1, measurement=IngredientUnit.G)
+            with pytest.raises(ConversionError, match="Pint conversion failed"):
+                await converter.to_grams(quantity, "flour")
+
+    async def test_unknown_volume_unit_raises_error(
+        self,
+        converter: UnitConverter,
+    ) -> None:
+        """Should raise ConversionError for unknown volume unit."""
+        from unittest.mock import patch
+
+        from app.services.nutrition.exceptions import ConversionError
+
+        # Patch PINT_UNIT_MAP to return None for a volume unit
+        with (
+            patch(
+                "app.services.nutrition.converter.PINT_UNIT_MAP",
+                {IngredientUnit.ML: "milliliter"},  # Missing CUP
+            ),
+            patch(
+                "app.services.nutrition.converter.VOLUME_UNITS",
+                {IngredientUnit.ML, IngredientUnit.CUP},
+            ),
+        ):
+            quantity = Quantity(amount=1, measurement=IngredientUnit.CUP)
+            with pytest.raises(ConversionError, match="Unknown volume unit"):
+                await converter.to_grams(quantity, "flour")
+
+    async def test_pint_volume_conversion_failure(
+        self,
+        converter: UnitConverter,
+    ) -> None:
+        """Should raise ConversionError when Pint fails for volume."""
+        from unittest.mock import patch
+
+        from app.services.nutrition.exceptions import ConversionError
+
+        # Patch _ureg to raise an exception
+        with patch(
+            "app.services.nutrition.converter._ureg",
+            side_effect=Exception("Pint error"),
+        ):
+            quantity = Quantity(amount=1, measurement=IngredientUnit.ML)
+            with pytest.raises(ConversionError, match="Pint conversion failed"):
+                await converter.to_grams(quantity, "water")
+
+
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
