@@ -264,7 +264,7 @@ class TestGetRecipeAllergensEndpoint:
     def mock_recipe_client(self) -> MagicMock:
         """Create mock recipe management client."""
         # Import at runtime to avoid circular imports
-        from app.services.recipe_management.schemas import (  # noqa: PLC0415
+        from app.services.recipe_management.schemas import (
             IngredientUnit,
             RecipeDetailResponse,
             RecipeIngredientResponse,

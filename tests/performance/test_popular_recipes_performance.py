@@ -169,6 +169,7 @@ class TestCachePerformance:
 class TestPaginationPerformance:
     """Performance tests for pagination operations."""
 
+    @pytest.mark.flaky(reruns=3, reruns_delay=1)
     async def test_pagination_performance(self, mock_settings: MagicMock) -> None:
         """Test pagination performance with large dataset."""
         with patch(

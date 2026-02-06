@@ -215,13 +215,13 @@ class RecipeScraperService:
 
             # Extract all available fields
             recipe = ScrapedRecipe(
-                title=scraper.title(),
+                title=scraper.title(),  # type: ignore[no-untyped-call]
                 description=self._safe_call_str_field(scraper.description),
                 servings=self._safe_call_str_field(scraper.yields),
                 prep_time=self._safe_call_int_field(scraper.prep_time),
                 cook_time=self._safe_call_int_field(scraper.cook_time),
                 total_time=self._safe_call_int_field(scraper.total_time),
-                ingredients=scraper.ingredients() or [],
+                ingredients=scraper.ingredients() or [],  # type: ignore[no-untyped-call]
                 instructions=self._parse_instructions(scraper.instructions_list()),
                 image_url=self._safe_call_str_field(scraper.image),
                 source_url=url,

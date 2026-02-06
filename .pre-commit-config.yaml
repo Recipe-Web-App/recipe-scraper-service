@@ -81,6 +81,8 @@ repos:
           - opentelemetry-exporter-otlp>=1.28.0
           - prometheus-fastapi-instrumentator>=7.0.0
           - pint>=0.24
+          - recipe-scrapers>=15.0.0
+          - arq>=0.26.1
         pass_filenames: false
         entry: mypy src
 

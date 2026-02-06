@@ -75,6 +75,7 @@ dev = [
   "pytest-xdist>=3.5.0",
   "pytest-timeout>=2.3.0",
   "pytest-benchmark>=5.1.0",
+  "pytest-rerunfailures>=14.0",
   "httpx>=0.28.0",
   "polyfactory>=2.18.0",
   "hypothesis>=6.120.0",

@@ -234,7 +234,7 @@ class WorkerSettings:
     # Cron jobs (scheduled tasks)
     cron_jobs: ClassVar[list[CronJob]] = [
         # Run cache cleanup every hour at minute 0
-        cron(cleanup_expired_cache, hour=None, minute=0),
+        cron(cleanup_expired_cache, hour=None, minute=0),  # type: ignore[arg-type]
         # Check popular recipes cache TTL every 30 minutes
         cron(check_and_refresh_popular_recipes, minute={0, 30}),
     ]
