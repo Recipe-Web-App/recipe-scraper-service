@@ -70,3 +70,4 @@ ignore:
   - "**/.venv/**"
   - "**/venv/**"
   - "**/node_modules/**"
+  - ".beads/**"
