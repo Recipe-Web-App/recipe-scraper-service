@@ -4,7 +4,7 @@
 # ==============================================================================
 # Build arguments for flexibility
 ARG PYTHON_VERSION=3.14
-ARG UV_VERSION=0.5
+ARG UV_VERSION=0.10
 
 # ==============================================================================
 # Stage 1: Base Python image with UV
